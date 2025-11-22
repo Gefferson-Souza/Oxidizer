@@ -94,10 +94,14 @@ fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
             quote! { #ident_name }
         }
         Expr::Lit(lit) => {
-            // Handle numeric literals
+            // Handle literals
             match lit {
                 Lit::Num(num) => {
                     let value = num.value;
+                    quote! { #value }
+                }
+                Lit::Str(str_lit) => {
+                    let value = str_lit.value.to_string();
                     quote! { #value }
                 }
                 _ => quote! { todo!("non-numeric literal") },
@@ -149,6 +153,30 @@ fn convert_await_expr(await_expr: &AwaitExpr) -> proc_macro2::TokenStream {
 }
 
 fn convert_call_expr(call: &CallExpr) -> proc_macro2::TokenStream {
+    // Check for axios calls (axios.get, axios.post, etc.)
+    if let Callee::Expr(expr) = &call.callee {
+        if let Expr::Member(member) = &**expr {
+            // Check if object is "axios"
+            if let Expr::Ident(obj_ident) = &*member.obj {
+                if obj_ident.sym == "axios" {
+                    // Get the HTTP method
+                    if let Some(method_ident) = member.prop.as_ident() {
+                        let method = method_ident.sym.to_string();
+                        return convert_axios_call(&method, &call.args);
+                    }
+                }
+            }
+        }
+
+        // Check for fetch calls
+        if let Expr::Ident(ident) = &**expr {
+            if ident.sym == "fetch" {
+                return convert_fetch_call(&call.args);
+            }
+        }
+    }
+
+    // Fallback to generic call conversion
     let callee = match &call.callee {
         Callee::Expr(expr) => convert_expr(expr),
         _ => quote! { unknown_callee },
@@ -157,6 +185,47 @@ fn convert_call_expr(call: &CallExpr) -> proc_macro2::TokenStream {
     let args: Vec<_> = call.args.iter().map(convert_expr_or_spread).collect();
 
     quote! { #callee(#(#args),*) }
+}
+
+fn convert_axios_call(method: &str, args: &[ExprOrSpread]) -> proc_macro2::TokenStream {
+    let method_lower = method.to_lowercase();
+    let method_ident = format_ident!("{}", method_lower);
+
+    if args.is_empty() {
+        return quote! { reqwest::Client::new().#method_ident("").send().await? };
+    }
+
+    // First argument is the URL
+    let url = convert_expr_or_spread(&args[0]);
+
+    // For POST/PUT, second argument might be data
+    if (method_lower == "post" || method_lower == "put") && args.len() > 1 {
+        let data = convert_expr_or_spread(&args[1]);
+        quote! {
+            reqwest::Client::new()
+                .#method_ident(#url)
+                .json(&#data)
+                .send()
+                .await?
+        }
+    } else {
+        // GET/DELETE or POST/PUT without body
+        quote! {
+            reqwest::Client::new()
+                .#method_ident(#url)
+                .send()
+                .await?
+        }
+    }
+}
+
+fn convert_fetch_call(args: &[ExprOrSpread]) -> proc_macro2::TokenStream {
+    if args.is_empty() {
+        return quote! { reqwest::get("").await? };
+    }
+
+    let url = convert_expr_or_spread(&args[0]);
+    quote! { reqwest::get(#url).await? }
 }
 
 fn convert_expr_or_spread(arg: &ExprOrSpread) -> proc_macro2::TokenStream {

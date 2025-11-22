@@ -40,7 +40,7 @@
     - [x] Convert `constructor` -> `pub fn new() -> Self`
     - [x] Convert `this.prop` -> `self.prop`
     - [x] Add `&self` to instance methods
-- [ ] **HTTP Client mapping** (`axios` -> `reqwest`)
+- [x] **HTTP Client mapping** (`axios` & `fetch` -> `reqwest`)
 
 ## ✅ QA & Compliance (Complete)
 - [x] **Code Quality:**
