@@ -7,8 +7,12 @@
 - [ ] CI/CD Pipeline Setup (GitHub Actions)
 
 ## 🏗️ Milestone 1: The Analyzer (Focus: "oxidizer check")
-- [ ] Implement `swc` integration to parse TypeScript to AST
-- [ ] Create Dependency Graph (Resolve `import` statements)
+- [x] **Analyzer Core:** Implement `ox_analyzer` crate
+- [x] **Linter Rules:**
+    - [x] Block `any`
+    - [x] Block `eval`
+    - [x] Block `var`
+- [x] **Refactoring:** Compliance with Guidelines (Newtype, Tracing, Tests)aph (Resolve `import` statements)
 - [ ] Implement basic Lints:
     - [ ] Ban `any` type
     - [ ] Ban `eval`

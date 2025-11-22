@@ -1,6 +1,8 @@
-use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use miette::Result;
+use ox_common::fs::FilePath;
+use std::path::PathBuf;
+use tracing;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -25,14 +27,18 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Initialize logging
+    tracing_subscriber::fmt::init();
+
     // Initialize miette
     miette::set_panic_hook();
 
     let cli = Cli::parse();
+    tracing::info!("Oxidizer CLI started");
 
     match cli.command {
         Commands::Check { path } => {
-            ox_orchestrator::check(path)?;
+            ox_orchestrator::check(FilePath::from(path))?;
         }
         Commands::Build { path } => {
             println!("Building file: {}", path);

@@ -1,12 +1,13 @@
+use ox_common::fs::FilePath;
 use ox_diagnostics::OxidizerError;
-use std::path::PathBuf;
 
-pub fn check(path: PathBuf) -> Result<(), OxidizerError> {
-    let program = ox_parser::parse(&path)?;
+pub fn check(path: FilePath) -> Result<(), OxidizerError> {
+    let program = ox_parser::parse(path.as_ref())?;
 
     // Read source code for error reporting
-    let source_code = std::fs::read_to_string(&path).map_err(OxidizerError::IoError)?;
-    let file_name = path.to_string_lossy().to_string();
+    // Read source code for error reporting
+    let source_code = std::fs::read_to_string(path.as_ref()).map_err(OxidizerError::IoError)?;
+    let file_name = path.as_ref().to_string_lossy().to_string();
 
     let errors = ox_analyzer::Analyzer::analyze(&program, source_code, file_name);
 

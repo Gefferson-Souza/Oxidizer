@@ -1,0 +1,13 @@
+[package]
+name = "integration_tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ox_common = { path = "../crates/ox_common" }
+assert_cmd = "2.0"
+predicates = "3.0"
+
+[dev-dependencies]
+
