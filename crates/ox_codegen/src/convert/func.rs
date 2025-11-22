@@ -1,0 +1,99 @@
+use quote::{format_ident, quote};
+use swc_ecma_ast::{BinExpr, BinaryOp, Expr, FnDecl, Ident, Pat, ReturnStmt, Stmt};
+use swc_ecma_visit::Visit;
+
+use super::type_mapper::map_ts_type;
+
+impl super::interface::RustGenerator {
+    fn visit_fn_decl(&mut self, n: &FnDecl) {
+        let fn_name = to_snake_case(&n.ident.sym);
+        let fn_ident = format_ident!("{}", fn_name);
+
+        // Extract parameters
+        let mut params = Vec::new();
+        for param in &n.function.params {
+            if let Pat::Ident(ident_pat) = &param.pat {
+                let param_name = format_ident!("{}", ident_pat.sym.to_string());
+                let param_type = map_ts_type(ident_pat.type_ann.as_ref());
+                params.push(quote! { #param_name: #param_type });
+            }
+        }
+
+        // Extract return type
+        let return_type = map_ts_type(n.function.return_type.as_ref());
+
+        // Convert body
+        let mut body_stmts = Vec::new();
+        if let Some(block_stmt) = &n.function.body {
+            for stmt in &block_stmt.stmts {
+                body_stmts.push(convert_stmt(stmt));
+            }
+        }
+
+        let fn_def = quote! {
+            pub fn #fn_ident(#(#params),*) -> #return_type {
+                #(#body_stmts)*
+            }
+        };
+
+        self.code.push_str(&fn_def.to_string());
+        self.code.push('\n');
+    }
+}
+
+fn convert_stmt(stmt: &Stmt) -> proc_macro2::TokenStream {
+    match stmt {
+        Stmt::Return(ret) => convert_return_stmt(ret),
+        _ => quote! {}, // Skip other statements for now
+    }
+}
+
+fn convert_return_stmt(ret: &ReturnStmt) -> proc_macro2::TokenStream {
+    if let Some(arg) = &ret.arg {
+        let expr = convert_expr(arg);
+        quote! { return #expr; }
+    } else {
+        quote! { return; }
+    }
+}
+
+fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
+    match expr {
+        Expr::Bin(bin) => convert_bin_expr(bin),
+        Expr::Ident(ident) => {
+            let ident_name = format_ident!("{}", ident.sym.to_string());
+            quote! { #ident_name }
+        }
+        Expr::Lit(lit) => {
+            // Handle literals (numbers, strings, etc.)
+            quote! { #lit }
+        }
+        _ => quote! { todo!() },
+    }
+}
+
+fn convert_bin_expr(bin: &BinExpr) -> proc_macro2::TokenStream {
+    let left = convert_expr(&bin.left);
+    let right = convert_expr(&bin.right);
+
+    let op = match bin.op {
+        BinaryOp::Add => quote! { + },
+        BinaryOp::Sub => quote! { - },
+        BinaryOp::Mul => quote! { * },
+        BinaryOp::Div => quote! { / },
+        _ => quote! { /* unsupported op */ },
+    };
+
+    quote! { #left #op #right }
+}
+
+fn to_snake_case(s: &str) -> String {
+    let mut result = String::new();
+    for (i, ch) in s.chars().enumerate() {
+        if ch.is_uppercase() && i > 0 {
+            result.push('_');
+        }
+        result.push(ch.to_lowercase().next().unwrap());
+    }
+    result
+}

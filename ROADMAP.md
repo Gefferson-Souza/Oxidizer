@@ -19,13 +19,13 @@
     - [x] Check for `var` usage
 - [ ] Error Reporting with `miette` (Visual spans)
 
-## 🏗️ Milestone 2: The Type Transpiler (Current)
-- [ ] Convert TS `interface` -> Rust `struct`
-- [ ] Map primitive types (`string` -> `String`, `number` -> `f64`)
-- [ ] Auto-derive `Serialize, Deserialize` (Serde)
-- [ ] Output `.rs` files using `quote!`
+## 🏁 Milestone 2: The Type Transpiler (Complete)
+- [x] Convert TS `interface` -> Rust `struct`
+- [x] Map primitive types (`string` -> `String`, `number` -> `f64`)
+- [x] Auto-derive `Serialize, Deserialize` (Serde)
+- [x] Output `.rs` files using `quote!`
 
-## 🧠 Milestone 3: Logic & Functions
+## 🏗️ Milestone 3: Logic & Functions (Current)
 - [ ] Convert simple `fn` declarations
 - [ ] Basic control flow (`if`, `return`)
 - [ ] Binary expressions (Math)

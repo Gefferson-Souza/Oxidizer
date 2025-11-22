@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use miette::Result;
 use ox_common::fs::FilePath;
 use std::path::PathBuf;
-use tracing;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -27,14 +26,10 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
-    tracing_subscriber::fmt::init();
-
     // Initialize miette
     miette::set_panic_hook();
 
     let cli = Cli::parse();
-    tracing::info!("Oxidizer CLI started");
 
     match cli.command {
         Commands::Check { path } => {
@@ -46,6 +41,5 @@ async fn main() -> Result<()> {
         }
     }
 
-    println!("Hello World from Oxidizer CLI!");
     Ok(())
 }
