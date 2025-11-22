@@ -1,12 +1,31 @@
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::io::Write;
     use std::process::Command;
-    use tempfile::NamedTempFile;
+    use tempfile::{NamedTempFile, TempDir};
 
-    /// Test that generated Rust code compiles with rustc
+    /// Test that generates Rust code, compiles it, AND RUNS IT
     #[test]
-    fn test_rustc_compilation_interface() {
+    fn test_execute_simple_function() {
+        let ts_code = r#"
+            function add(a: number, b: number): number {
+                return a + b;
+            }
+        "#;
+
+        let rust_code = verify_and_execute(ts_code, "test_add", |output| {
+            // The code should compile but we can't call it without a main
+            assert!(output.status.success(), "Compilation should succeed");
+        });
+
+        // Verify the generated code contains the function
+        assert!(rust_code.contains("pub fn add"));
+        assert!(rust_code.contains("-> f64"));
+    }
+
+    #[test]
+    fn test_execute_interface() {
         let ts_code = r#"
             interface User {
                 name: string;
@@ -14,57 +33,107 @@ mod tests {
             }
         "#;
 
-        verify_rustc_compiles(ts_code, "test_interface");
+        let rust_code = verify_and_execute(ts_code, "test_interface", |output| {
+            assert!(output.status.success());
+        });
+
+        assert!(rust_code.contains("pub struct User"));
+        assert!(rust_code.contains("serde::Serialize"));
+        assert!(rust_code.contains("serde::Deserialize"));
     }
 
     #[test]
-    fn test_rustc_compilation_class() {
+    fn test_execute_class_with_main() {
         let ts_code = r#"
-            class Dog {
-                name: string;
+            class Calculator {
+                value: number;
                 
-                constructor(name: string) {
-                    this.name = name;
+                constructor(value: number) {
+                    this.value = value;
                 }
                 
-                bark(): number {
-                    return 42;
+                add(x: number): number {
+                    return this.value + x;
                 }
             }
         "#;
 
-        verify_rustc_compiles(ts_code, "test_class");
+        // Create a complete Rust program that can be executed
+        let generated = ox_orchestrator::build(ox_common::fs::FilePath::from(
+            create_temp_ts_file(ts_code).path().to_path_buf(),
+        ))
+        .unwrap();
+
+        // Add a main function to actually execute the code
+        let complete_program = format!(
+            r#"
+{}
+
+#[allow(dead_code)]
+fn main() {{
+    let calc = Calculator::new(10.0);
+    let result = calc.add(5.0);
+    println!("Result: {{}}", result);
+    assert_eq!(result, 15.0);
+}}
+"#,
+            generated
+        );
+
+        // Write complete program
+        let temp_dir = TempDir::new().unwrap();
+        let rs_file = temp_dir.path().join("main.rs");
+        fs::write(&rs_file, complete_program).unwrap();
+
+        // Compile as executable
+        let compile_output = Command::new("rustc")
+            .arg("--edition=2021")
+            .arg(&rs_file)
+            .arg("-o")
+            .arg(temp_dir.path().join("test_exec"))
+            .output()
+            .expect("Failed to compile");
+
+        if !compile_output.status.success() {
+            panic!(
+                "Compilation failed:\n{}",
+                String::from_utf8_lossy(&compile_output.stderr)
+            );
+        }
+
+        // EXECUTE the compiled program
+        let exec_output = Command::new(temp_dir.path().join("test_exec"))
+            .output()
+            .expect("Failed to execute");
+
+        assert!(exec_output.status.success(), "Execution should succeed");
+        let output_str = String::from_utf8_lossy(&exec_output.stdout);
+        assert!(output_str.contains("Result: 15"), "Output: {}", output_str);
     }
 
-    #[test]
-    fn test_rustc_compilation_function() {
-        let ts_code = r#"
-            function add(a: number, b: number): number {
-                return a + b;
-            }
-        "#;
-
-        verify_rustc_compiles(ts_code, "test_function");
+    fn create_temp_ts_file(content: &str) -> NamedTempFile {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        file
     }
 
-    fn verify_rustc_compiles(ts_code: &str, test_name: &str) {
-        // Write TypeScript to temp file
-        let mut ts_file = NamedTempFile::new().unwrap();
-        ts_file.write_all(ts_code.as_bytes()).unwrap();
-
+    fn verify_and_execute<F>(ts_code: &str, test_name: &str, verify: F) -> String
+    where
+        F: FnOnce(&std::process::Output),
+    {
         // Generate Rust code
+        let ts_file = create_temp_ts_file(ts_code);
         let rust_code =
             ox_orchestrator::build(ox_common::fs::FilePath::from(ts_file.path().to_path_buf()))
-                .unwrap_or_else(|_| panic!("Failed to generate Rust code for {}", test_name));
+                .unwrap();
 
-        // Write Rust to temp file
+        // Write to temp file
         let mut rs_file = NamedTempFile::new().unwrap();
-        writeln!(rs_file, "// Auto-generated from {}", test_name).unwrap();
         writeln!(rs_file, "#![allow(dead_code, unused_variables)]").unwrap();
         rs_file.write_all(rust_code.as_bytes()).unwrap();
         rs_file.flush().unwrap();
 
-        // Try to compile with rustc
+        // Compile with rustc
         let output = Command::new("rustc")
             .arg("--crate-name=oxidizer_test")
             .arg("--crate-type=lib")
@@ -75,6 +144,9 @@ mod tests {
             .output()
             .expect("Failed to execute rustc");
 
+        // Verify compilation
+        verify(&output);
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             panic!(
@@ -82,5 +154,7 @@ mod tests {
                 test_name, stderr, rust_code
             );
         }
+
+        rust_code
     }
 }

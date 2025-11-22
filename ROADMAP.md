@@ -57,6 +57,12 @@
     - [x] Complex E2E fixtures
 
 ## 🎯 Next Steps
-- [ ] HTTP Client mapping (`axios` -> `reqwest`)
-- [ ] Module system support
-- [ ] Advanced type features (Generics, Union types)
+- [ ] **Module System Support** (import/export transpilation)
+- [ ] **Advanced Type Features:**
+    - [ ] Generics support
+    - [ ] Union types
+    - [ ] Type aliases
+- [ ] **Error Handling Patterns:**
+    - [ ] Try/catch → Result<T, E>
+    - [ ] Throw → Err()
+- [ ] **Package.json → Cargo.toml** converter

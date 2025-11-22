@@ -90,8 +90,10 @@ fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
     match expr {
         Expr::Bin(bin) => convert_bin_expr(bin),
         Expr::Ident(ident) => {
-            let ident_name = format_ident!("{}", ident.sym.to_string());
-            quote! { #ident_name }
+            // Convert to snake_case for consistency
+            let ident_name = to_snake_case(&ident.sym);
+            let ident_token = format_ident!("{}", ident_name);
+            quote! { #ident_token }
         }
         Expr::Lit(lit) => {
             // Handle literals
