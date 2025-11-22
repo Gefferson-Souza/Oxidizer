@@ -1,68 +1,57 @@
-# 🗺️ Oxidizer Roadmap
+# 🗺️ Oxidizer Roadmap: The Path to Production
 
-## 🏁 Milestone 0: The Foundation (Current)
-- [x] Project Scaffolding (Cargo Workspace)
-- [x] CLI Basic Structure (`clap`)
-- [x] **Tracer Bullet:** Connect CLI to Parser (Read a file and print "Success")
-- [ ] CI/CD Pipeline Setup (GitHub Actions)
+> **Goal:** Turn a full Node.js/TypeScript backend project into a compilable Rust workspace with a single command.
 
-## � Milestone 1: The Analyzer (Complete)
-- [x] **Analyzer Core:** Implement `ox_analyzer` crate
-- [x] **Linter Rules:**
-    - [x] Block `any`
-    - [x] Block `eval`
-    - [x] Block `var`
-- [x] **Refactoring:** Compliance with Guidelines (Newtype, Tracing, Tests)
-- [x] Implement basic Lints:
-    - [x] Ban `any` type
-    - [x] Ban `eval`
-    - [x] Check for `var` usage
-- [ ] Error Reporting with `miette` (Visual spans)
+---
 
-## 🏁 Milestone 2: The Type Transpiler (Complete)
-- [x] Convert TS `interface` -> Rust `struct`
-- [x] Map primitive types (`string` -> `String`, `number` -> `f64`)
-- [x] Auto-derive `Serialize, Deserialize` (Serde)
-- [x] Output `.rs` files using `quote!`
+## 🟢 Phase 1: Core Syntax (COMPLETED - 40%)
+*The engine is ready. We can translate logic, data structures, and async calls.*
+- [x] Interfaces -> Structs
+- [x] Classes -> Impl blocks
+- [x] Async/Await -> Tokio
+- [x] Functions & Math
+- [x] Basic HTTP (Axios/Fetch -> Reqwest)
+- [x] Linter (Analyzer)
 
-## 🏁 Milestone 3: Logic & Functions (Complete)
-- [x] Convert simple `fn` declarations
-- [x] Basic control flow (`if`, `return`)
-- [x] Binary expressions (Math)
+---
 
-## 🚀 Milestone 4: The Modern Stack (Complete)
-- [x] **Async/Await Support:**
-    - [x] Convert `async function` -> `pub async fn`
-    - [x] Unwrap `Promise<T>` return types
-    - [x] Convert `await expr` -> `expr.await`
-- [x] **Class Support:**
-    - [x] Split `class` into `struct` (properties) + `impl` (methods)
-    - [x] Convert `constructor` -> `pub fn new() -> Self`
-    - [x] Convert `this.prop` -> `self.prop`
-    - [x] Add `&self` to instance methods
-- [x] **HTTP Client mapping** (`axios` & `fetch` -> `reqwest`)
+## 🟡 Phase 2: The Project Architect (NEXT UP - 60%)
+*Focus: Files, Folders, and Modules. Making files talk to each other.*
+- [ ] **File System Walker:** Recursively read `src/**/*.ts`.
+- [ ] **Module Resolution (The Hard Part):**
+    - [ ] Translate `import/export` to `use/pub mod`.
+    - [ ] Auto-generate `mod.rs` files for folders.
+    - [ ] Handle relative paths (`../../utils`) conversion to crate paths (`crate::utils`).
+- [ ] **Output Mirroring:** Replicate the input folder structure in the output directory.
 
-## ✅ QA & Compliance (Complete)
-- [x] **Code Quality:**
-    - [x] Fix all compiler warnings
-    - [x] Clippy compliance
-- [x] **Guidelines.md Compliance:**
-    - [x] Newtype Pattern (`FilePath`)
-    - [x] Visitor Pattern (AST traversal)
-    - [x] Rich error handling (miette)
-- [x] **Testing Infrastructure:**
-    - [x] Unit tests (8 passing)
-    - [x] Snapshot tests (insta)
-    - [x] Compilation tests (rustc validation)
-    - [x] Complex E2E fixtures
+---
 
-## 🎯 Next Steps
-- [ ] **Module System Support** (import/export transpilation)
-- [ ] **Advanced Type Features:**
-    - [ ] Generics support
-    - [ ] Union types
-    - [ ] Type aliases
-- [ ] **Error Handling Patterns:**
-    - [ ] Try/catch → Result<T, E>
-    - [ ] Throw → Err()
-- [ ] **Package.json → Cargo.toml** converter
+## 🟠 Phase 3: The Package Manager (75%)
+*Focus: Dependencies and Configuration.*
+- [ ] **Manifest Converter:** Parse `package.json`.
+- [ ] **Dependency Mapper:** Map common NPM packages to Crates.io equivalents.
+    - `uuid` -> `uuid`
+    - `dotenv` -> `dotenvy`
+    - `winston` -> `tracing`
+    - `zod` -> `validator`
+- [ ] **Cargo Gen:** Generate a valid `Cargo.toml` with the correct dependencies features.
+
+---
+
+## 🔴 Phase 4: Server & Database (90%)
+*Focus: The "Backend" part (Frameworks & DB).*
+- [ ] **Web Framework Adapter:**
+    - Detect `express` or `fastify` or `NestJS`.
+    - Transpile routes to `axum` (recommended) or `actix-web`.
+    - Handle Middleware conversion (Hard).
+- [ ] **Database Adapter:**
+    - Detect `Prisma` schema or `TypeORM` entities.
+    - Suggest or generate `SeaORM` entities (closest to generic ORMs).
+
+---
+
+## 🔵 Phase 5: Safety & Polish (100%)
+*Focus: Error Handling and Refactoring.*
+- [ ] **Error Propagation:** Convert `try/catch` blocks into `Result` handling.
+- [ ] **Refactoring Hints:** Identify patterns that represent technical debt in Rust (e.g., excessive cloning) and suggest fixes.
+- [ ] **CI/CD Generation:** Auto-generate GitHub Actions for the new Rust project.
