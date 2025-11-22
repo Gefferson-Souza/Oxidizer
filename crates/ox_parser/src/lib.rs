@@ -14,7 +14,7 @@ pub fn parse(path: &Path) -> Result<Program, OxidizerError> {
     let cm: Lrc<SourceMap> = Default::default();
     let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
 
-    let fm = cm.load_file(path).map_err(|e| OxidizerError::IoError(e))?;
+    let fm = cm.load_file(path).map_err(OxidizerError::IoError)?;
 
     let lexer = Lexer::new(
         Syntax::Typescript(TsSyntax {
@@ -47,7 +47,7 @@ pub fn parse(path: &Path) -> Result<Program, OxidizerError> {
             Err(OxidizerError::ParserError {
                 message,
                 src: NamedSource::new(path.to_string_lossy(), fm.src.to_string()),
-                span: SourceSpan::new(start.into(), len.into()),
+                span: SourceSpan::new(start.into(), len),
             })
         }
     }

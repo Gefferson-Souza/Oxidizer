@@ -1,0 +1,6 @@
+---
+source: tests/src/test_snapshots.rs
+assertion_line: 31
+expression: result
+---
+

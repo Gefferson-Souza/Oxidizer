@@ -3,6 +3,7 @@ use quote::quote;
 use swc_ecma_ast::{TsType, TsTypeAnn};
 
 /// Maps TypeScript types to Rust types
+#[allow(clippy::borrowed_box)]
 pub fn map_ts_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
     if let Some(type_ann) = type_ann {
         match &*type_ann.type_ann {
@@ -31,6 +32,7 @@ pub fn map_ts_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
 }
 
 /// Unwraps Promise<T> to T for async function return types
+#[allow(clippy::borrowed_box)]
 pub fn unwrap_promise_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
     if let Some(type_ann) = type_ann {
         if let TsType::TsTypeRef(type_ref) = &*type_ann.type_ann {

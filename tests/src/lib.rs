@@ -6,6 +6,7 @@ use std::process::Command;
 
 mod test_build;
 mod test_compilation;
+mod test_snapshots;
 
 #[test]
 fn test_cli_check_pass() {

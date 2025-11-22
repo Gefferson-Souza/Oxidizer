@@ -70,7 +70,7 @@ impl RustGenerator {
 
     fn convert_constructor(
         &self,
-        struct_name: &proc_macro2::Ident,
+        _struct_name: &proc_macro2::Ident,
         constructor: &Constructor,
     ) -> proc_macro2::TokenStream {
         let mut params = Vec::new();

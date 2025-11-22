@@ -25,7 +25,7 @@ impl LintVisitor {
         let start = span.lo.0 as usize - 1;
         let end = span.hi.0 as usize - 1;
         let len = end - start;
-        SourceSpan::new(start.into(), len.into())
+        SourceSpan::new(start.into(), len)
     }
 }
 

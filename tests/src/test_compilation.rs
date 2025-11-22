@@ -1,103 +1,86 @@
-use std::fs;
-use std::process::Command as StdCommand;
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+    use std::process::Command;
+    use tempfile::NamedTempFile;
 
-// NOTE: Compilation tests disabled for now
-// These should be implemented using the `trybuild` crate which properly manages
-// dependencies like `serde`. See Guidelines.md Nível 3.
-// TODO: Add in v1.1 using trybuild
+    /// Test that generated Rust code compiles with rustc
+    #[test]
+    fn test_rustc_compilation_interface() {
+        let ts_code = r#"
+            interface User {
+                name: string;
+                age: number;
+            }
+        "#;
 
-/*
-#[test]
-fn test_compilation_dto() {
-    // Compilation Test (Nível 3 das Guidelines)
-    // Gera código Rust e compila com rustc
-    let output = StdCommand::new(assert_cmd::cargo::cargo_bin("ox_cli"))
-        .arg("build")
-        .arg("fixtures/pass_simple_dto/input.ts")
-        .output()
-        .expect("Failed to run ox_cli");
-
-    assert!(output.status.success());
-    let generated_code = String::from_utf8(output.stdout).unwrap();
-
-    // Prepend extern crate declarations for standalone compilation
-    let compilable_code = format!(
-        "extern crate serde;\nextern crate serde_json;\n\n{}",
-        generated_code
-    );
-
-    // Save to temp file
-    let temp_file = "/tmp/oxidizer_test_dto.rs";
-    fs::write(temp_file, compilable_code).expect("Failed to write temp file");
-
-    // Try to compile with rustc
-    let rustc_output = StdCommand::new("rustc")
-        .args(&["--crate-type", "lib", "--edition", "2021", temp_file])
-        .arg("-o")
-        .arg("/tmp/oxidizer_test_dto.rlib")
-        .output()
-        .expect("Failed to run rustc");
-
-    if !rustc_output.status.success() {
-        eprintln!(
-            "RUSTC STDERR:\n{}",
-            String::from_utf8_lossy(&rustc_output.stderr)
-        );
-        eprintln!(
-            "RUSTC STDOUT:\n{}",
-            String::from_utf8_lossy(&rustc_output.stdout)
-        );
+        verify_rustc_compiles(ts_code, "test_interface");
     }
 
-    assert!(
-        rustc_output.status.success(),
-        "Generated DTO code failed to compile with rustc"
-    );
+    #[test]
+    fn test_rustc_compilation_class() {
+        let ts_code = r#"
+            class Dog {
+                name: string;
+                
+                constructor(name: string) {
+                    this.name = name;
+                }
+                
+                bark(): number {
+                    return 42;
+                }
+            }
+        "#;
 
-    // Cleanup
-    let _ = fs::remove_file(temp_file);
-    let _ = fs::remove_file("/tmp/oxidizer_test_dto.rlib");
-}
-
-#[test]
-fn test_compilation_functions() {
-    let output = StdCommand::new(assert_cmd::cargo::cargo_bin("ox_cli"))
-        .arg("build")
-        .arg("fixtures/build_simple_fn/input.ts")
-        .output()
-        .expect("Failed to run ox_cli");
-
-    assert!(output.status.success());
-    let generated_code = String::from_utf8(output.stdout).unwrap();
-
-    let compilable_code = format!(
-        "extern crate serde;\nextern crate serde_json;\n\n{}",
-        generated_code
-    );
-
-    let temp_file = "/tmp/oxidizer_test_fn.rs";
-    fs::write(temp_file, compilable_code).expect("Failed to write temp file");
-
-    let rustc_output = StdCommand::new("rustc")
-        .args(&["--crate-type", "lib", "--edition", "2021", temp_file])
-        .arg("-o")
-        .arg("/tmp/oxidizer_test_fn.rlib")
-        .output()
-        .expect("Failed to run rustc");
-
-    if !rustc_output.status.success() {
-        eprintln!(
-            "RUSTC STDERR:\n{}",
-            String::from_utf8_lossy(&rustc_output.stderr)
-        );
+        verify_rustc_compiles(ts_code, "test_class");
     }
 
-    assert!(
-        rustc_output.status.success(),
-        "Generated function code failed to compile with rustc"
-    );
+    #[test]
+    fn test_rustc_compilation_function() {
+        let ts_code = r#"
+            function add(a: number, b: number): number {
+                return a + b;
+            }
+        "#;
 
-    let _ = fs::remove_file(temp_file);
-    let _ = fs::remove_file("/tmp/oxidizer_test_fn.rlib");
+        verify_rustc_compiles(ts_code, "test_function");
+    }
+
+    fn verify_rustc_compiles(ts_code: &str, test_name: &str) {
+        // Write TypeScript to temp file
+        let mut ts_file = NamedTempFile::new().unwrap();
+        ts_file.write_all(ts_code.as_bytes()).unwrap();
+
+        // Generate Rust code
+        let rust_code =
+            ox_orchestrator::build(ox_common::fs::FilePath::from(ts_file.path().to_path_buf()))
+                .unwrap_or_else(|_| panic!("Failed to generate Rust code for {}", test_name));
+
+        // Write Rust to temp file
+        let mut rs_file = NamedTempFile::new().unwrap();
+        writeln!(rs_file, "// Auto-generated from {}", test_name).unwrap();
+        writeln!(rs_file, "#![allow(dead_code, unused_variables)]").unwrap();
+        rs_file.write_all(rust_code.as_bytes()).unwrap();
+        rs_file.flush().unwrap();
+
+        // Try to compile with rustc
+        let output = Command::new("rustc")
+            .arg("--crate-name=oxidizer_test")
+            .arg("--crate-type=lib")
+            .arg("--edition=2021")
+            .arg(rs_file.path())
+            .arg("-o")
+            .arg("/dev/null")
+            .output()
+            .expect("Failed to execute rustc");
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            panic!(
+                "rustc compilation failed for {}:\n{}\n\nGenerated Rust code:\n{}",
+                test_name, stderr, rust_code
+            );
+        }
+    }
 }
-*/
