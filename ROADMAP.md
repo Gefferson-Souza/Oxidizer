@@ -30,7 +30,11 @@
 - [x] Basic control flow (`if`, `return`)
 - [x] Binary expressions (Math)
 
-## 🚀 Milestone 4: Advanced Features (The "Viral" Stuff)
-- [ ] Async/Await support (`tokio`)
-- [ ] Class to Struct conversion (Inheritance simulation)
-- [ ] HTTP Client mapping (`axios` -> `reqwest`)
+## 🚀 Milestone 4: The Modern Stack (Current)
+- [ ] **Async/Await Support:**
+    - [ ] Convert `async function` -> `pub async fn`
+    - [ ] Unwrap `Promise<T>` return types (e.g., `Promise<string>` -> `String`)
+    - [ ] Convert `await expr` -> `expr.await`
+- [ ] **Class Support:**
+    - [ ] Convert `class` -> `struct` + `impl`
+- [ ] **HTTP Client mapping** (`axios` -> `reqwest`)
