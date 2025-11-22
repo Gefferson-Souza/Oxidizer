@@ -8,6 +8,7 @@ mod test_build;
 mod test_compilation;
 mod test_execute;
 mod test_snapshots;
+mod test_stdlib_exec;
 
 #[test]
 fn test_cli_check_pass() {

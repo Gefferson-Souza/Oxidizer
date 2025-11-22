@@ -1,7 +1,7 @@
 use quote::{format_ident, quote};
 use swc_ecma_ast::{
-    AwaitExpr, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, FnDecl, Lit, MemberExpr,
-    Pat, ReturnStmt, Stmt,
+    AwaitExpr, BinExpr, BinaryOp, CallExpr, Callee, Decl, Expr, ExprOrSpread, FnDecl, Lit,
+    MemberExpr, Pat, ReturnStmt, Stmt,
 };
 
 use super::type_mapper::{map_ts_type, unwrap_promise_type};
@@ -66,14 +66,44 @@ pub fn convert_expr_pub(expr: &Expr) -> proc_macro2::TokenStream {
     convert_expr(expr)
 }
 
-fn convert_stmt(stmt: &Stmt) -> proc_macro2::TokenStream {
+pub fn convert_stmt(stmt: &Stmt) -> proc_macro2::TokenStream {
     match stmt {
-        Stmt::Return(ret) => convert_return_stmt(ret),
+        Stmt::Return(ret_stmt) => {
+            if let Some(arg) = &ret_stmt.arg {
+                let expr = convert_expr(arg);
+                quote! { return #expr; }
+            } else {
+                quote! { return; }
+            }
+        }
         Stmt::Expr(expr_stmt) => {
             let expr = convert_expr(&expr_stmt.expr);
             quote! { #expr; }
         }
-        _ => quote! {}, // Skip other statements for now
+        Stmt::Decl(decl) => match decl {
+            Decl::Var(var_decl) => {
+                // Handle variable declarations (const/let)
+                let mut declarations = Vec::new();
+
+                for declarator in &var_decl.decls {
+                    if let Pat::Ident(ident) = &declarator.name {
+                        let var_name = to_snake_case(&ident.id.sym);
+                        let var_ident = format_ident!("{}", var_name);
+
+                        if let Some(init) = &declarator.init {
+                            let init_expr = convert_expr(init);
+                            declarations.push(quote! { let #var_ident = #init_expr; });
+                        } else {
+                            // Variable without initialization - skip for now
+                        }
+                    }
+                }
+
+                quote! { #(#declarations)* }
+            }
+            _ => quote! { /* unsupported decl */ },
+        },
+        _ => quote! { /* unsupported stmt */ },
     }
 }
 
@@ -86,7 +116,7 @@ fn convert_return_stmt(ret: &ReturnStmt) -> proc_macro2::TokenStream {
     }
 }
 
-fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
+pub fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
     match expr {
         Expr::Bin(bin) => convert_bin_expr(bin),
         Expr::Ident(ident) => {
@@ -157,9 +187,24 @@ fn convert_await_expr(await_expr: &AwaitExpr) -> proc_macro2::TokenStream {
 }
 
 fn convert_call_expr(call: &CallExpr) -> proc_macro2::TokenStream {
+    // Try stdlib handlers first
+    if let Some(stdlib_code) = crate::stdlib::try_handle_stdlib_call(&call.callee, &call.args) {
+        return stdlib_code;
+    }
+
     // Check for axios calls (axios.get, axios.post, etc.)
     if let Callee::Expr(expr) = &call.callee {
         if let Expr::Member(member) = &**expr {
+            // Try stdlib method call
+            if let Some(method_ident) = member.prop.as_ident() {
+                let method_name = method_ident.sym.as_ref();
+                if let Some(stdlib_code) =
+                    crate::stdlib::try_handle_method_call(&member.obj, method_name, &call.args)
+                {
+                    return stdlib_code;
+                }
+            }
+
             // Check if object is "axios"
             if let Expr::Ident(obj_ident) = &*member.obj {
                 if obj_ident.sym == "axios" {
@@ -232,7 +277,7 @@ fn convert_fetch_call(args: &[ExprOrSpread]) -> proc_macro2::TokenStream {
     quote! { reqwest::get(#url).await? }
 }
 
-fn convert_expr_or_spread(arg: &ExprOrSpread) -> proc_macro2::TokenStream {
+pub fn convert_expr_or_spread(arg: &ExprOrSpread) -> proc_macro2::TokenStream {
     convert_expr(&arg.expr)
 }
 

@@ -1,4 +1,5 @@
-mod convert;
+pub mod convert;
+pub mod stdlib;
 
 use convert::interface::RustGenerator;
 use swc_ecma_ast::Program;

@@ -1,57 +1,106 @@
-# 🗺️ Oxidizer Roadmap: The Path to Production
+# 🗺️ Oxidizer Roadmap
 
-> **Goal:** Turn a full Node.js/TypeScript backend project into a compilable Rust workspace with a single command.
+## 🏁 Milestone 0: The Foundation (Current)
+- [x] Project Scaffolding (Cargo Workspace)
+- [x] CLI Basic Structure (`clap`)
+- [x] **Tracer Bullet:** Connect CLI to Parser (Read a file and print "Success")
+- [ ] CI/CD Pipeline Setup (GitHub Actions)
 
----
+## � Milestone 1: The Analyzer (Complete)
+- [x] **Analyzer Core:** Implement `ox_analyzer` crate
+- [x] **Linter Rules:**
+    - [x] Block `any`
+    - [x] Block `eval`
+    - [x] Block `var`
+- [x] **Refactoring:** Compliance with Guidelines (Newtype, Tracing, Tests)
+- [x] Implement basic Lints:
+    - [x] Ban `any` type
+    - [x] Ban `eval`
+    - [x] Check for `var` usage
+- [ ] Error Reporting with `miette` (Visual spans)
 
-## 🟢 Phase 1: Core Syntax (COMPLETED - 40%)
-*The engine is ready. We can translate logic, data structures, and async calls.*
-- [x] Interfaces -> Structs
-- [x] Classes -> Impl blocks
-- [x] Async/Await -> Tokio
-- [x] Functions & Math
-- [x] Basic HTTP (Axios/Fetch -> Reqwest)
-- [x] Linter (Analyzer)
+## 🏁 Milestone 2: The Type Transpiler (Complete)
+- [x] Convert TS `interface` -> Rust `struct`
+- [x] Map primitive types (`string` -> `String`, `number` -> `f64`)
+- [x] Auto-derive `Serialize, Deserialize` (Serde)
+- [x] Output `.rs` files using `quote!`
 
----
+## 🏁 Milestone 3: Logic & Functions (Complete)
+- [x] Convert simple `fn` declarations
+- [x] Basic control flow (`if`, `return`)
+- [x] Binary expressions (Math)
 
-## 🟡 Phase 2: The Project Architect (NEXT UP - 60%)
-*Focus: Files, Folders, and Modules. Making files talk to each other.*
-- [ ] **File System Walker:** Recursively read `src/**/*.ts`.
-- [ ] **Module Resolution (The Hard Part):**
-    - [ ] Translate `import/export` to `use/pub mod`.
-    - [ ] Auto-generate `mod.rs` files for folders.
-    - [ ] Handle relative paths (`../../utils`) conversion to crate paths (`crate::utils`).
-- [ ] **Output Mirroring:** Replicate the input folder structure in the output directory.
+## 🚀 Milestone 4: The Modern Stack (Complete)
+- [x] **Async/Await Support:**
+    - [x] Convert `async function` -> `pub async fn`
+    - [x] Unwrap `Promise<T>` return types
+    - [x] Convert `await expr` -> `expr.await`
+- [x] **Class Support:**
+    - [x] Split `class` into `struct` (properties) + `impl` (methods)
+    - [x] Convert `constructor` -> `pub fn new() -> Self`
+    - [x] Convert `this.prop` -> `self.prop`
+    - [x] Add `&self` to instance methods
+- [x] **HTTP Client mapping** (`axios` & `fetch` -> `reqwest`)
+- [x] **Standard Library Mapping:**
+    - [x] Math (max, min, round, floor, ceil, abs, random)
+    - [x] String (includes, replace, split, toUpperCase, toLowerCase, trim)
+    - [x] Array (push, map, filter, join)
+    - [x] JSON (stringify, parse)
+    - [x] Console (log, error)
+- [x] **Variable Declarations:**
+    - [x] `const`/`let` -> `let` bindings
+    - [x] Variable initialization support
 
----
+## ✅ QA & Compliance (Complete)
+- [x] **Code Quality:**
+    - [x] Fix all compiler warnings
+    - [x] Clippy compliance
+- [x] **Guidelines.md Compliance:**
+    - [x] Newtype Pattern (`FilePath`)
+    - [x] Visitor Pattern (AST traversal)
+    - [x] Rich error handling (miette)
+- [x] **Testing Infrastructure:**
+    - [x] Unit tests (8 passing)
+    - [x] Snapshot tests (insta)
+    - [x] Compilation tests (rustc validation)
+    - [x] Complex E2E fixtures
 
-## 🟠 Phase 3: The Package Manager (75%)
-*Focus: Dependencies and Configuration.*
-- [ ] **Manifest Converter:** Parse `package.json`.
-- [ ] **Dependency Mapper:** Map common NPM packages to Crates.io equivalents.
-    - `uuid` -> `uuid`
-    - `dotenv` -> `dotenvy`
-    - `winston` -> `tracing`
-    - `zod` -> `validator`
-- [ ] **Cargo Gen:** Generate a valid `Cargo.toml` with the correct dependencies features.
+## 📚 Phase 1.5: Standard Library Compliance (The "Shim" Layer)
+*Goal: 100% coverage of essential JS/TS APIs mapped to Rust equivalents.*
 
----
+### 🧮 Math & Numbers
+- [ ] **Math Object:**
+    - `Math.max/min` -> `f64::max/min` (or `std::cmp`)
+    - `Math.round/floor/ceil` -> `.round()/.floor()/.ceil()`
+    - `Math.abs` -> `.abs()`
+    - `Math.random()` -> `rand::random()` (Requires `rand` crate)
+- [ ] **Number Parsing:**
+    - `parseInt(x)` -> `x.parse::<i32>()`
+    - `parseFloat(x)` -> `x.parse::<f64>()`
 
-## 🔴 Phase 4: Server & Database (90%)
-*Focus: The "Backend" part (Frameworks & DB).*
-- [ ] **Web Framework Adapter:**
-    - Detect `express` or `fastify` or `NestJS`.
-    - Transpile routes to `axum` (recommended) or `actix-web`.
-    - Handle Middleware conversion (Hard).
-- [ ] **Database Adapter:**
-    - Detect `Prisma` schema or `TypeORM` entities.
-    - Suggest or generate `SeaORM` entities (closest to generic ORMs).
+### 🧵 Strings
+- [ ] **Query:** `.includes()` -> `.contains()`, `.startsWith()`, `.endsWith()`
+- [ ] **Transformation:**
+    - `.toUpperCase/LowerCase()` -> `.to_uppercase/lowercase()`
+    - `.replace(a, b)` -> `.replace(a, b)`
+    - `.trim()` -> `.trim()`
+    - `.split(sep)` -> `.split(sep).collect::<Vec<_>>()`
+- [ ] **Template Literals:** `${var}` -> `format!("{}", var)`
 
----
+### 📦 Arrays & Iterators
+- [ ] **Transformation (Lazy):** `map`, `filter` -> `iter().map()...`
+- [ ] **Aggregation:** `reduce` -> `fold`
+- [ ] **Search:** `find` -> `iter().find()`, `some` -> `iter().any()`, `every` -> `iter().all()`
+- [ ] **Mutation:** `push` -> `push`, `pop` -> `pop`
+- [ ] **Utility:** `.length` -> `.len()`, `.join()` -> `.join()`
 
-## 🔵 Phase 5: Safety & Polish (100%)
-*Focus: Error Handling and Refactoring.*
-- [ ] **Error Propagation:** Convert `try/catch` blocks into `Result` handling.
-- [ ] **Refactoring Hints:** Identify patterns that represent technical debt in Rust (e.g., excessive cloning) and suggest fixes.
-- [ ] **CI/CD Generation:** Auto-generate GitHub Actions for the new Rust project.
+### 📅 Dates & JSON
+- [ ] **JSON:**
+    - `JSON.stringify` -> `serde_json::to_string`
+    - `JSON.parse` -> `serde_json::from_str`
+- [ ] **Date:**
+    - `new Date()` -> `chrono::Utc::now()` (Requires `chrono` crate)
+    - `.toISOString()` -> `.to_rfc3339()`
+
+### 📝 Compatibility Matrix
+- [ ] Create `COMPATIBILITY.md` to track exactly which methods are supported vs unsupported.
