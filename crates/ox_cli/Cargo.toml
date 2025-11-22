@@ -1,0 +1,10 @@
+[package]
+name = "ox_cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+miette = { version = "7.6.0", features = ["fancy"] }
+tokio = { version = "1.0", features = ["full"] }
+ox_orchestrator = { path = "../ox_orchestrator" }

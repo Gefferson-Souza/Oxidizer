@@ -1,0 +1,8 @@
+[package]
+name = "ox_diagnostics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+miette = { version = "7.6.0", features = ["fancy"] }
+thiserror = "1.0"

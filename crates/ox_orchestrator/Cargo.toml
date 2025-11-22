@@ -1,0 +1,11 @@
+[package]
+name = "ox_orchestrator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ox_parser = { path = "../ox_parser" }
+ox_analyzer = { path = "../ox_analyzer" }
+ox_codegen = { path = "../ox_codegen" }
+ox_diagnostics = { path = "../ox_diagnostics" }
+swc_ecma_ast = "18.0.0"

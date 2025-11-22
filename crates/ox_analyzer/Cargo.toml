@@ -1,0 +1,9 @@
+[package]
+name = "ox_analyzer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+petgraph = "0.6"
+ox_ast = { path = "../ox_ast" }
+ox_diagnostics = { path = "../ox_diagnostics" }
