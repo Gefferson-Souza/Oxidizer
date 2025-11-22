@@ -101,10 +101,12 @@ fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
                     quote! { #value }
                 }
                 Lit::Str(str_lit) => {
-                    let value = str_lit.value.to_string();
-                    quote! { #value }
+                    // Use proc_macro2::Literal to create a string literal token
+                    use proc_macro2::Literal;
+                    let string_val = Literal::string(str_lit.value.as_str().unwrap_or(""));
+                    quote! { #string_val }
                 }
-                _ => quote! { todo!("non-numeric literal") },
+                _ => quote! { todo!("unsupported literal") },
             }
         }
         Expr::Member(member) => convert_member_expr(member),
