@@ -6,32 +6,41 @@ use super::interface::RustGenerator;
 use super::type_mapper::map_ts_type;
 
 impl RustGenerator {
-    pub fn visit_class_decl(&mut self, n: &ClassDecl) {
+    pub fn process_class_decl(&mut self, n: &ClassDecl) {
         let class_name = n.ident.sym.to_string();
         let struct_name = format_ident!("{}", class_name);
 
-        // Step 1: Extract properties for struct
+        // 1. Generate Struct (Properties)
         let mut fields = Vec::new();
-        for member in &n.class.body {
-            if let ClassMember::ClassProp(prop) = member {
-                let field_name_str = if let Some(ident) = prop.key.as_ident() {
-                    ident.sym.to_string()
-                } else {
-                    continue;
-                };
-                let field_name = format_ident!("{}", field_name_str);
-                let field_type = map_ts_type(prop.type_ann.as_ref());
+        let mut methods = Vec::new();
+        let mut constructor: Option<&Constructor> = None;
 
-                fields.push(quote! {
-                    pub #field_name: #field_type
-                });
+        for member in &n.class.body {
+            match member {
+                ClassMember::ClassProp(prop) => {
+                    if let Some(field) = self.convert_prop(prop) {
+                        fields.push(field);
+                    }
+                }
+                ClassMember::Method(method) => {
+                    methods.push(method);
+                }
+                ClassMember::Constructor(cons) => {
+                    constructor = Some(cons);
+                }
+                _ => {}
             }
         }
 
-        // Generate struct
+        let vis = if self.is_exporting {
+            quote! { pub }
+        } else {
+            quote! {}
+        };
+
         let struct_def = quote! {
-            #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-            pub struct #struct_name {
+            #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+            #vis struct #struct_name {
                 #(#fields),*
             }
         };
@@ -39,33 +48,48 @@ impl RustGenerator {
         self.code.push_str(&struct_def.to_string());
         self.code.push('\n');
 
-        // Step 2: Extract methods for impl block
-        let mut methods = Vec::new();
+        // 2. Generate Impl (Methods)
+        let mut impl_items = Vec::new();
 
-        for member in &n.class.body {
-            match member {
-                ClassMember::Constructor(constructor) => {
-                    let method_def = self.convert_constructor(&struct_name, constructor);
-                    methods.push(method_def);
+        // Constructor
+        if let Some(cons) = constructor {
+            impl_items.push(self.convert_constructor(&struct_name, cons));
+        } else {
+            // Default constructor if none exists
+            impl_items.push(quote! {
+                pub fn new() -> Self {
+                    Self::default()
                 }
-                ClassMember::Method(method) => {
-                    let method_def = self.convert_method(method);
-                    methods.push(method_def);
-                }
-                _ => {}
+            });
+        }
+
+        // Methods
+        for method in methods {
+            impl_items.push(self.convert_method(method));
+        }
+
+        let impl_block = quote! {
+            impl #struct_name {
+                #(#impl_items)*
             }
-        }
+        };
 
-        if !methods.is_empty() {
-            let impl_block = quote! {
-                impl #struct_name {
-                    #(#methods)*
-                }
-            };
+        self.code.push_str(&impl_block.to_string());
+        self.code.push('\n');
+    }
 
-            self.code.push_str(&impl_block.to_string());
-            self.code.push('\n');
-        }
+    fn convert_prop(&self, prop: &swc_ecma_ast::ClassProp) -> Option<proc_macro2::TokenStream> {
+        let field_name_str = if let Some(ident) = prop.key.as_ident() {
+            ident.sym.to_string()
+        } else {
+            return None;
+        };
+        let field_name = format_ident!("{}", field_name_str);
+        let field_type = map_ts_type(prop.type_ann.as_ref());
+
+        Some(quote! {
+            pub #field_name: #field_type
+        })
     }
 
     fn convert_constructor(

@@ -11,6 +11,7 @@ pub fn map_ts_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
                 swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => quote! { String },
                 swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => quote! { f64 },
                 swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => quote! { bool },
+                swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword => quote! { () },
                 _ => quote! { serde_json::Value },
             },
             TsType::TsTypeRef(t) => {

@@ -11,28 +11,24 @@ pub mod string;
 pub fn try_handle_stdlib_call(callee: &Callee, args: &[ExprOrSpread]) -> Option<TokenStream> {
     // Try to handle as stdlib call
     if let Callee::Expr(expr) = callee {
-        match &**expr {
-            // Math.method()
-            Expr::Member(member) => {
-                if let Expr::Ident(obj) = &*member.obj {
-                    let obj_name = obj.sym.as_ref();
+        if let Expr::Member(member) = &**expr {
+            if let Expr::Ident(obj) = &*member.obj {
+                let obj_name = obj.sym.as_ref();
 
-                    if obj_name == "Math" {
-                        if let Some(method_ident) = member.prop.as_ident() {
-                            return math::handle(&method_ident.sym, args);
-                        }
-                    } else if obj_name == "JSON" {
-                        if let Some(method_ident) = member.prop.as_ident() {
-                            return json::handle(&method_ident.sym, args);
-                        }
-                    } else if obj_name == "console" {
-                        if let Some(method_ident) = member.prop.as_ident() {
-                            return console::handle(&method_ident.sym, args);
-                        }
+                if obj_name == "Math" {
+                    if let Some(method_ident) = member.prop.as_ident() {
+                        return math::handle(&method_ident.sym, args);
+                    }
+                } else if obj_name == "JSON" {
+                    if let Some(method_ident) = member.prop.as_ident() {
+                        return json::handle(&method_ident.sym, args);
+                    }
+                } else if obj_name == "console" {
+                    if let Some(method_ident) = member.prop.as_ident() {
+                        return console::handle(&method_ident.sym, args);
                     }
                 }
             }
-            _ => {}
         }
     }
 

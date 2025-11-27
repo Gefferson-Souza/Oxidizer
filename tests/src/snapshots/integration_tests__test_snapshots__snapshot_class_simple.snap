@@ -1,10 +1,9 @@
 ---
 source: tests/src/test_snapshots.rs
-assertion_line: 17
 expression: result
 ---
-#[derive(Debug, Clone, serde :: Serialize, serde :: Deserialize)]
-pub struct Dog {
+#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+struct Dog {
     pub name: String,
     pub age: f64,
 }
@@ -15,8 +14,8 @@ impl Dog {
             age: age,
         }
     }
-    pub fn bark(&self) -> serde_json::Value {
-        console.log(self.name);
+    pub fn bark(&self) -> () {
+        println!("{}", self.name);
     }
     pub fn getAge(&self) -> f64 {
         return self.age;

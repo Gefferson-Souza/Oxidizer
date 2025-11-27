@@ -1,7 +1,6 @@
-async function fetchData(url: string): Promise<string> {
-    return await request(url);
+export async function fetch_data(): Promise<void> {
+    await simple_call();
 }
 
-function simpleCall(a: number): number {
-    return process(a);
+export async function simple_call(): Promise<void> {
 }

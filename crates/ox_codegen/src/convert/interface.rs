@@ -7,11 +7,15 @@ use super::type_mapper::map_ts_type;
 #[derive(Default)]
 pub struct RustGenerator {
     pub code: String,
+    pub is_exporting: bool,
 }
 
 impl RustGenerator {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            code: String::new(),
+            is_exporting: false,
+        }
     }
 }
 
@@ -51,10 +55,14 @@ impl Visit for RustGenerator {
     }
 
     fn visit_fn_decl(&mut self, n: &swc_ecma_ast::FnDecl) {
-        self.visit_fn_decl(n);
+        self.process_fn_decl(n);
     }
 
     fn visit_class_decl(&mut self, n: &swc_ecma_ast::ClassDecl) {
-        self.visit_class_decl(n);
+        self.process_class_decl(n);
+    }
+
+    fn visit_module_item(&mut self, n: &swc_ecma_ast::ModuleItem) {
+        self.process_module_item(n);
     }
 }

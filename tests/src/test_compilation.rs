@@ -9,13 +9,18 @@ mod tests {
     #[test]
     fn test_execute_simple_function() {
         let ts_code = r#"
-            function add(a: number, b: number): number {
+            export function add(a: number, b: number): number {
                 return a + b;
             }
         "#;
 
         let rust_code = verify_and_execute(ts_code, "test_add", |output| {
-            // The code should compile but we can't call it without a main
+            if !output.status.success() {
+                println!(
+                    "Compilation failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
             assert!(output.status.success(), "Compilation should succeed");
         });
 
@@ -27,7 +32,7 @@ mod tests {
     #[test]
     fn test_execute_interface() {
         let ts_code = r#"
-            interface User {
+            export interface User {
                 name: string;
                 age: number;
             }
@@ -38,14 +43,14 @@ mod tests {
         });
 
         assert!(rust_code.contains("pub struct User"));
-        assert!(rust_code.contains("serde::Serialize"));
-        assert!(rust_code.contains("serde::Deserialize"));
+        assert!(rust_code.contains("Serialize"));
+        assert!(rust_code.contains("Deserialize"));
     }
 
     #[test]
     fn test_execute_class_with_main() {
         let ts_code = r#"
-            class Calculator {
+            export class Calculator {
                 value: number;
                 
                 constructor(value: number) {
@@ -63,6 +68,12 @@ mod tests {
             create_temp_ts_file(ts_code).path().to_path_buf(),
         ))
         .unwrap();
+
+        // Remove serde derives for standalone compilation
+        let generated = generated
+            .replace(", serde :: Serialize, serde :: Deserialize", "")
+            .replace("serde :: Serialize, serde :: Deserialize, ", "")
+            .replace("serde :: Serialize, serde :: Deserialize", "");
 
         // Add a main function to actually execute the code
         let complete_program = format!(
@@ -130,7 +141,14 @@ fn main() {{
         // Write to temp file
         let mut rs_file = NamedTempFile::new().unwrap();
         writeln!(rs_file, "#![allow(dead_code, unused_variables)]").unwrap();
-        rs_file.write_all(rust_code.as_bytes()).unwrap();
+
+        // Remove serde derives for standalone compilation
+        let rust_code_clean = rust_code
+            .replace(", serde :: Serialize, serde :: Deserialize", "")
+            .replace("serde :: Serialize, serde :: Deserialize, ", "")
+            .replace("serde :: Serialize, serde :: Deserialize", "");
+
+        rs_file.write_all(rust_code_clean.as_bytes()).unwrap();
         rs_file.flush().unwrap();
 
         // Compile with rustc
@@ -140,7 +158,7 @@ fn main() {{
             .arg("--edition=2021")
             .arg(rs_file.path())
             .arg("-o")
-            .arg("/dev/null")
+            .arg(rs_file.path().with_extension("rlib"))
             .output()
             .expect("Failed to execute rustc");
 

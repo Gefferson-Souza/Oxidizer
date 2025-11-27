@@ -56,7 +56,7 @@ fn test_build_async_fn() {
     // Verify async fn generation
     assert!(stdout.contains("async fn fetch_data"));
     assert!(stdout.contains("await") && (stdout.contains(".await") || stdout.contains(". await")));
-    assert!(stdout.contains("pub fn simple_call"));
+    assert!(stdout.contains("pub async fn simple_call"));
 }
 
 #[test]
@@ -72,6 +72,9 @@ fn test_e2e_complex_scenario() {
         .output()
         .expect("Failed to execute command");
 
+    if !output.status.success() {
+        println!("Build failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
 

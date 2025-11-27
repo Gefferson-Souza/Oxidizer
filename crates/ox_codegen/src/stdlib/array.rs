@@ -36,7 +36,7 @@ pub fn handle_method(obj: &Expr, method: &str, args: &[ExprOrSpread]) -> Option<
         "join" => {
             if args.len() == 1 {
                 let separator = convert_expr_or_spread(&args[0]);
-                Some(quote! { #obj_tokens.join(#separator) })
+                Some(quote! { #obj_tokens.join(&#separator) })
             } else {
                 None
             }

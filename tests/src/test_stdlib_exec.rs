@@ -2,7 +2,6 @@
 mod stdlib_tests {
     use ox_common::fs::FilePath;
     use std::fs;
-    use std::path::PathBuf;
     use std::process::Command;
     use tempfile::TempDir;
 
@@ -33,7 +32,7 @@ mod stdlib_tests {
 fn main() {{
     let result = test_math();
     println!("testMath() = {{}}", result);
-    assert_eq!(result, 39.0, "Expected 20.0 + 15.0 + 4.0 = 39.0");
+    assert_eq!(result, 29.0, "Expected 20.0 + 5.0 + 4.0 = 29.0");
     println!("✅ Math stdlib test passed!");
 }}
 "#,

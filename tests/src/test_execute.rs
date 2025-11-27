@@ -27,8 +27,8 @@ fn main() {{
     println!("multiply(4, 7) = {{}}", result2);
     assert_eq!(result2, 28.0);
     
-    let result3 = calculate_total(10.0, 20.0, 30.0);
-    println!("calculate_total(10, 20, 30) = {{}}", result3);
+    let result3 = calculate_total2(10.0, 20.0, 30.0);
+    println!("calculate_total2(10, 20, 30) = {{}}", result3);
     assert_eq!(result3, 60.0);
     
     println!("✅ All tests passed!");
@@ -158,6 +158,147 @@ fn main() {{
         );
 
         execute_rust_program(&program, "Integration");
+    }
+
+    #[test]
+    fn test_compile_and_execute_multi_file_project() {
+        // This test simulates a real multi-file project
+        // 1. math.ts: Exports functions
+        // 2. models.ts: Exports interface/class
+        // 3. main.ts: Imports and uses them
+
+        let temp_dir = TempDir::new().unwrap();
+
+        // --- 1. math.ts ---
+        let math_ts = r#"
+            export function add(a: number, b: number): number {
+                return a + b;
+            }
+            export function sub(a: number, b: number): number {
+                return a - b;
+            }
+        "#;
+        let math_ts_path = temp_dir.path().join("math.ts");
+        fs::write(&math_ts_path, math_ts).unwrap();
+        let math_rs = ox_orchestrator::build(FilePath::from(math_ts_path)).unwrap();
+        fs::write(temp_dir.path().join("math.rs"), math_rs).unwrap();
+
+        // --- 2. models.ts ---
+        let models_ts = r#"
+            export class User {
+                name: string;
+                age: number;
+                
+                constructor(name: string, age: number) {
+                    this.name = name;
+                    this.age = age;
+                }
+                
+                greet(): void {
+                    console.log("Hello,", this.name);
+                }
+            }
+        "#;
+        let models_ts_path = temp_dir.path().join("models.ts");
+        fs::write(&models_ts_path, models_ts).unwrap();
+        // Remove serde derives for standalone compilation if needed, or ensure serde is available
+        // For this test, we'll strip serde to avoid dependency issues in the test harness
+        let models_rs = ox_orchestrator::build(FilePath::from(models_ts_path))
+            .unwrap()
+            .replace(", serde :: Serialize, serde :: Deserialize", "")
+            .replace("serde :: Serialize, serde :: Deserialize, ", "")
+            .replace("serde :: Serialize, serde :: Deserialize", "");
+        fs::write(temp_dir.path().join("models.rs"), models_rs).unwrap();
+
+        // --- 3. main.ts ---
+        let main_ts = r#"
+            import { add, sub } from './math';
+            import { User } from './models';
+
+            function main_logic(): void {
+                let sum = add(10, 5);
+                let diff = sub(10, 5);
+                
+                console.log("Sum:", sum);
+                console.log("Diff:", diff);
+                
+                let user = new User("Alice", 30);
+                user.greet();
+                
+                if (sum == 15 && diff == 5) {
+                    console.log("✅ Multi-file test passed!");
+                } else {
+                    console.log("❌ Test failed");
+                }
+            }
+        "#;
+        let main_ts_path = temp_dir.path().join("main.ts");
+        fs::write(&main_ts_path, main_ts).unwrap();
+        let main_rs_body = ox_orchestrator::build(FilePath::from(main_ts_path)).unwrap();
+
+        // --- 4. Construct main.rs ---
+        // We need to wrap the transpiled main body in a way that it can access modules
+        // and execute the logic.
+        // The transpiled main.ts will have `use crate::math::add;` etc.
+        // We need to declare `mod math;` and `mod models;` at the top level.
+
+        let main_rs = format!(
+            r#"
+            mod math;
+            mod models;
+            
+            // Transpiled main.ts content (includes use statements and main_logic fn)
+            {}
+            
+            fn main() {{
+                main_logic();
+            }}
+            "#,
+            main_rs_body
+        );
+
+        let main_rs_path = temp_dir.path().join("main.rs");
+        fs::write(&main_rs_path, main_rs).unwrap();
+
+        // --- 5. Compile and Execute ---
+        let exe_path = temp_dir.path().join("test_exec");
+        let compile = Command::new("rustc")
+            .arg("--edition=2021")
+            .arg(&main_rs_path)
+            .arg("-o")
+            .arg(&exe_path)
+            .output()
+            .expect("Failed to compile");
+
+        if !compile.status.success() {
+            println!(
+                "Compilation failed:\n{}",
+                String::from_utf8_lossy(&compile.stderr)
+            );
+            // Print generated files for debugging
+            println!(
+                "--- math.rs ---\n{}",
+                fs::read_to_string(temp_dir.path().join("math.rs")).unwrap()
+            );
+            println!(
+                "--- models.rs ---\n{}",
+                fs::read_to_string(temp_dir.path().join("models.rs")).unwrap()
+            );
+            println!(
+                "--- main.rs ---\n{}",
+                fs::read_to_string(temp_dir.path().join("main.rs")).unwrap()
+            );
+        }
+        assert!(compile.status.success(), "Compilation failed");
+
+        let exec = Command::new(&exe_path).output().expect("Failed to execute");
+        let stdout = String::from_utf8_lossy(&exec.stdout);
+        println!("Execution output:\n{}", stdout);
+
+        assert!(stdout.contains("Sum: 15"));
+        assert!(stdout.contains("Diff: 5"));
+        assert!(stdout.contains("Hello, Alice"));
+        assert!(stdout.contains("✅ Multi-file test passed!"));
     }
 
     fn execute_rust_program(program: &str, test_name: &str) {

@@ -12,7 +12,7 @@ pub fn handle_method(obj: &Expr, method: &str, args: &[ExprOrSpread]) -> Option<
         "includes" => {
             if args.len() == 1 {
                 let arg = convert_expr_or_spread(&args[0]);
-                Some(quote! { #obj_tokens.contains(#arg) })
+                Some(quote! { #obj_tokens.contains(&#arg) })
             } else {
                 None
             }
@@ -21,7 +21,7 @@ pub fn handle_method(obj: &Expr, method: &str, args: &[ExprOrSpread]) -> Option<
             if args.len() == 2 {
                 let pattern = convert_expr_or_spread(&args[0]);
                 let replacement = convert_expr_or_spread(&args[1]);
-                Some(quote! { #obj_tokens.replace(#pattern, #replacement) })
+                Some(quote! { #obj_tokens.replace(&#pattern, &#replacement) })
             } else {
                 None
             }
@@ -29,7 +29,7 @@ pub fn handle_method(obj: &Expr, method: &str, args: &[ExprOrSpread]) -> Option<
         "split" => {
             if args.len() == 1 {
                 let delimiter = convert_expr_or_spread(&args[0]);
-                Some(quote! { #obj_tokens.split(#delimiter).collect::<Vec<_>>() })
+                Some(quote! { #obj_tokens.split(&#delimiter).collect::<Vec<_>>() })
             } else {
                 None
             }

@@ -1,13 +1,13 @@
 use quote::{format_ident, quote};
 use swc_ecma_ast::{
     AwaitExpr, BinExpr, BinaryOp, CallExpr, Callee, Decl, Expr, ExprOrSpread, FnDecl, Lit,
-    MemberExpr, Pat, ReturnStmt, Stmt,
+    MemberExpr, Pat, Stmt,
 };
 
 use super::type_mapper::{map_ts_type, unwrap_promise_type};
 
 impl super::interface::RustGenerator {
-    pub fn visit_fn_decl(&mut self, n: &FnDecl) {
+    pub fn process_fn_decl(&mut self, n: &FnDecl) {
         let fn_name = to_snake_case(&n.ident.sym);
         let fn_ident = format_ident!("{}", fn_name);
 
@@ -39,15 +39,21 @@ impl super::interface::RustGenerator {
             }
         }
 
+        let vis = if self.is_exporting {
+            quote! { pub }
+        } else {
+            quote! {}
+        };
+
         let fn_def = if is_async {
             quote! {
-                pub async fn #fn_ident(#(#params),*) -> #return_type {
+                #vis async fn #fn_ident(#(#params),*) -> #return_type {
                     #(#body_stmts)*
                 }
             }
         } else {
             quote! {
-                pub fn #fn_ident(#(#params),*) -> #return_type {
+                #vis fn #fn_ident(#(#params),*) -> #return_type {
                     #(#body_stmts)*
                 }
             }
@@ -80,39 +86,67 @@ pub fn convert_stmt(stmt: &Stmt) -> proc_macro2::TokenStream {
             let expr = convert_expr(&expr_stmt.expr);
             quote! { #expr; }
         }
-        Stmt::Decl(decl) => match decl {
-            Decl::Var(var_decl) => {
-                // Handle variable declarations (const/let)
-                let mut declarations = Vec::new();
+        Stmt::Decl(Decl::Var(var_decl)) => {
+            // Handle variable declarations (const/let)
+            let mut declarations = Vec::new();
+            for decl in &var_decl.decls {
+                if let Pat::Ident(ident) = &decl.name {
+                    let var_name = to_snake_case(&ident.id.sym);
+                    let var_ident = format_ident!("{}", var_name);
 
-                for declarator in &var_decl.decls {
-                    if let Pat::Ident(ident) = &declarator.name {
-                        let var_name = to_snake_case(&ident.id.sym);
-                        let var_ident = format_ident!("{}", var_name);
-
-                        if let Some(init) = &declarator.init {
-                            let init_expr = convert_expr(init);
-                            declarations.push(quote! { let #var_ident = #init_expr; });
-                        } else {
-                            // Variable without initialization - skip for now
-                        }
+                    if let Some(init) = &decl.init {
+                        let init_expr = convert_expr(init);
+                        declarations.push(quote! {
+                            let #var_ident = #init_expr;
+                        });
+                    } else {
+                        // Uninitialized variable - maybe let x; -> let mut x; (but we need type)
+                        // For now, skip or generate todo
+                        declarations.push(quote! {
+                            let #var_ident; // This might fail in Rust if type not inferred
+                        });
                     }
                 }
-
-                quote! { #(#declarations)* }
             }
-            _ => quote! { /* unsupported decl */ },
-        },
-        _ => quote! { /* unsupported stmt */ },
-    }
-}
+            quote! {
+                #(#declarations)*
+            }
+        }
+        Stmt::Block(block) => {
+            let stmts: Vec<_> = block.stmts.iter().map(convert_stmt).collect();
+            quote! {
+                {
+                    #(#stmts)*
+                }
+            }
+        }
+        Stmt::If(if_stmt) => {
+            let test = convert_expr(&if_stmt.test);
+            let cons = convert_stmt(&*if_stmt.cons);
 
-fn convert_return_stmt(ret: &ReturnStmt) -> proc_macro2::TokenStream {
-    if let Some(arg) = &ret.arg {
-        let expr = convert_expr(arg);
-        quote! { return #expr; }
-    } else {
-        quote! { return; }
+            let cons_block = if matches!(*if_stmt.cons, Stmt::Block(_)) {
+                quote! { #cons }
+            } else {
+                quote! { { #cons } }
+            };
+
+            let alt = if let Some(alt) = &if_stmt.alt {
+                let alt_stmt = convert_stmt(&*alt);
+                let alt_block = if matches!(&**alt, Stmt::Block(_) | Stmt::If(_)) {
+                    quote! { #alt_stmt }
+                } else {
+                    quote! { { #alt_stmt } }
+                };
+                quote! { else #alt_block }
+            } else {
+                quote! {}
+            };
+
+            quote! {
+                if #test #cons_block #alt
+            }
+        }
+        _ => quote! { /* unsupported statement */ },
     }
 }
 
@@ -120,10 +154,17 @@ pub fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
     match expr {
         Expr::Bin(bin) => convert_bin_expr(bin),
         Expr::Ident(ident) => {
-            // Convert to snake_case for consistency
-            let ident_name = to_snake_case(&ident.sym);
-            let ident_token = format_ident!("{}", ident_name);
-            quote! { #ident_token }
+            let name = ident.sym.as_str();
+            // If starts with uppercase, assume Class/Type and keep as is
+            // If starts with lowercase, convert to snake_case (variable/function)
+            if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                let ident_token = format_ident!("{}", name);
+                quote! { #ident_token }
+            } else {
+                let ident_name = to_snake_case(name);
+                let ident_token = format_ident!("{}", ident_name);
+                quote! { #ident_token }
+            }
         }
         Expr::Lit(lit) => {
             // Handle literals
@@ -133,10 +174,8 @@ pub fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
                     quote! { #value }
                 }
                 Lit::Str(str_lit) => {
-                    // Use proc_macro2::Literal to create a string literal token
-                    use proc_macro2::Literal;
-                    let string_val = Literal::string(str_lit.value.as_str().unwrap_or(""));
-                    quote! { #string_val }
+                    let s = str_lit.value.as_str().unwrap_or("");
+                    quote! { String::from(#s) }
                 }
                 _ => quote! { todo!("unsupported literal") },
             }
@@ -144,8 +183,21 @@ pub fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
         Expr::Member(member) => convert_member_expr(member),
         Expr::Await(await_expr) => convert_await_expr(await_expr),
         Expr::Call(call_expr) => convert_call_expr(call_expr),
+        Expr::New(new_expr) => convert_new_expr(new_expr),
         _ => quote! { todo!() },
     }
+}
+
+fn convert_new_expr(new_expr: &swc_ecma_ast::NewExpr) -> proc_macro2::TokenStream {
+    // Convert new Class(args) -> Class::new(args)
+    let callee = convert_expr(&new_expr.callee);
+    let args = if let Some(args) = &new_expr.args {
+        args.iter().map(convert_expr_or_spread).collect()
+    } else {
+        Vec::new()
+    };
+
+    quote! { #callee::new(#(#args),*) }
 }
 
 fn convert_member_expr(member: &MemberExpr) -> proc_macro2::TokenStream {
@@ -175,6 +227,14 @@ fn convert_bin_expr(bin: &BinExpr) -> proc_macro2::TokenStream {
         BinaryOp::Sub => quote! { - },
         BinaryOp::Mul => quote! { * },
         BinaryOp::Div => quote! { / },
+        BinaryOp::EqEq => quote! { == },
+        BinaryOp::NotEq => quote! { != },
+        BinaryOp::Lt => quote! { < },
+        BinaryOp::LtEq => quote! { <= },
+        BinaryOp::Gt => quote! { > },
+        BinaryOp::GtEq => quote! { >= },
+        BinaryOp::LogicalAnd => quote! { && },
+        BinaryOp::LogicalOr => quote! { || },
         _ => quote! { /* unsupported op */ },
     };
 
