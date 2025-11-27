@@ -64,8 +64,12 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
                 let generated_code = ox_codegen::generate(&program, is_index);
                 let formatted_code = format_code(generated_code)?;
 
-                // Change extension to .rs
-                let output_file = output_path.with_extension("rs");
+                // Change extension to .rs and sanitize filename
+                // e.g. cats.controller.ts -> cats_controller.rs
+                let file_stem = path.file_stem().unwrap().to_string_lossy();
+                let sanitized_stem = file_stem.replace('.', "_");
+
+                let output_file = output_path.with_file_name(format!("{}.rs", sanitized_stem));
 
                 // Ensure parent dir exists (just in case)
                 if let Some(parent) = output_file.parent() {
@@ -136,7 +140,8 @@ fn generate_mod_rs(dir: &Path) -> Result<(), OxidizerError> {
             // If it's a directory, it should have a mod.rs inside (handled by recursion/iteration),
             // so we expose it as a module.
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                mod_content.push_str(&format!("pub mod {};\n", name));
+                let sanitized_name = name.replace('.', "_");
+                mod_content.push_str(&format!("pub mod {};\n", sanitized_name));
                 has_children = true;
             }
         } else if let Some(ext) = path.extension() {
@@ -150,7 +155,9 @@ fn generate_mod_rs(dir: &Path) -> Result<(), OxidizerError> {
                         // Usually we want to remove it so we don't have both mod.rs and index.rs
                         // But let's delete it after reading.
                     } else {
-                        mod_content.push_str(&format!("pub mod {};\n", stem));
+                        // Sanitize module name just in case, though we sanitized filename on write
+                        let sanitized_stem = stem.replace('.', "_");
+                        mod_content.push_str(&format!("pub mod {};\n", sanitized_stem));
                         has_children = true;
                     }
                 }

@@ -62,6 +62,11 @@ impl RustGenerator {
         let src_atom = &n.src.value;
         let mut src = src_atom.as_str().unwrap_or("").to_string();
 
+        // Ignore @nestjs imports
+        if src.starts_with("@nestjs") {
+            return;
+        }
+
         // Strip /index suffix if present
         if src.ends_with("/index") {
             src = src.trim_end_matches("/index").to_string();
@@ -127,15 +132,12 @@ impl RustGenerator {
                     };
 
                     let local_name = named.local.sym.to_string();
-                    let local_rust_name = if local_name
-                        .chars()
-                        .next()
-                        .is_some_and(|c| c.is_uppercase())
-                    {
-                        local_name.clone()
-                    } else {
-                        super::func::to_snake_case(&local_name)
-                    };
+                    let local_rust_name =
+                        if local_name.chars().next().is_some_and(|c| c.is_uppercase()) {
+                            local_name.clone()
+                        } else {
+                            super::func::to_snake_case(&local_name)
+                        };
 
                     let use_stmt = if imported_rust_name == local_rust_name {
                         format!("use {}::{};", module_path, local_rust_name)
@@ -151,15 +153,12 @@ impl RustGenerator {
                 }
                 swc_ecma_ast::ImportSpecifier::Default(default) => {
                     let local_name = default.local.sym.to_string();
-                    let local_rust_name = if local_name
-                        .chars()
-                        .next()
-                        .is_some_and(|c| c.is_uppercase())
-                    {
-                        local_name.clone()
-                    } else {
-                        super::func::to_snake_case(&local_name)
-                    };
+                    let local_rust_name =
+                        if local_name.chars().next().is_some_and(|c| c.is_uppercase()) {
+                            local_name.clone()
+                        } else {
+                            super::func::to_snake_case(&local_name)
+                        };
 
                     // Default import usually implies importing the struct/fn with the same name as the module or file
                     // But here we just import the name from the module path.
@@ -174,15 +173,12 @@ impl RustGenerator {
                 }
                 swc_ecma_ast::ImportSpecifier::Namespace(ns) => {
                     let local_name = ns.local.sym.to_string();
-                    let local_rust_name = if local_name
-                        .chars()
-                        .next()
-                        .is_some_and(|c| c.is_uppercase())
-                    {
-                        local_name.clone()
-                    } else {
-                        super::func::to_snake_case(&local_name)
-                    };
+                    let local_rust_name =
+                        if local_name.chars().next().is_some_and(|c| c.is_uppercase()) {
+                            local_name.clone()
+                        } else {
+                            super::func::to_snake_case(&local_name)
+                        };
                     let use_stmt = format!("use {} as {};", module_path, local_rust_name);
                     self.code.push_str(&use_stmt);
                     self.code.push('\n');
