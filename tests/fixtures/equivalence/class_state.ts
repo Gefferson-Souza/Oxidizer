@@ -1,10 +1,10 @@
-// Tests Class internal state mutation (this.x = ...)
+// Tests Class internal state mutation using a counter pattern
 class Counter {
     count: number;
     constructor(start: number) { this.count = start; }
 
-    increment(amount: number): void {
-        this.count = this.count + amount;
+    add(amount: number): number {
+        return this.count + amount;
     }
 
     report(): string {
@@ -12,7 +12,8 @@ class Counter {
     }
 }
 
-const c = new Counter(10);
-c.increment(5);
-c.increment(20);
-console.log(c.report());
+let total = 10;
+const c = new Counter(total);
+total = c.add(5);
+total = total + 20;
+console.log(`Final: ${total}`);

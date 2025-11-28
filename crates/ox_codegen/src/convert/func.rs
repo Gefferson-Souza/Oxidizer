@@ -163,14 +163,15 @@ pub fn convert_stmt(stmt: &Stmt) -> proc_macro2::TokenStream {
 
                     if let Some(init) = &decl.init {
                         let init_expr = convert_expr(init);
+                        // Always use `let mut` for now (safe default)
+                        // In the future, we could analyze reassignments
                         declarations.push(quote! {
                             let mut #var_ident = #init_expr;
                         });
                     } else {
-                        // Uninitialized variable - maybe let x; -> let mut x; (but we need type)
-                        // For now, skip or generate todo
+                        // Uninitialized variable
                         declarations.push(quote! {
-                            let mut #var_ident; // This might fail in Rust if type not inferred
+                            let mut #var_ident;
                         });
                     }
                 }
@@ -223,6 +224,10 @@ pub fn convert_expr(expr: &Expr) -> proc_macro2::TokenStream {
         Expr::This(_) => quote! { self },
         Expr::Ident(ident) => {
             let name = ident.sym.as_str();
+            // Handle special identifiers
+            if name == "undefined" {
+                return quote! { None };
+            }
             // If starts with uppercase, assume Class/Type and keep as is
             // If starts with lowercase, convert to snake_case (variable/function)
             if name.chars().next().is_some_and(|c| c.is_uppercase()) {
