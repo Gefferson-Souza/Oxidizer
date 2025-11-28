@@ -75,14 +75,19 @@ impl RustGenerator {
         // Helper to sanitize path segments
         let sanitize_path = |p: &str| -> String {
             p.split('/')
-                .map(|part| part.replace('.', "_"))
+                .map(|part| part.replace('.', "_").replace('-', "_"))
                 .collect::<Vec<_>>()
                 .join("::")
         };
 
+        let src_value = src.as_str();
+        if src_value == "axios" {
+            return; // Changed from `continue` to `return` as it's a function
+        }
+
         // Path resolution
-        let module_path = if src.starts_with("./") {
-            let path_str = src.trim_start_matches("./");
+        let module_path = if src_value.starts_with("./") {
+            let path_str = src_value.trim_start_matches("./");
             let sanitized = sanitize_path(path_str);
             if self.is_index {
                 format!("self::{}", sanitized)

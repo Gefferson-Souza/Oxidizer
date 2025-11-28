@@ -254,11 +254,38 @@ fn convert_member_expr(member: &MemberExpr) -> proc_macro2::TokenStream {
     }
 }
 
-fn convert_bin_expr(bin: &BinExpr) -> proc_macro2::TokenStream {
+pub fn convert_bin_expr(bin: &BinExpr) -> proc_macro2::TokenStream {
     let left = convert_expr(&bin.left);
     let mut right = convert_expr(&bin.right);
 
     if bin.op == BinaryOp::Add {
+        // Check if left is string
+        let mut is_left_string = false;
+        let mut left_expr = &*bin.left;
+        while let Expr::Paren(p) = left_expr {
+            left_expr = &p.expr;
+        }
+
+        if let Expr::Call(call) = left_expr {
+            if let Callee::Expr(callee) = &call.callee {
+                if let Expr::Member(member) = &**callee {
+                    if let Some(obj) = member.obj.as_ident() {
+                        if obj.sym == "String" {
+                            if let Some(prop) = member.prop.as_ident() {
+                                if prop.sym == "from" {
+                                    is_left_string = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if let Expr::Lit(Lit::Str(_)) = left_expr {
+            is_left_string = true;
+        }
+
+        let mut handled = false;
+
         // Heuristic: If right side is a string method call, borrow it to allow String + &String
         if let Expr::Call(call) = &*bin.right {
             if let Callee::Expr(callee_expr) = &call.callee {
@@ -269,11 +296,33 @@ fn convert_bin_expr(bin: &BinExpr) -> proc_macro2::TokenStream {
                             "toString" | "toUpperCase" | "toLowerCase" | "trim" | "replace"
                             | "join" | "repeat" | "slice" | "substring" | "substr" => {
                                 right = quote! { &#right };
+                                handled = true;
                             }
                             _ => {}
                         }
                     }
                 }
+            }
+        }
+
+        if !handled {
+            if is_left_string {
+                let mut right_expr = &*bin.right;
+                while let Expr::Paren(p) = right_expr {
+                    right_expr = &p.expr;
+                }
+
+                // If right is LitNum, .to_string().
+                if let Expr::Lit(Lit::Num(_)) = right_expr {
+                    right = quote! { &#right.to_string() };
+                }
+                // If right is a call (e.g. round), .to_string().
+                else if let Expr::Call(_) = right_expr {
+                    right = quote! { &#right.to_string() };
+                }
+            } else if let Expr::Ident(_) = &*bin.right {
+                // Heuristic: If right side is an identifier, borrow it.
+                right = quote! { &#right };
             }
         }
     }
@@ -297,12 +346,104 @@ fn convert_bin_expr(bin: &BinExpr) -> proc_macro2::TokenStream {
     quote! { #left #op #right }
 }
 
+pub fn convert_stmt_recursive<F>(stmt: &Stmt, handler: &F) -> proc_macro2::TokenStream
+where
+    F: Fn(&swc_ecma_ast::ReturnStmt) -> proc_macro2::TokenStream,
+{
+    match stmt {
+        Stmt::Return(ret_stmt) => handler(ret_stmt),
+        Stmt::Block(block) => {
+            let stmts: Vec<_> = block
+                .stmts
+                .iter()
+                .map(|s| convert_stmt_recursive(s, handler))
+                .collect();
+            quote! {
+                {
+                    #(#stmts)*
+                }
+            }
+        }
+        Stmt::If(if_stmt) => {
+            let test = convert_expr(&if_stmt.test);
+            let cons = convert_stmt_recursive(&if_stmt.cons, handler);
+            let cons_block = if matches!(*if_stmt.cons, Stmt::Block(_)) {
+                quote! { #cons }
+            } else {
+                quote! { { #cons } }
+            };
+
+            let alt = if let Some(alt) = &if_stmt.alt {
+                let alt_stmt = convert_stmt_recursive(alt, handler);
+                let alt_block = if matches!(&**alt, Stmt::Block(_) | Stmt::If(_)) {
+                    quote! { #alt_stmt }
+                } else {
+                    quote! { { #alt_stmt } }
+                };
+                quote! { else #alt_block }
+            } else {
+                quote! {}
+            };
+
+            quote! {
+                if #test #cons_block #alt
+            }
+        }
+        // TODO: Add loops if needed. For now, delegate to convert_stmt for others,
+        // BUT convert_stmt won't recurse with handler.
+        // So we should implement loops here if we expect returns inside loops.
+        // Assuming simple cases for now.
+        _ => convert_stmt(stmt),
+    }
+}
+
 fn convert_await_expr(await_expr: &AwaitExpr) -> proc_macro2::TokenStream {
-    let inner = convert_expr(&await_expr.arg);
-    quote! { #inner.await }
+    let arg = convert_expr(&await_expr.arg);
+    quote! { #arg.await? }
 }
 
 fn convert_call_expr(call: &CallExpr) -> proc_macro2::TokenStream {
+    let callee = &call.callee;
+    let args = &call.args;
+
+    // Handle axios.get<T>(...)
+    if let Callee::Expr(expr) = callee {
+        if let Expr::Member(member) = &**expr {
+            if let Expr::Ident(obj) = &*member.obj {
+                if obj.sym == "axios" {
+                    if let Some(prop) = member.prop.as_ident() {
+                        if prop.sym == "get" {
+                            if let Some(arg) = args.first() {
+                                let url = convert_expr_or_spread(arg);
+                                // Handle generics: axios.get<T>(...)
+                                let generic_type = if let Some(type_params) = &call.type_args {
+                                    if let Some(param) = type_params.params.first() {
+                                        let t = super::type_mapper::map_inner_type(param);
+                                        Some(t)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                };
+
+                                if let Some(t) = generic_type {
+                                    return quote! {
+                                        reqwest::Client::new().get(#url).send().await?.json::<#t>()
+                                    };
+                                } else {
+                                    return quote! {
+                                        reqwest::Client::new().get(#url).send().await?
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Try stdlib handlers first
     if let Some(stdlib_code) = crate::stdlib::try_handle_stdlib_call(&call.callee, &call.args) {
         return stdlib_code;

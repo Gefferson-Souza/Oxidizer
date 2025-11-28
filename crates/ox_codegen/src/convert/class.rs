@@ -85,7 +85,7 @@ impl RustGenerator {
                 .map(|p| {
                     let name = p.name.sym.to_string();
                     let ident = format_ident!("{}", name);
-                    quote! { #ident: Clone }
+                    quote! { #ident: serde::de::DeserializeOwned + serde::Serialize }
                 })
                 .collect();
             let params_use: Vec<_> = type_params
@@ -93,6 +93,15 @@ impl RustGenerator {
                 .iter()
                 .map(|p| format_ident!("{}", p.name.sym.to_string()))
                 .collect();
+
+            // Add PhantomData to usage to avoid unused type parameter error
+            if !params_use.is_empty() {
+                fields.push(quote! {
+                    #[serde(skip)]
+                    pub _marker: std::marker::PhantomData<(#(#params_use),*)>
+                });
+            }
+
             (
                 quote! { <#(#params_decl),*> },
                 quote! { <#(#params_use),*> },
@@ -116,11 +125,25 @@ impl RustGenerator {
 
         // Constructor
         if let Some(cons) = constructor {
-            impl_items.push(self.convert_constructor(&struct_name, cons, &class_fields_meta));
+            let has_generics = n
+                .class
+                .type_params
+                .as_ref()
+                .map(|tp| !tp.params.is_empty())
+                .unwrap_or(false);
+            impl_items.push(self.convert_constructor(
+                &struct_name,
+                cons,
+                &class_fields_meta,
+                has_generics,
+            ));
         } else {
             // Default constructor if none exists
             impl_items.push(quote! {
                 pub fn new() -> Self {
+                    Self::default()
+                }
+                pub fn new_di() -> Self {
                     Self::default()
                 }
             });
@@ -308,6 +331,7 @@ impl RustGenerator {
         _struct_name: &proc_macro2::Ident,
         constructor: &Constructor,
         class_fields: &[(String, bool)],
+        has_generics: bool,
     ) -> proc_macro2::TokenStream {
         let mut params = Vec::new();
         let mut field_inits = Vec::new();
@@ -410,11 +434,115 @@ impl RustGenerator {
             }
         }
 
+        // Initialize _marker if generics exist
+        if has_generics {
+            field_inits.push(quote! { _marker: std::marker::PhantomData });
+        }
+
         if !field_inits.is_empty() {
+            // Generate new_di (Dependency Injection constructor)
+            // It takes only dependencies and defaults primitives
+            let mut di_params = Vec::new();
+            let mut di_field_inits = Vec::new();
+
+            for param in &constructor.params {
+                match param {
+                    swc_ecma_ast::ParamOrTsParamProp::TsParamProp(prop) => {
+                        if let swc_ecma_ast::TsParamPropParam::Ident(ident) = &prop.param {
+                            let param_name_str = ident.sym.to_string();
+                            let param_name = format_ident!("{}", to_snake_case(&param_name_str));
+                            let type_ann = ident.type_ann.as_ref();
+                            let mut param_type = map_ts_type(type_ann);
+
+                            let type_str = param_type.to_string();
+                            let is_dependency = if let Some(ann) = type_ann {
+                                if let Some(_type_ref) = ann.type_ann.as_ts_type_ref() {
+                                    !matches!(
+                                        type_str.as_str(),
+                                        "String" | "f64" | "bool" | "i32" | "Vec" | "Option"
+                                    )
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            };
+
+                            if is_dependency {
+                                param_type = quote! { std::sync::Arc<#param_type> };
+                                di_params.push(quote! { #param_name: #param_type });
+                                di_field_inits.push(quote! { #param_name: #param_name });
+                            } else {
+                                di_field_inits.push(quote! { #param_name: Default::default() });
+                            }
+                        }
+                    }
+                    swc_ecma_ast::ParamOrTsParamProp::Param(pat_param) => {
+                        if let Pat::Ident(ident) = &pat_param.pat {
+                            let param_name = format_ident!("{}", ident.sym.to_string());
+                            let param_type = map_ts_type(ident.type_ann.as_ref());
+
+                            let type_str = param_type.to_string();
+                            let is_dependency = !matches!(
+                                type_str.as_str(),
+                                "String" | "f64" | "bool" | "i32" | "Vec" | "Option"
+                            );
+
+                            if is_dependency {
+                                di_params.push(quote! { #param_name: #param_type });
+                                // For plain params, we assume they are used in body or handled elsewhere.
+                                // But for DI, we can't easily map body assignments.
+                                // We'll skip adding to field_inits if not a property.
+                            }
+                        }
+                    }
+                }
+            }
+
+            if has_generics {
+                di_field_inits.push(quote! { _marker: std::marker::PhantomData });
+            }
+
+            // Fill in missing fields for new_di with Default::default()
+            // We need to track which fields are initialized in di_field_inits
+            // But di_field_inits is a list of TokenStreams.
+            // We can track names separately.
+            let mut di_initialized_fields = std::collections::HashSet::new();
+            for param in &constructor.params {
+                match param {
+                    swc_ecma_ast::ParamOrTsParamProp::TsParamProp(prop) => {
+                        if let swc_ecma_ast::TsParamPropParam::Ident(ident) = &prop.param {
+                            di_initialized_fields.insert(ident.sym.to_string());
+                        }
+                    }
+                    swc_ecma_ast::ParamOrTsParamProp::Param(pat_param) => {
+                        if let Pat::Ident(ident) = &pat_param.pat {
+                            // Only if it was added to params
+                            // But we don't know easily here.
+                            // Let's just assume if it's in class_fields, we check it.
+                            di_initialized_fields.insert(ident.sym.to_string());
+                        }
+                    }
+                }
+            }
+
+            for (name, _) in class_fields {
+                if !di_initialized_fields.contains(name) {
+                    let field_name = format_ident!("{}", name);
+                    di_field_inits.push(quote! { #field_name: Default::default() });
+                }
+            }
+
             quote! {
                 pub fn new(#(#params),*) -> Self {
                     Self {
                         #(#field_inits),*
+                    }
+                }
+
+                pub fn new_di(#(#di_params),*) -> Self {
+                    Self {
+                        #(#di_field_inits),*
                     }
                 }
             }
@@ -463,6 +591,12 @@ impl RustGenerator {
         }
 
         let is_handler = http_method.is_some();
+        println!(
+            "Method: {}, is_handler: {}, decorators: {}",
+            method_name,
+            is_handler,
+            method.function.decorators.len()
+        );
 
         // Build parameters
         let mut params = Vec::new();
@@ -506,41 +640,64 @@ impl RustGenerator {
         }
 
         let mut return_type = if method.function.is_async {
-            super::type_mapper::unwrap_promise_type(method.function.return_type.as_ref())
+            let inner =
+                super::type_mapper::unwrap_promise_type(method.function.return_type.as_ref());
+            if !is_handler {
+                quote! { Result<#inner, crate::AppError> }
+            } else {
+                inner
+            }
         } else {
             map_ts_type(method.function.return_type.as_ref())
         };
 
         // If it's a handler, wrap return type in Json unless it's String
+        // Wrap handler return type in Result
         if is_handler {
             let return_type_str = return_type.to_string();
-            if return_type_str != "String" {
-                return_type = quote! { axum::Json<#return_type> };
-            }
+            let inner_type = if return_type_str != "String" {
+                quote! { axum::Json<#return_type> }
+            } else {
+                quote! { String }
+            };
+            return_type = quote! { Result<#inner_type, crate::AppError> };
         }
 
         // Convert body
         let mut body_stmts = Vec::new();
         if let Some(body) = &method.function.body {
-            for stmt in &body.stmts {
-                // We need to intercept the return statement if it's a handler
-                if is_handler {
-                    if let Stmt::Return(ret) = stmt {
-                        if let Some(arg) = &ret.arg {
-                            let expr = convert_expr_pub(arg);
-                            // Check if we wrapped the return type
-                            let is_wrapped = return_type.to_string().starts_with("axum :: Json");
+            // Define return handler
+            let return_handler = |ret: &swc_ecma_ast::ReturnStmt| -> proc_macro2::TokenStream {
+                if let Some(arg) = &ret.arg {
+                    let expr = convert_expr_pub(arg);
 
-                            if is_wrapped {
-                                body_stmts.push(quote! { return axum::Json(#expr.into()); });
-                            } else {
-                                body_stmts.push(quote! { return #expr; });
-                            }
-                            continue;
+                    if is_handler {
+                        // Check if we wrapped the return type in Json (inside Result)
+                        let ret_str = return_type.to_string();
+                        let uses_json = ret_str.contains("axum :: Json");
+
+                        if uses_json {
+                            quote! { return Ok(axum::Json(#expr.into())); }
+                        } else {
+                            quote! { return Ok(#expr.into()); }
                         }
+                    } else if method.function.is_async {
+                        // For async methods, wrap in Ok
+                        quote! { return Ok(#expr); }
+                    } else {
+                        quote! { return #expr; }
                     }
+                } else {
+                    quote! { return Ok(().into()); } // For handlers returning void?
                 }
-                body_stmts.push(convert_stmt_pub(stmt));
+            };
+
+            for stmt in &body.stmts {
+                if is_handler || method.function.is_async {
+                    body_stmts.push(super::func::convert_stmt_recursive(stmt, &return_handler));
+                } else {
+                    body_stmts.push(convert_stmt_pub(stmt));
+                }
             }
         }
 

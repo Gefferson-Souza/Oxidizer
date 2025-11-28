@@ -8,4 +8,7 @@ impl CreatePaymentDto {
     pub fn new() -> Self {
         Self::default()
     }
+    pub fn new_di() -> Self {
+        Self::default()
+    }
 }

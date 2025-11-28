@@ -45,6 +45,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
     let mut controllers: Vec<String> = Vec::new(); // Just names of controllers
     let mut class_module_map: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
+    let mut generic_classes: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut programs = Vec::new();
     let mut file_paths = Vec::new();
 
@@ -67,7 +68,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
                     ))
                 })?
                 .to_string_lossy();
-            let sanitized_stem = file_stem.replace('.', "_");
+            let sanitized_stem = file_stem.replace('.', "_").replace('-', "_");
 
             let mut module_parts = Vec::new();
             module_parts.push("typerust_app".to_string()); // Use lib crate name
@@ -77,7 +78,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
                     if let std::path::Component::Normal(s) = part {
                         let s_str = s.to_string_lossy();
                         if s_str != "src" {
-                            module_parts.push(s_str.to_string());
+                            module_parts.push(s_str.replace('-', "_"));
                         }
                     }
                 }
@@ -96,7 +97,13 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
                         {
                             if let swc_ecma_ast::Decl::Class(class_decl) = &export.decl {
                                 let class_name = class_decl.ident.sym.to_string();
-                                class_module_map.insert(class_name, module_path.clone());
+                                class_module_map.insert(class_name.clone(), module_path.clone());
+
+                                if let Some(type_params) = &class_decl.class.type_params {
+                                    if !type_params.params.is_empty() {
+                                        generic_classes.insert(class_name);
+                                    }
+                                }
                             }
                         }
                     }
@@ -119,6 +126,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
     for (i, program) in programs.iter().enumerate() {
         let path = &file_paths[i];
         let relative_path = path.strip_prefix(&input_dir).unwrap_or(path);
+        let relative_path = relative_path.strip_prefix("src").unwrap_or(relative_path);
         let output_path = output_dir.join("src").join(relative_path);
 
         // Check if it's index.ts
@@ -136,7 +144,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
                 ))
             })?
             .to_string_lossy();
-        let sanitized_stem = file_stem.replace('.', "_");
+        let sanitized_stem = file_stem.replace('.', "_").replace('-', "_");
         let output_file = output_path.with_file_name(format!("{}.rs", sanitized_stem));
 
         if let Some(parent) = output_file.parent() {
@@ -164,8 +172,42 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
     let src_mod = output_dir.join("src").join("mod.rs");
     let src_lib = output_dir.join("src").join("lib.rs");
     if src_mod.exists() {
-        fs::rename(src_mod, src_lib).map_err(OxidizerError::IoError)?;
+        fs::rename(src_mod, src_lib.clone()).map_err(OxidizerError::IoError)?;
     }
+
+    // Generate error.rs
+    let error_rs = output_dir.join("src").join("error.rs");
+    let error_content = r#"
+use axum::{response::{IntoResponse, Response}, http::StatusCode};
+
+pub struct AppError(Box<dyn std::error::Error + Send + Sync>);
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            self.0.to_string(),
+        )
+            .into_response()
+    }
+}
+
+impl<E> From<E> for AppError
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn from(err: E) -> Self {
+        Self(Box::new(err))
+    }
+}
+
+"#;
+    fs::write(error_rs, error_content).map_err(OxidizerError::IoError)?;
+
+    // Append mod error; pub use error::AppError; to lib.rs
+    let mut lib_content = fs::read_to_string(&src_lib).map_err(OxidizerError::IoError)?;
+    lib_content.push_str("\npub mod error;\npub use error::AppError;\n");
+    fs::write(&src_lib, lib_content).map_err(OxidizerError::IoError)?;
 
     // 5. Generate Cargo.toml
     generate_cargo_toml(&output_dir)?;
@@ -177,6 +219,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
         &class_module_map,
         &controllers,
         &graph,
+        &generic_classes,
     )?;
 
     Ok(())
@@ -188,6 +231,7 @@ fn generate_main_rs(
     class_module_map: &std::collections::HashMap<String, String>,
     controllers: &[String],
     graph: &ox_analyzer::graph::DependencyGraph,
+    generic_classes: &std::collections::HashSet<String>,
 ) -> Result<(), OxidizerError> {
     let mut main_content = String::new();
     main_content.push_str("use axum::Router;\n");
@@ -202,6 +246,9 @@ fn generate_main_rs(
     let mut instantiated_vars = std::collections::HashMap::new();
 
     for class_name in init_order {
+        if generic_classes.contains(class_name) {
+            continue;
+        }
         if let Some(module_path) = class_module_map.get(class_name) {
             let var_name = ox_common::util::to_snake_case(class_name);
 
@@ -215,7 +262,7 @@ fn generate_main_rs(
             let args_str = args.join(", ");
 
             main_content.push_str(&format!(
-                "    let {} = Arc::new({}::{}::new({}));\n",
+                "    let {} = Arc::new({}::{}::new_di({}));\n",
                 var_name, module_path, class_name, args_str
             ));
 
@@ -328,7 +375,7 @@ fn generate_mod_rs(dir: &Path) -> Result<(), OxidizerError> {
             // If it's a directory, it should have a mod.rs inside (handled by recursion/iteration),
             // so we expose it as a module.
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                let sanitized_name = name.replace('.', "_");
+                let sanitized_name = name.replace('.', "_").replace('-', "_");
                 mod_content.push_str(&format!("pub mod {};\n", sanitized_name));
                 has_children = true;
             }
@@ -344,7 +391,7 @@ fn generate_mod_rs(dir: &Path) -> Result<(), OxidizerError> {
                         // But let's delete it after reading.
                     } else {
                         // Sanitize module name just in case, though we sanitized filename on write
-                        let sanitized_stem = stem.replace('.', "_");
+                        let sanitized_stem = stem.replace('.', "_").replace('-', "_");
                         mod_content.push_str(&format!("pub mod {};\n", sanitized_stem));
                         has_children = true;
                     }

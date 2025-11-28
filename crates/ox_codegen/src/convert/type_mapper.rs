@@ -39,7 +39,17 @@ pub fn map_ts_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
                             // User defined type (Struct or Enum)
                             let type_ident =
                                 proc_macro2::Ident::new(name, proc_macro2::Span::call_site());
-                            quote! { #type_ident }
+
+                            if let Some(type_params) = &t.type_params {
+                                let params: Vec<_> = type_params
+                                    .params
+                                    .iter()
+                                    .map(|p| map_inner_type(p))
+                                    .collect();
+                                quote! { #type_ident<#(#params),*> }
+                            } else {
+                                quote! { #type_ident }
+                            }
                         }
                     }
                 } else {
@@ -135,7 +145,7 @@ pub fn is_optional_type(type_ann: Option<&TsTypeAnn>) -> bool {
     false
 }
 
-fn map_inner_type(ts_type: &swc_ecma_ast::TsType) -> TokenStream {
+pub fn map_inner_type(ts_type: &swc_ecma_ast::TsType) -> TokenStream {
     match ts_type {
         TsType::TsKeywordType(k) => match k.kind {
             swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => quote! { String },

@@ -1,1 +1,1 @@
-pub mod http-client;
+pub mod http_client;

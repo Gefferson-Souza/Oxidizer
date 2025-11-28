@@ -1,1 +1,1 @@
-pub mod user-processor;
+pub mod user_processor;
