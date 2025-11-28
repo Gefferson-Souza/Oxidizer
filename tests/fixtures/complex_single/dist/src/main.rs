@@ -6,7 +6,8 @@ use axum::Extension;
 #[tokio::main]
 async fn main() {
 
-    let app = Router::new();
+    // Build router
+    let app = axum::Router::new();
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Server running on http://0.0.0.0:3000");

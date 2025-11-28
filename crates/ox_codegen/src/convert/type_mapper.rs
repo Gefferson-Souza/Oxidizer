@@ -145,6 +145,39 @@ pub fn is_optional_type(type_ann: Option<&TsTypeAnn>) -> bool {
     false
 }
 
+pub fn is_void_or_promise_void(type_ann: Option<&TsTypeAnn>) -> bool {
+    if let Some(type_ann) = type_ann {
+        match &*type_ann.type_ann {
+            TsType::TsKeywordType(k) => k.kind == swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword,
+            TsType::TsTypeRef(type_ref) => {
+                // Check Promise<void>
+                if let Some(ident) = type_ref.type_name.as_ident() {
+                    if ident.sym == "Promise" {
+                        if let Some(type_params) = &type_ref.type_params {
+                            if let Some(first_param) = type_params.params.first() {
+                                // Check if inner is void
+                                if let TsType::TsKeywordType(k) = &**first_param {
+                                    return k.kind
+                                        == swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword;
+                                }
+                            }
+                        }
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
+    } else {
+        // If no return type, assume void for functions (in this context)
+        // But map_ts_type maps None to Value.
+        // We need consistency.
+        // For now, let's say None is NOT void if we map it to Value.
+        // But in process_fn_decl we might override this.
+        false
+    }
+}
+
 pub fn map_inner_type(ts_type: &swc_ecma_ast::TsType) -> TokenStream {
     match ts_type {
         TsType::TsKeywordType(k) => match k.kind {

@@ -14,16 +14,18 @@ mod nestjs_tests {
 
         // Verify Axum handlers
         assert!(rust_code.contains("pub async fn find_all"));
-        assert!(rust_code.contains("-> String"));
+        assert!(rust_code.contains("-> Result < String , crate :: AppError >"));
         assert!(rust_code.contains("Route:"));
         assert!(rust_code.contains("GET"));
 
         assert!(rust_code.contains("pub async fn create"));
         assert!(rust_code.contains("axum :: Json (create_cat_dto)"));
         assert!(rust_code.contains("axum :: Json < CreateCatDto >"));
-        assert!(rust_code.contains("-> axum :: Json < CreateCatDto >"));
+        assert!(
+            rust_code.contains("-> Result < axum :: Json < CreateCatDto > , crate :: AppError >")
+        );
         assert!(rust_code.contains("POST"));
-        assert!(rust_code.contains("return axum :: Json (create_cat_dto)"));
+        assert!(rust_code.contains("return Ok (axum :: Json (create_cat_dto . into ()))"));
     }
 
     #[test]
@@ -52,40 +54,36 @@ mod nestjs_tests {
 
         let temp_dir = TempDir::new().unwrap();
         let input_dir = PathBuf::from("fixtures/nestjs_controller/src");
-        let output_dir = temp_dir.path().join("src"); // Put code in src/
-
-        // Create project root
-        let project_root = temp_dir.path();
-        std::fs::create_dir_all(&output_dir).unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let input_dir = PathBuf::from("fixtures/nestjs_controller/src");
+        let output_dir = temp_dir.path().to_path_buf(); // Project root
 
         // Build project
         ox_orchestrator::build_project(input_dir, output_dir.clone())
             .expect("Failed to build project");
 
-        // Generate Cargo.toml in project root (not in src)
-        // Note: build_project generates Cargo.toml in output_dir (src). We need to move it or generate it in root.
-        // The current implementation of build_project generates Cargo.toml in the output_dir.
-        // If output_dir is `.../src`, then Cargo.toml is in `.../src/Cargo.toml`.
-        // Cargo expects Cargo.toml at root.
+        // Verify error.rs exists in src
+        let error_rs = output_dir.join("src").join("error.rs");
+        assert!(error_rs.exists(), "error.rs was not generated");
 
-        let src_cargo = output_dir.join("Cargo.toml");
-        let root_cargo = project_root.join("Cargo.toml");
-        std::fs::rename(src_cargo, root_cargo).expect("Failed to move Cargo.toml");
+        // Check Cargo.toml in root
+        let root_cargo = output_dir.join("Cargo.toml");
+        assert!(root_cargo.exists(), "Cargo.toml missing");
 
         // Rename root mod.rs to lib.rs to make it a library
-        let root_mod = output_dir.join("mod.rs");
-        let lib_rs = output_dir.join("lib.rs");
-        if root_mod.exists() {
-            std::fs::rename(root_mod, lib_rs).expect("Failed to rename mod.rs to lib.rs");
-        } else {
-            // If no mod.rs, maybe just one file?
-            // In our fixture, we have cats.controller.ts, so we expect cats_controller.rs and mod.rs
+        // build_project now handles this internally or generates lib.rs directly.
+        // Let's check if lib.rs exists in src.
+        let lib_rs = output_dir.join("src").join("lib.rs");
+        let mod_rs = output_dir.join("src").join("mod.rs");
+
+        if !lib_rs.exists() && mod_rs.exists() {
+            std::fs::rename(mod_rs, lib_rs).expect("Failed to rename mod.rs");
         }
 
         // Run cargo build (stronger verification than check)
         let status = std::process::Command::new("cargo")
             .arg("build")
-            .current_dir(project_root)
+            .current_dir(output_dir)
             .status()
             .expect("Failed to run cargo build");
 

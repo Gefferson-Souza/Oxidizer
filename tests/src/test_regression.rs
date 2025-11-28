@@ -2,6 +2,7 @@ use ox_orchestrator::build_project;
 use std::path::PathBuf;
 use std::process::Command;
 
+#[allow(dead_code)]
 fn run_gauntlet_test(fixture_name: &str) {
     let input_path = PathBuf::from(format!("fixtures/{}", fixture_name));
     let output_dir = PathBuf::from(format!("fixtures/{}/dist", fixture_name));

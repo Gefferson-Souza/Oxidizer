@@ -75,7 +75,7 @@ impl RustGenerator {
         // Helper to sanitize path segments
         let sanitize_path = |p: &str| -> String {
             p.split('/')
-                .map(|part| part.replace('.', "_").replace('-', "_"))
+                .map(|part| part.replace(['.', '-'], "_"))
                 .collect::<Vec<_>>()
                 .join("::")
         };

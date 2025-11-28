@@ -1,6 +1,7 @@
 use ox_diagnostics::OxidizerError;
 use std::fs;
 use std::path::{Path, PathBuf};
+
 use walkdir::WalkDir;
 
 use ox_common::fs::FilePath;
@@ -68,7 +69,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
                     ))
                 })?
                 .to_string_lossy();
-            let sanitized_stem = file_stem.replace('.', "_").replace('-', "_");
+            let sanitized_stem = file_stem.replace(['.', '-'], "_");
 
             let mut module_parts = Vec::new();
             module_parts.push("typerust_app".to_string()); // Use lib crate name
@@ -88,27 +89,24 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
 
             // Extract classes to map them
             // We use a simple visitor or just iterate top level statements
-            match &program {
-                swc_ecma_ast::Program::Module(m) => {
-                    for item in &m.body {
-                        if let swc_ecma_ast::ModuleItem::ModuleDecl(
-                            swc_ecma_ast::ModuleDecl::ExportDecl(export),
-                        ) = item
-                        {
-                            if let swc_ecma_ast::Decl::Class(class_decl) = &export.decl {
-                                let class_name = class_decl.ident.sym.to_string();
-                                class_module_map.insert(class_name.clone(), module_path.clone());
+            if let swc_ecma_ast::Program::Module(m) = &program {
+                for item in &m.body {
+                    if let swc_ecma_ast::ModuleItem::ModuleDecl(
+                        swc_ecma_ast::ModuleDecl::ExportDecl(export),
+                    ) = item
+                    {
+                        if let swc_ecma_ast::Decl::Class(class_decl) = &export.decl {
+                            let class_name = class_decl.ident.sym.to_string();
+                            class_module_map.insert(class_name.clone(), module_path.clone());
 
-                                if let Some(type_params) = &class_decl.class.type_params {
-                                    if !type_params.params.is_empty() {
-                                        generic_classes.insert(class_name);
-                                    }
+                            if let Some(type_params) = &class_decl.class.type_params {
+                                if !type_params.params.is_empty() {
+                                    generic_classes.insert(class_name);
                                 }
                             }
                         }
                     }
                 }
-                _ => {}
             }
 
             programs.push(program);
@@ -120,7 +118,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
     let graph = ox_analyzer::graph::build_graph(&programs);
     let init_order = graph
         .get_initialization_order()
-        .map_err(|e| OxidizerError::FormattingError(e))?; // Using FormattingError as generic error for now
+        .map_err(OxidizerError::FormattingError)?; // Using FormattingError as generic error for now
 
     // 3. Transpile
     for (i, program) in programs.iter().enumerate() {
@@ -129,22 +127,16 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Oxid
         let relative_path = relative_path.strip_prefix("src").unwrap_or(relative_path);
         let output_path = output_dir.join("src").join(relative_path);
 
+        // Calculate module path for this file
+        let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
+        let sanitized_stem = file_stem.replace(['.', '-'], "_");
+
         // Check if it's index.ts
         let is_index = path.file_stem().and_then(|s| s.to_str()) == Some("index");
 
         let generated = ox_codegen::generate(program, is_index);
         let formatted_code = format_code(generated.code)?;
 
-        let file_stem = path
-            .file_stem()
-            .ok_or_else(|| {
-                OxidizerError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Invalid file path",
-                ))
-            })?
-            .to_string_lossy();
-        let sanitized_stem = file_stem.replace('.', "_").replace('-', "_");
         let output_file = output_path.with_file_name(format!("{}.rs", sanitized_stem));
 
         if let Some(parent) = output_file.parent() {
@@ -209,12 +201,8 @@ where
     lib_content.push_str("\npub mod error;\npub use error::AppError;\n");
     fs::write(&src_lib, lib_content).map_err(OxidizerError::IoError)?;
 
-    // 5. Generate Cargo.toml
-    generate_cargo_toml(&output_dir)?;
-
-    // 6. Generate main.rs
-    generate_main_rs(
-        &output_dir,
+    // 5. Generate main.rs
+    let main_content = generate_main_rs(
         &init_order,
         &class_module_map,
         &controllers,
@@ -222,17 +210,28 @@ where
         &generic_classes,
     )?;
 
+    // Ensure src directory exists
+    let src_dir = output_dir.join("src");
+    if !src_dir.exists() {
+        fs::create_dir_all(&src_dir).map_err(OxidizerError::IoError)?;
+    }
+
+    let main_rs = src_dir.join("main.rs");
+    fs::write(main_rs, main_content).map_err(OxidizerError::IoError)?;
+
+    // 6. Generate Cargo.toml
+    generate_cargo_toml(&output_dir)?;
+
     Ok(())
 }
 
 fn generate_main_rs(
-    output_dir: &Path,
     init_order: &[String],
     class_module_map: &std::collections::HashMap<String, String>,
     controllers: &[String],
     graph: &ox_analyzer::graph::DependencyGraph,
     generic_classes: &std::collections::HashSet<String>,
-) -> Result<(), OxidizerError> {
+) -> Result<String, OxidizerError> {
     let mut main_content = String::new();
     main_content.push_str("use axum::Router;\n");
     main_content.push_str("use tokio::net::TcpListener;\n");
@@ -259,65 +258,50 @@ fn generate_main_rs(
                 let dep_var = ox_common::util::to_snake_case(&dep);
                 args.push(format!("{}.clone()", dep_var));
             }
-            let args_str = args.join(", ");
 
+            // Check if it has new_di
+            // For now assume yes if it has dependencies, or just call new_di
             main_content.push_str(&format!(
                 "    let {} = Arc::new({}::{}::new_di({}));\n",
-                var_name, module_path, class_name, args_str
+                var_name,
+                module_path,
+                class_name,
+                args.join(", ")
             ));
 
-            instantiated_vars.insert(class_name, var_name);
+            instantiated_vars.insert(class_name.clone(), var_name);
         }
     }
 
-    main_content.push_str("\n    let app = Router::new()");
+    main_content.push_str("\n    // Build router\n");
+    main_content.push_str("    let app = axum::Router::new()");
 
-    // Merge controller routers
-    // We need to find the instantiated controller variable
-    for controller_name in controllers {
-        if let Some(_var_name) = instantiated_vars.get(controller_name) {
-            if let Some(module_path) = class_module_map.get(controller_name) {
-                // .merge(typerust_app::cats::cats_controller::CatsController::router())
-                // But wait, router() is static and creates a new Router.
-                // It doesn't take the controller instance.
-                // We need to pass the controller instance to the router via Extension.
-                // The router() function we generated adds .layer(Extension(Self::default())).
-                // We removed Self::default() in previous step (or intended to).
-                // Actually, we kept it but we should override it.
-                // If we do .merge(Controller::router()).layer(Extension(controller_instance)),
-                // the Extension(controller_instance) will be available to the routes.
-
-                main_content.push_str(&format!(
-                    "\n        .merge({}::{}::router())",
-                    module_path, controller_name
-                ));
-            }
+    // Register controllers
+    for controller in controllers {
+        if let Some(module_path) = class_module_map.get(controller) {
+            main_content.push_str(&format!(
+                "\n        .merge({}::{}::router())",
+                module_path, controller
+            ));
         }
     }
 
-    // 4. Add Extension layers
-    for (_class_name, var_name) in &instantiated_vars {
-        // Assuming instantiated_services is a typo and it should be instantiated_vars
+    // Add extensions
+    for var_name in instantiated_vars.values() {
         main_content.push_str(&format!(
-            "        .layer(Extension({}.clone()))\n",
+            "\n        .layer(Extension({}.clone()))",
             var_name
         ));
     }
 
     main_content.push_str(";\n\n");
-
     main_content
         .push_str("    let listener = TcpListener::bind(\"0.0.0.0:3000\").await.unwrap();\n");
     main_content.push_str("    println!(\"Server running on http://0.0.0.0:3000\");\n");
     main_content.push_str("    axum::serve(listener, app).await.unwrap();\n");
     main_content.push_str("}\n");
 
-    let main_path = output_dir.join("src").join("main.rs");
-    if let Some(parent) = main_path.parent() {
-        fs::create_dir_all(parent).map_err(OxidizerError::IoError)?;
-    }
-    fs::write(main_path, main_content).map_err(OxidizerError::IoError)?;
-    Ok(())
+    Ok(main_content)
 }
 
 fn generate_cargo_toml(output_dir: &Path) -> Result<(), OxidizerError> {
@@ -375,7 +359,7 @@ fn generate_mod_rs(dir: &Path) -> Result<(), OxidizerError> {
             // If it's a directory, it should have a mod.rs inside (handled by recursion/iteration),
             // so we expose it as a module.
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                let sanitized_name = name.replace('.', "_").replace('-', "_");
+                let sanitized_name = name.replace(['.', '-'], "_");
                 mod_content.push_str(&format!("pub mod {};\n", sanitized_name));
                 has_children = true;
             }
@@ -391,7 +375,7 @@ fn generate_mod_rs(dir: &Path) -> Result<(), OxidizerError> {
                         // But let's delete it after reading.
                     } else {
                         // Sanitize module name just in case, though we sanitized filename on write
-                        let sanitized_stem = stem.replace('.', "_").replace('-', "_");
+                        let sanitized_stem = stem.replace(['.', '-'], "_");
                         mod_content.push_str(&format!("pub mod {};\n", sanitized_stem));
                         has_children = true;
                     }

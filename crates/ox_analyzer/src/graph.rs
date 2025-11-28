@@ -16,7 +16,15 @@ impl DependencyGraph {
             node_map: HashMap::new(),
         }
     }
+}
 
+impl Default for DependencyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DependencyGraph {
     pub fn add_node(&mut self, name: String) -> NodeIndex {
         if let Some(&idx) = self.node_map.get(&name) {
             idx

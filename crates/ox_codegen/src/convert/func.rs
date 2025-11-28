@@ -26,16 +26,61 @@ impl super::interface::RustGenerator {
 
         // Extract return type - unwrap Promise<T> for async functions
         let return_type = if is_async {
-            unwrap_promise_type(n.function.return_type.as_ref())
+            if n.function.return_type.is_none() {
+                // If no return type, assume void for async functions
+                quote! { Result<(), crate::AppError> }
+            } else {
+                let inner = unwrap_promise_type(n.function.return_type.as_ref());
+                quote! { Result<#inner, crate::AppError> }
+            }
+        } else if n.function.return_type.is_none() {
+            quote! { () }
         } else {
             map_ts_type(n.function.return_type.as_ref())
+        };
+
+        // Check if void
+        let is_void = if n.function.return_type.is_none() {
+            true
+        } else {
+            super::type_mapper::is_void_or_promise_void(n.function.return_type.as_deref())
         };
 
         // Convert body
         let mut body_stmts = Vec::new();
         if let Some(block_stmt) = &n.function.body {
-            for stmt in &block_stmt.stmts {
-                body_stmts.push(convert_stmt(stmt));
+            if is_async {
+                // Use recursive converter to handle return Ok(...)
+                for stmt in &block_stmt.stmts {
+                    body_stmts.push(convert_stmt_recursive(stmt, &|ret_stmt| {
+                        if let Some(arg) = &ret_stmt.arg {
+                            let expr = convert_expr(arg);
+                            quote! { return Ok(#expr); }
+                        } else {
+                            quote! { return Ok(()); }
+                        }
+                    }));
+                }
+
+                if is_void {
+                    // Fallback for void functions
+                    // Only append if the last statement isn't a return (though rustc handles unreachable code)
+                    // But strictly, we need Ok(()) if control flow reaches end.
+                    // Since we can't easily analyze control flow, appending Ok(()) is safe for void functions.
+                    // But we must ensure it doesn't cause "unreachable expression" warnings if possible,
+                    // or just accept the warning.
+                    // The previous error was "expected bool, found ()".
+                    // If we only append when is_void is true, we avoid that error.
+                    // We might get "unreachable code" warning if there was an explicit return before, but that's fine (just a warning).
+                    // Ideally we suppress it or check, but let's just append.
+                    // Actually, to avoid "unreachable expression" warning which might be treated as error in some configs:
+                    // We can't easily avoid it without CFG.
+                    // Let's just append it.
+                }
+            } else {
+                for stmt in &block_stmt.stmts {
+                    body_stmts.push(convert_stmt(stmt));
+                }
             }
         }
 
@@ -52,7 +97,7 @@ impl super::interface::RustGenerator {
                 .map(|p| {
                     let name = p.name.sym.to_string();
                     let ident = format_ident!("{}", name);
-                    quote! { #ident: Clone }
+                    quote! { #ident: serde::de::DeserializeOwned + serde::Serialize + Clone }
                 })
                 .collect();
             quote! { <#(#params),*> }
@@ -61,9 +106,16 @@ impl super::interface::RustGenerator {
         };
 
         let fn_def = if is_async {
+            let fallback = if is_void {
+                quote! { Ok(()) }
+            } else {
+                quote! {}
+            };
+
             quote! {
                 #vis async fn #fn_ident #generics (#(#params),*) -> #return_type {
                     #(#body_stmts)*
+                    #fallback
                 }
             }
         } else {
@@ -239,8 +291,8 @@ fn convert_member_expr(member: &MemberExpr) -> proc_macro2::TokenStream {
     // Handle this.prop -> self.prop
     if member.obj.is_this() {
         if let Some(prop_ident) = member.prop.as_ident() {
-            let field_name = to_snake_case(&prop_ident.sym.to_string());
-            let field = format_ident!("{}", field_name);
+            let prop_name = to_snake_case(prop_ident.sym.as_ref());
+            let field = format_ident!("{}", prop_name);
             return quote! { self.#field.clone() };
         }
     }
@@ -319,6 +371,10 @@ pub fn convert_bin_expr(bin: &BinExpr) -> proc_macro2::TokenStream {
                 // If right is a call (e.g. round), .to_string().
                 else if let Expr::Call(_) = right_expr {
                     right = quote! { &#right.to_string() };
+                }
+                // If right is Ident, borrow it.
+                else if let Expr::Ident(_) = right_expr {
+                    right = quote! { &#right };
                 }
             } else if let Expr::Ident(_) = &*bin.right {
                 // Heuristic: If right side is an identifier, borrow it.
