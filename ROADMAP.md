@@ -150,24 +150,25 @@ _Goal: Transform NestJS Controllers into Axum-compatible handlers and generate a
   - [x] `@Body()` -> `axum::Json<T>` extractor
 - [x] **Manifest Generation:** Generate `Cargo.toml` with `axum`, `tokio`, `serde`.
 
-## 🚀 Phase 6: The Application Bootstrapper (Router & Main)
+## 🚀 Phase 6: The Application Bootstrapper (Router & Main) (Complete)
 
 _Goal: Generate the entry point that wires everything together._
 
-- [ ] **Router Generation Strategy:**
-  - [ ] Update Codegen to generate a `pub fn router() -> Router` inside each Controller file.
-  - [ ] Inside this router, map `@Get('/')` to `.route("/", get(self::find_all))`.
-- [ ] **Main.rs Generation:**
-  - [ ] Collect all Controllers found during the build.
-  - [ ] Generate `src/main.rs`.
-  - [ ] Logic: `Router::new().merge(cats_controller::router()).merge(...)`.
-  - [ ] Bind to `0.0.0.0:3000`.
+- [x] **Router Generation Strategy:**
+  - [x] Update Codegen to generate a `pub fn router() -> Router` inside each Controller file.
+  - [x] Inside this router, map `@Get('/')` to `.route("/", get(self::find_all))`.
+- [x] **Main.rs Generation:**
+  - [x] Collect all Controllers found during the build.
+  - [x] Generate `src/main.rs`.
+  - [x] Logic: `Router::new().merge(cats_controller::router()).merge(...)`.
+  - [x] Bind to `0.0.0.0:3000`.
 
 ## 💉 Phase 7: Dependency Injection (The Hardest Part)
 
 _Goal: Connect Services to Controllers._
 
 - [ ] Detect `constructor(private service: CatsService)`.
+
 - [ ] Generate `Extension<Arc<CatsService>>` in the handler arguments.
 - [ ] Register services in `main.rs` via `.layer(Extension(CatsService::new()))`.
 

@@ -489,11 +489,7 @@ impl RustGenerator {
             }
         };
 
-        let route_info = if let Some(method) = http_method {
-            Some((method_name.to_string(), method, route_path))
-        } else {
-            None
-        };
+        let route_info = http_method.map(|method| (method_name.to_string(), method, route_path));
 
         (tokens, route_info)
     }

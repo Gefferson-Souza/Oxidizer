@@ -82,12 +82,12 @@ mod nestjs_tests {
             // In our fixture, we have cats.controller.ts, so we expect cats_controller.rs and mod.rs
         }
 
-        // Run cargo check
+        // Run cargo build (stronger verification than check)
         let status = std::process::Command::new("cargo")
-            .arg("check")
+            .arg("build")
             .current_dir(project_root)
             .status()
-            .expect("Failed to run cargo check");
+            .expect("Failed to run cargo build");
 
         assert!(status.success(), "Generated project failed to compile");
     }
