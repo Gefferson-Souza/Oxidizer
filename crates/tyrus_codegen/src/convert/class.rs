@@ -283,11 +283,12 @@ impl RustGenerator {
                 where S: Send + Sync
                 {
                     type Rejection = axum::http::StatusCode;
-                    async fn from_request_parts(parts: &mut axum::http::request::Parts, state: &S) -> Result<Self, Self::Rejection> {
-                        let axum::Extension(controller) = axum::Extension::<std::sync::Arc<Self>>::from_request_parts(parts, state)
-                            .await
-                            .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-                        Ok(controller.as_ref().clone())
+                    async fn from_request_parts(parts: &mut axum::http::request::Parts, _state: &S) -> Result<Self, Self::Rejection> {
+                        parts.extensions
+                            .get::<std::sync::Arc<Self>>()
+                            .cloned()
+                            .map(|arc| arc.as_ref().clone())
+                            .ok_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
                     }
                 }
             };
@@ -829,8 +830,17 @@ impl RustGenerator {
             // to allow sharing via Arc across threads.
             params.push(quote! { &self });
         } else {
-            // For regular methods (DTOs/Entities), use &mut self to allow mutation
-            params.push(quote! { &mut self });
+            // For regular classes, detect if the method mutates self fields
+            let mutates = method
+                .function
+                .body
+                .as_ref()
+                .map_or(false, |body| Self::body_mutates_self(&body.stmts));
+            if mutates {
+                params.push(quote! { &mut self });
+            } else {
+                params.push(quote! { &self });
+            }
         }
 
         for param in &method.function.params {
@@ -964,5 +974,60 @@ impl RustGenerator {
         let route_info = http_method.map(|method| (method_name.to_string(), method, route_path));
 
         (tokens, route_info)
+    }
+
+    /// Checks if a method body contains assignments to `this.field` or
+    /// mutating method calls on `this.field` (e.g., `this.history.push(...)`).
+    fn body_mutates_self(stmts: &[Stmt]) -> bool {
+        stmts.iter().any(Self::stmt_mutates_self)
+    }
+
+    fn stmt_mutates_self(stmt: &Stmt) -> bool {
+        match stmt {
+            Stmt::Expr(ExprStmt { expr, .. }) => Self::expr_mutates_self(expr),
+            Stmt::If(if_stmt) => {
+                Self::stmt_mutates_self(&if_stmt.cons)
+                    || if_stmt
+                        .alt
+                        .as_ref()
+                        .map_or(false, |alt| Self::stmt_mutates_self(alt))
+            }
+            Stmt::Block(block) => Self::body_mutates_self(&block.stmts),
+            Stmt::For(for_stmt) => Self::stmt_mutates_self(&for_stmt.body),
+            Stmt::ForIn(for_in) => Self::stmt_mutates_self(&for_in.body),
+            Stmt::ForOf(for_of) => Self::stmt_mutates_self(&for_of.body),
+            Stmt::While(while_stmt) => Self::stmt_mutates_self(&while_stmt.body),
+            _ => false,
+        }
+    }
+
+    fn expr_mutates_self(expr: &Expr) -> bool {
+        match expr {
+            // this.field = ...
+            Expr::Assign(assign) => {
+                if let AssignTarget::Simple(simple) = &assign.left {
+                    if let Some(member) = simple.as_member() {
+                        if member.obj.is_this() {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            // this.field.push(...) or similar mutating calls on this.field
+            Expr::Call(call) => {
+                if let swc_ecma_ast::Callee::Expr(callee_expr) = &call.callee {
+                    if let Expr::Member(member) = &**callee_expr {
+                        if let Expr::Member(inner) = &*member.obj {
+                            if inner.obj.is_this() {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
     }
 }

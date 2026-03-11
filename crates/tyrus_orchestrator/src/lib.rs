@@ -322,12 +322,11 @@ fn generate_main_rs(
     }
 
     main_content.push_str(";\n\n");
-    main_content.push_str("    let addr = \"0.0.0.0:3000\".parse().unwrap();\n");
+    main_content.push_str("    let listener = TcpListener::bind(\"0.0.0.0:3000\").await.expect(\"Failed to bind to address\");\n");
     main_content.push_str("    println!(\"Server running on http://0.0.0.0:3000\");\n");
-    main_content.push_str("    axum::Server::bind(&addr)\n");
-    main_content.push_str("        .serve(app.into_make_service())\n");
+    main_content.push_str("    axum::serve(listener, app.into_make_service())\n");
     main_content.push_str("        .await\n");
-    main_content.push_str("        .unwrap();\n");
+    main_content.push_str("        .expect(\"Server failed\");\n");
     main_content.push_str("}\n");
 
     Ok(main_content)
@@ -343,12 +342,12 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
-axum = "0.6"
+axum = "0.7"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-reqwest = { version = "0.11", features = ["json"] }
-tower = { version = "0.4" }
-tower-http = { version = "0.4", features = ["trace"] }
+reqwest = { version = "0.12", features = ["json"] }
+tower = { version = "0.5" }
+tower-http = { version = "0.5", features = ["trace"] }
 rand = "0.8"
 
 [[bin]]

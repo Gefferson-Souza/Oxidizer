@@ -10,7 +10,7 @@ pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Optio
         "stringify" => {
             if let Some(arg) = args.first() {
                 let val = gen.convert_expr_or_spread(arg);
-                Some(quote! { serde_json::to_string(&#val).unwrap() })
+                Some(quote! { serde_json::to_string(&#val).unwrap_or_default() })
             } else {
                 None
             }
@@ -18,7 +18,7 @@ pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Optio
         "parse" => {
             if let Some(arg) = args.first() {
                 let val = gen.convert_expr_or_spread(arg);
-                Some(quote! { serde_json::from_str::<serde_json::Value>(&#val).unwrap() })
+                Some(quote! { serde_json::from_str::<serde_json::Value>(&#val).unwrap_or_default() })
             } else {
                 None
             }

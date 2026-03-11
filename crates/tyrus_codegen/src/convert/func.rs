@@ -24,7 +24,7 @@ pub fn to_snake_case(str: &str) -> String {
     }
     s
 }
-2   
+
 // Helper to pascal case (keep standalone)
 pub fn to_pascal_case(str: &str) -> String {
     let mut s = String::with_capacity(str.len());
@@ -92,7 +92,7 @@ impl super::interface::RustGenerator {
                             let expr = self.convert_expr(arg);
                             if !is_void && matches!(arg.as_ref(), swc_ecma_ast::Expr::Object(_)) {
                                 quote! {
-                                    return Ok(serde_json::from_value(#expr).unwrap_or_else(|e| panic!("Failed to convert return value: {}", e)));
+                                    return Ok(serde_json::from_value(#expr).unwrap_or_default());
                                 }
                             } else {
                                 quote! { return Ok(#expr); }
@@ -109,7 +109,7 @@ impl super::interface::RustGenerator {
                             let expr = self.convert_expr(arg);
                             if !is_void && matches!(arg.as_ref(), swc_ecma_ast::Expr::Object(_)) {
                                 quote! {
-                                    return serde_json::from_value(#expr).unwrap_or_else(|e| panic!("Failed to convert return value: {}", e));
+                                    return serde_json::from_value(#expr).unwrap_or_default();
                                 }
                             } else {
                                 quote! { return #expr; }
@@ -249,8 +249,82 @@ impl super::interface::RustGenerator {
                                 });
                             }
                         }
-                        Pat::Object(_) | Pat::Array(_) => {
-                            declarations.push(quote! { /* destructing not fully ported to method struct yet, todo */ });
+                        Pat::Object(obj_pat) => {
+                            // Object destructuring: const { id, name = "default" } = expr
+                            if let Some(init_expr) = &init_expr_opt {
+                                let source_ident = format_ident!("__destructured");
+                                declarations.push(quote! {
+                                    let #source_ident = #init_expr;
+                                });
+                                for prop in &obj_pat.props {
+                                    match prop {
+                                        swc_ecma_ast::ObjectPatProp::KeyValue(kv) => {
+                                            if let swc_ecma_ast::PropName::Ident(key) =
+                                                &kv.key
+                                            {
+                                                let key_name = format_ident!(
+                                                    "{}",
+                                                    to_snake_case(key.sym.as_ref())
+                                                );
+                                                if let Pat::Ident(val_ident) = &*kv.value {
+                                                    let val_name = format_ident!(
+                                                        "{}",
+                                                        to_snake_case(
+                                                            val_ident.sym.as_ref()
+                                                        )
+                                                    );
+                                                    declarations.push(quote! {
+                                                        let mut #val_name = #source_ident.#key_name.clone();
+                                                    });
+                                                }
+                                            }
+                                        }
+                                        swc_ecma_ast::ObjectPatProp::Assign(assign) => {
+                                            let key_name = format_ident!(
+                                                "{}",
+                                                to_snake_case(assign.key.sym.as_ref())
+                                            );
+                                            if let Some(default_val) = &assign.value {
+                                                let default_expr =
+                                                    self.convert_expr(default_val);
+                                                declarations.push(quote! {
+                                                    let mut #key_name = #source_ident.#key_name.clone().unwrap_or(#default_expr);
+                                                });
+                                            } else {
+                                                declarations.push(quote! {
+                                                    let mut #key_name = #source_ident.#key_name.clone();
+                                                });
+                                            }
+                                        }
+                                        swc_ecma_ast::ObjectPatProp::Rest(_) => {
+                                            declarations.push(
+                                                quote! { /* rest patterns not yet supported */ },
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Pat::Array(arr_pat) => {
+                            // Array destructuring: const [first, second] = list
+                            if let Some(init_expr) = &init_expr_opt {
+                                let source_ident = format_ident!("__arr_destructured");
+                                declarations.push(quote! {
+                                    let #source_ident = #init_expr;
+                                });
+                                for (idx, elem) in arr_pat.elems.iter().enumerate() {
+                                    if let Some(Pat::Ident(ident)) = elem {
+                                        let var_name = format_ident!(
+                                            "{}",
+                                            to_snake_case(ident.sym.as_ref())
+                                        );
+                                        let index = idx;
+                                        declarations.push(quote! {
+                                            let mut #var_name = #source_ident[#index].clone();
+                                        });
+                                    }
+                                }
+                            }
                         }
                         _ => {
                             declarations.push(quote! { /* unsupported pattern */ });
@@ -405,7 +479,45 @@ impl super::interface::RustGenerator {
 
             Expr::Array(arr) => self.convert_array_lit(arr),
             Expr::Tpl(tpl) => self.convert_tpl(tpl),
+            Expr::Cond(cond) => {
+                let test = self.convert_expr(&cond.test);
+                let cons = self.convert_expr(&cond.cons);
+                let alt = self.convert_expr(&cond.alt);
+                quote! { if #test { #cons } else { #alt } }
+            }
+            Expr::OptChain(opt_chain) => self.convert_opt_chain(opt_chain),
             _ => quote! { todo!() },
+        }
+    }
+
+    /// Convert optional chaining expression (e.g., `user.config?.theme`)
+    /// Maps to Rust `Option::and_then(|x| x.field)` or `.map(|x| x.field)` chains.
+    fn convert_opt_chain(
+        &self,
+        opt_chain: &swc_ecma_ast::OptChainExpr,
+    ) -> proc_macro2::TokenStream {
+        match &*opt_chain.base {
+            swc_ecma_ast::OptChainBase::Member(member) => {
+                let obj = self.convert_expr(&member.obj);
+                if let Some(prop_ident) = member.prop.as_ident() {
+                    let prop_name =
+                        format_ident!("{}", to_snake_case(prop_ident.sym.as_ref()));
+                    // obj?.prop → obj.as_ref().and_then(|__v| __v.prop.clone())
+                    // If obj is already Option, use and_then; otherwise just access
+                    quote! { #obj.as_ref().and_then(|__v| __v.#prop_name.clone()) }
+                } else {
+                    quote! { #obj }
+                }
+            }
+            swc_ecma_ast::OptChainBase::Call(call) => {
+                let callee = self.convert_expr(&call.callee);
+                let args: Vec<_> = call
+                    .args
+                    .iter()
+                    .map(|a| self.convert_expr(&a.expr))
+                    .collect();
+                quote! { #callee(#(#args),*) }
+            }
         }
     }
 
@@ -458,20 +570,21 @@ impl super::interface::RustGenerator {
                     );
 
                     if needs_deref {
-                        return quote! { *self.#field_ident.lock().unwrap() };
+                        return quote! { *self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()) };
                     } else if type_str == "String" {
                         // String is not Copy, so we must clone it to return/use as value from MutexGuard
-                        return quote! { self.#field_ident.lock().unwrap().clone() };
+                        return quote! { self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()).clone() };
                     } else {
                         // For non-primitives (like Vec), return the Guard (or ref?)
                         // If we return *guard, we move out of mutex? No, implementation of Deref.
-                        // But accessing `self.users.lock().unwrap()` returns `MutexGuard`.
+                        // But accessing `self.users.lock().unwrap_or_else(|e| e.into_inner())` returns `MutexGuard`.
                         // If we want to call methods on it (`.push()`), we need the Guard.
                         // If we want to pass it to a function expecting `Vec`, we might need `&*` or `.clone()`.
                         // But here we return TokenStream.
-                        return quote! { self.#field_ident.lock().unwrap() };
+                        return quote! { self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()) };
                     }
                 } else {
+                    // Use clone() to be safe for generic and non-Copy types
                     return quote! { self.#field_ident.clone() };
                 }
             }
@@ -533,7 +646,13 @@ impl super::interface::RustGenerator {
         match bin.op {
             BinaryOp::EqEq | BinaryOp::EqEqEq => quote! { #left == #right },
             BinaryOp::NotEq | BinaryOp::NotEqEq => quote! { #left != #right },
-            BinaryOp::Add => quote! { #left + #right },
+            BinaryOp::Add => {
+                if Self::is_string_expr(&bin.left) || Self::is_string_expr(&bin.right) {
+                    quote! { format!("{}{}", #left, #right) }
+                } else {
+                    quote! { #left + #right }
+                }
+            }
             BinaryOp::Sub => quote! { #left - #right },
             BinaryOp::Mul => quote! { #left * #right },
             BinaryOp::Div => quote! { #left / #right },
@@ -544,10 +663,53 @@ impl super::interface::RustGenerator {
             BinaryOp::GtEq => quote! { #left >= #right },
             BinaryOp::LogicalOr => quote! { #left || #right },
             BinaryOp::LogicalAnd => quote! { #left && #right },
+            BinaryOp::NullishCoalescing => quote! { #left.unwrap_or(#right) },
             _ => {
                 let op_str = format!("{:?}", bin.op);
                 quote! { todo!("Unsupported binary op: {}", #op_str) }
             }
+        }
+    }
+
+    /// Heuristic to detect if an expression is likely a string type in TypeScript.
+    /// Used to choose `format!` over `+` for string concatenation.
+    fn is_string_expr(expr: &Expr) -> bool {
+        match expr {
+            Expr::Lit(Lit::Str(_)) => true,
+            Expr::Tpl(_) => true,
+            Expr::Call(call) => {
+                if let Callee::Expr(callee) = &call.callee {
+                    if let Expr::Member(member) = &**callee {
+                        if let Some(ident) = member.prop.as_ident() {
+                            return matches!(
+                                ident.sym.as_str(),
+                                "toString"
+                                    | "toUpperCase"
+                                    | "toLowerCase"
+                                    | "trim"
+                                    | "replace"
+                                    | "join"
+                                    | "slice"
+                                    | "substring"
+                                    | "charAt"
+                                    | "concat"
+                                    | "padStart"
+                                    | "padEnd"
+                                    | "repeat"
+                            );
+                        }
+                    }
+                    // String::from(...) / String(...)
+                    if let Expr::Ident(ident) = &**callee {
+                        return ident.sym.as_str() == "String";
+                    }
+                }
+                false
+            }
+            Expr::Bin(bin) if bin.op == BinaryOp::Add => {
+                Self::is_string_expr(&bin.left) || Self::is_string_expr(&bin.right)
+            }
+            _ => false,
         }
     }
 
@@ -562,6 +724,24 @@ impl super::interface::RustGenerator {
         // Check for axios calls (axios.get, axios.post, etc.)
         if let Callee::Expr(expr) = &call.callee {
             if let Expr::Member(member) = &**expr {
+                // Handle axios.get/post/put/delete → reqwest
+                if let Expr::Ident(obj_ident) = &*member.obj {
+                    if obj_ident.sym.as_str() == "axios" {
+                        if let Some(method_ident) = member.prop.as_ident() {
+                            let method_name = method_ident.sym.as_str();
+                            if matches!(method_name, "get" | "post" | "put" | "delete" | "patch") {
+                                let url = call
+                                    .args
+                                    .first()
+                                    .map(|a| self.convert_expr(&a.expr))
+                                    .unwrap_or_else(|| quote! { "" });
+                                let method_fn = format_ident!("{}", method_name);
+                                return quote! { reqwest::Client::new().#method_fn(#url).send() };
+                            }
+                        }
+                    }
+                }
+
                 // Try stdlib method call - PASS SELF
                 if let Some(method_ident) = member.prop.as_ident() {
                     let method_name = method_ident.sym.as_ref();
@@ -573,6 +753,51 @@ impl super::interface::RustGenerator {
                     ) {
                         return stdlib_code;
                     }
+                }
+            }
+        }
+
+        // Handle fetch() → reqwest::Client::new().method(url)
+        if let Callee::Expr(expr) = &call.callee {
+            if let Expr::Ident(ident) = &**expr {
+                if ident.sym.as_str() == "fetch" {
+                    let url = call
+                        .args
+                        .first()
+                        .map(|a| self.convert_expr(&a.expr))
+                        .unwrap_or_else(|| quote! { "" });
+                    // Check for options object with method
+                    let method = call.args.get(1).and_then(|opts| {
+                        if let Expr::Object(obj) = &*opts.expr {
+                            for prop in &obj.props {
+                                if let swc_ecma_ast::PropOrSpread::Prop(p) = prop {
+                                    if let swc_ecma_ast::Prop::KeyValue(kv) = &**p {
+                                        if let swc_ecma_ast::PropName::Ident(id) = &kv.key {
+                                            if id.sym.as_str() == "method" {
+                                                if let Expr::Lit(Lit::Str(s)) = &*kv.value {
+                                                    return Some(
+                                                        s.value
+                                                            .as_str()
+                                                            .unwrap_or_default()
+                                                            .to_uppercase(),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        None
+                    });
+                    let method_call = match method.as_deref() {
+                        Some("POST") => quote! { post },
+                        Some("PUT") => quote! { put },
+                        Some("DELETE") => quote! { delete },
+                        Some("PATCH") => quote! { patch },
+                        _ => quote! { get },
+                    };
+                    return quote! { reqwest::Client::new().#method_call(#url).send() };
                 }
             }
         }
@@ -629,6 +854,48 @@ impl super::interface::RustGenerator {
                                 }
 
                                 // Eager evaluation
+                                if method_name == "filter" {
+                                    // filter passes &T to closure; we inline with clone to avoid reference issues
+                                    if let Some(first_arg) = call.args.first() {
+                                        if let Expr::Arrow(arrow) = &*first_arg.expr {
+                                            if let Some(Pat::Ident(param_ident)) =
+                                                arrow.params.first()
+                                            {
+                                                let param_name = format_ident!(
+                                                    "{}",
+                                                    to_snake_case(param_ident.sym.as_ref())
+                                                );
+                                                let body = match &*arrow.body {
+                                                    swc_ecma_ast::BlockStmtOrExpr::Expr(expr) => {
+                                                        self.convert_expr(expr)
+                                                    }
+                                                    swc_ecma_ast::BlockStmtOrExpr::BlockStmt(
+                                                        block,
+                                                    ) => {
+                                                        let stmts: Vec<_> = block
+                                                            .stmts
+                                                            .iter()
+                                                            .map(|s| self.convert_stmt(s))
+                                                            .collect();
+                                                        quote! { #(#stmts)* }
+                                                    }
+                                                };
+                                                return quote! {
+                                                    #obj.clone().into_iter()
+                                                        .filter(|#param_name| { let #param_name = #param_name.clone(); #body })
+                                                        .collect::<Vec<_>>()
+                                                };
+                                            }
+                                        }
+                                    }
+                                    // Fallback: use the pre-converted closure as-is
+                                    let closure = &args[0];
+                                    return quote! {
+                                        #obj.clone().into_iter()
+                                            .filter(|__v| (#closure)(__v.clone()))
+                                            .collect::<Vec<_>>()
+                                    };
+                                }
                                 return quote! { #obj.clone().into_iter().#method_ident(#(#args),*).collect::<Vec<_>>() };
                             }
                             "forEach" => {
@@ -812,7 +1079,7 @@ impl super::interface::RustGenerator {
                                     // Yes, otherwise we are trying to assign to `MutexGuard` temporary?
                                     // Assigning to `*guard` assigns to the inner value.
 
-                                    quote! { *self.#field.lock().unwrap() }
+                                    quote! { *self.#field.lock().unwrap_or_else(|e| e.into_inner()) }
                                 } else {
                                     quote! { self.#field }
                                 }

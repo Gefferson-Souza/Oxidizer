@@ -16,7 +16,7 @@ pub fn handle(
         "includes" => {
             if let Some(arg) = args.first() {
                 let val = gen.convert_expr_or_spread(arg);
-                Some(quote! { #obj_tokens.contains(#val) })
+                Some(quote! { #obj_tokens.contains(&#val as &str) })
             } else {
                 None
             }

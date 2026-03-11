@@ -5,6 +5,6 @@ export class HttpClient<T> {
 
     async get(path: string): Promise<T> {
         // Test Generic Return + Axios
-        return await axios.get<T>(this.baseUrl + path);
+        return await axios.get<T>(`${this.baseUrl}${path}`);
     }
 }

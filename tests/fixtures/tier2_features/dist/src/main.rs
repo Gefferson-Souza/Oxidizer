@@ -11,10 +11,9 @@ async fn main() {
     // Build router
     let app = axum::Router::new();
 
-    let addr = "0.0.0.0:3000".parse().unwrap();
+    let listener = TcpListener::bind("0.0.0.0:3000").await.expect("Failed to bind to address");
     println!("Server running on http://0.0.0.0:3000");
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+    axum::serve(listener, app.into_make_service())
         .await
-        .unwrap();
+        .expect("Server failed");
 }
