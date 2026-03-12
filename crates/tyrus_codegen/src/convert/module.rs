@@ -104,7 +104,7 @@ impl RustGenerator {
             }
         } else {
             // External crate or absolute path
-            src.to_string()
+            src.clone()
         };
 
         for specifier in &n.specifiers {
