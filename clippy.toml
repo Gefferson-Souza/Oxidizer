@@ -1,0 +1,13 @@
+# clippy.toml — structural quality thresholds
+
+# Functions with more than 5 parameters need a context struct
+too-many-arguments-threshold = 5
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 15
+
+# Maximum lines per function
+too-many-lines-threshold = 50
+
+# Type complexity threshold
+type-complexity-threshold = 250

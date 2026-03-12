@@ -1,19 +1,20 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tyrus_diagnostics::TyrusError;
 
 use walkdir::WalkDir;
 
 use tyrus_common::fs::FilePath;
 
-pub fn check(path: FilePath) -> Result<(), TyrusError> {
+pub fn check(path: &FilePath) -> Result<(), TyrusError> {
     let program = tyrus_parser::parse(path.as_ref())?;
 
     // Read source code for error reporting
     let source_code = std::fs::read_to_string(path.as_ref()).map_err(TyrusError::IoError)?;
     let file_name = path.as_ref().to_string_lossy().to_string();
 
-    let errors = tyrus_analyzer::Analyzer::analyze(&program, source_code, file_name);
+    let analysis_result = tyrus_analyzer::Analyzer::analyze(&program, source_code, file_name);
+    let errors = analysis_result.errors;
 
     if !errors.is_empty() {
         for error in errors {
@@ -30,12 +31,7 @@ pub fn check(path: FilePath) -> Result<(), TyrusError> {
     Ok(())
 }
 
-pub fn pipeline() -> Result<(), TyrusError> {
-    // Stub implementation
-    Ok(())
-}
-
-pub fn build(path: FilePath) -> Result<String, TyrusError> {
+pub fn build(path: &FilePath) -> Result<String, TyrusError> {
     let program = tyrus_parser::parse(path.as_ref())?;
     // Default to false for single file build
     let generated_code = tyrus_codegen::generate(&program, false);
@@ -53,10 +49,10 @@ pub fn build(path: FilePath) -> Result<String, TyrusError> {
         code.push_str(get_app_error_code());
     }
 
-    format_code(code)
+    format_code(&code)
 }
 
-pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), TyrusError> {
+pub fn build_project(input_dir: &Path, output_dir: &Path) -> Result<(), TyrusError> {
     let mut controllers: Vec<String> = Vec::new(); // Just names of controllers
     let mut class_module_map: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
@@ -65,7 +61,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     let mut file_paths = Vec::new();
 
     // 1. Walk, Parse, and Collect Info
-    for entry in WalkDir::new(&input_dir) {
+    for entry in WalkDir::new(input_dir) {
         let entry = entry.map_err(|e| TyrusError::IoError(e.into()))?;
         let path = entry.path();
 
@@ -73,7 +69,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
             let program = tyrus_parser::parse(path)?;
 
             // Calculate module path
-            let relative_path = path.strip_prefix(&input_dir).unwrap_or(path);
+            let relative_path = path.strip_prefix(input_dir).unwrap_or(path);
             let file_stem = path
                 .file_stem()
                 .ok_or_else(|| {
@@ -121,6 +117,19 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
                         }
                     }
                 }
+            } else if let swc_ecma_ast::Program::Script(s) = &program {
+                for stmt in &s.body {
+                    if let swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::Class(class_decl)) = stmt {
+                        let class_name = class_decl.ident.sym.to_string();
+                        class_module_map.insert(class_name.clone(), module_path.clone());
+
+                        if let Some(type_params) = &class_decl.class.type_params {
+                            if !type_params.params.is_empty() {
+                                generic_classes.insert(class_name);
+                            }
+                        }
+                    }
+                }
             }
 
             programs.push(program);
@@ -129,15 +138,35 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     }
 
     // 2. Analyze (Build Dependency Graph)
-    let graph = tyrus_analyzer::graph::build_graph(&programs);
+    let mut graph = tyrus_di::graph::DiGraph::new();
+
+    // We already parsed programs in the loop above.
+    // Ideally we analyze inside the loop, but we need to iterate again or move analysis into step 1.
+    // Let's iterate programs again since we have them in memory.
+    for (i, program) in programs.iter().enumerate() {
+        let path = &file_paths[i];
+        let source_code = std::fs::read_to_string(path).map_err(TyrusError::IoError)?;
+        let file_name = path.to_string_lossy().to_string();
+
+        let analysis_result = tyrus_analyzer::Analyzer::analyze(program, source_code, file_name);
+        // We ignore errors here? Or should we report them?
+        // check() reported errors, build() might assume valid code or report again.
+        // Let's output errors if any.
+        for error in analysis_result.errors {
+            println!("Warning: {:?}", miette::Report::new(error));
+        }
+
+        graph.merge(analysis_result.graph);
+    }
+
     let init_order = graph
-        .get_initialization_order()
-        .map_err(TyrusError::FormattingError)?; // Using FormattingError as generic error for now
+        .resolve()
+        .map_err(|e| TyrusError::Validation(e.to_string()))?;
 
     // 3. Transpile
     for (i, program) in programs.iter().enumerate() {
         let path = &file_paths[i];
-        let relative_path = path.strip_prefix(&input_dir).unwrap_or(path);
+        let relative_path = path.strip_prefix(input_dir).unwrap_or(path);
         let relative_path = relative_path.strip_prefix("src").unwrap_or(relative_path);
         let output_path = output_dir.join("src").join(relative_path);
 
@@ -149,7 +178,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
         let is_index = path.file_stem().and_then(|s| s.to_str()) == Some("index");
 
         let generated = tyrus_codegen::generate(program, is_index);
-        let formatted_code = format_code(generated.code)?;
+        let formatted_code = format_code(&generated.code)?;
 
         let output_file = output_path.with_file_name(format!("{}.rs", sanitized_stem));
 
@@ -166,7 +195,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     }
 
     // 4. Generate mod.rs
-    for entry in WalkDir::new(&output_dir) {
+    for entry in WalkDir::new(output_dir) {
         let entry = entry.map_err(|e| TyrusError::IoError(e.into()))?;
         let path = entry.path();
         if path.is_dir() {
@@ -186,9 +215,17 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     let error_content = get_app_error_code();
     fs::write(error_rs, error_content).map_err(TyrusError::IoError)?;
 
-    // Append mod error; pub use error::AppError; to lib.rs
+    // Prepend #![allow(unused)] and append mod error + pub use error::AppError to lib.rs
     let mut lib_content = fs::read_to_string(&src_lib).map_err(TyrusError::IoError)?;
-    lib_content.push_str("\npub mod error;\npub use error::AppError;\n");
+    // Add crate-level allow(unused) to suppress NestJS module import warnings
+    lib_content = format!("#![allow(unused)]\n\n{}", lib_content);
+    // Only add `pub mod error;` if not already present (generate_mod_rs may have added it)
+    if !lib_content.contains("pub mod error;") {
+        lib_content.push_str("\npub mod error;\n");
+    }
+    if !lib_content.contains("pub use error::AppError;") {
+        lib_content.push_str("pub use error::AppError;\n");
+    }
     fs::write(&src_lib, lib_content).map_err(TyrusError::IoError)?;
 
     // 5. Generate main.rs
@@ -210,7 +247,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     fs::write(main_rs, main_content).map_err(TyrusError::IoError)?;
 
     // 6. Generate Cargo.toml
-    generate_cargo_toml(&output_dir)?;
+    generate_cargo_toml(output_dir)?;
 
     Ok(())
 }
@@ -219,7 +256,7 @@ fn generate_main_rs(
     init_order: &[String],
     class_module_map: &std::collections::HashMap<String, String>,
     controllers: &[String],
-    graph: &tyrus_analyzer::graph::DependencyGraph,
+    graph: &tyrus_di::graph::DiGraph,
     generic_classes: &std::collections::HashSet<String>,
 ) -> Result<String, TyrusError> {
     let mut main_content = String::new();
@@ -230,7 +267,7 @@ fn generate_main_rs(
     main_content.push_str("use axum::Extension;\n\n");
 
     main_content.push_str("#[tokio::main]\n");
-    main_content.push_str("async fn main() {\n");
+    main_content.push_str("async fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
 
     // Instantiate components in order
     let mut instantiated_vars = std::collections::HashMap::new();
@@ -243,7 +280,9 @@ fn generate_main_rs(
             let var_name = tyrus_common::util::to_snake_case(class_name);
 
             // Get dependencies
-            let deps = graph.get_dependencies(class_name).unwrap_or_default();
+            let deps = graph
+                .get_provider_dependencies(class_name)
+                .unwrap_or_default();
             let mut args = Vec::new();
             for dep in deps {
                 let dep_var = tyrus_common::util::to_snake_case(&dep);
@@ -286,10 +325,11 @@ fn generate_main_rs(
     }
 
     main_content.push_str(";\n\n");
-    main_content
-        .push_str("    let listener = TcpListener::bind(\"0.0.0.0:3000\").await.unwrap();\n");
+    main_content.push_str("    let listener = TcpListener::bind(\"0.0.0.0:3000\").await?;\n");
     main_content.push_str("    println!(\"Server running on http://0.0.0.0:3000\");\n");
-    main_content.push_str("    axum::serve(listener, app).await.unwrap();\n");
+    main_content.push_str("    axum::serve(listener, app.into_make_service())\n");
+    main_content.push_str("        .await?;\n");
+    main_content.push_str("    Ok(())\n");
     main_content.push_str("}\n");
 
     Ok(main_content)
@@ -308,8 +348,8 @@ tokio = { version = "1.0", features = ["full"] }
 axum = "0.7"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-reqwest = { version = "0.11", features = ["json"] }
-tower = { version = "0.4" }
+reqwest = { version = "0.12", features = ["json"] }
+tower = { version = "0.5" }
 tower-http = { version = "0.5", features = ["trace"] }
 rand = "0.8"
 
@@ -398,7 +438,7 @@ fn generate_mod_rs(dir: &Path) -> Result<(), TyrusError> {
     Ok(())
 }
 
-fn format_code(code: String) -> Result<String, TyrusError> {
+fn format_code(code: &str) -> Result<String, TyrusError> {
     // Skip formatting for code containing async (edition compatibility)
     if code.contains("async fn") {
         return Ok(format!(

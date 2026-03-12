@@ -1,44 +1,108 @@
-# Contribuindo para o Tyrus
+# Contributing to Tyrus
 
-Obrigado por seu interesse em contribuir! Este é um projeto acadêmico e open-source.
+## 🌳 Git Workflow: The "Tyrus Pattern"
 
-## 🛠 Setup do Ambiente
+We follow a strict **Feature Branch Workflow** combined with **Conventional Commits**.
 
-1. **Rust:** Instale via [rustup.rs](https://rustup.rs). Versão mínima 1.75.
-2. **Dependências:** O projeto usa `cargo`.
-3. **Editor:** Recomendamos VS Code com a extensão `rust-analyzer`.
+### Branching Strategy
 
-## 🧪 Rodando Testes
+- **`main`**: Protected. Production-ready code only. No direct commits.
+- **`feat/`**: New features (e.g., `feat/async-await`, `feat/new-parser`).
+- **`fix/`**: Bug fixes (e.g., `fix/memory-leak`, `fix/cli-panic`).
+- **`chore/`**: Maintenance, config, docs (e.g., `chore/optimize-workflow`, `docs/update-readme`).
+- **`refactor/`**: Code restructuring without behavior change.
 
-O projeto utiliza um harness personalizado (`tyrus_test_utils`) que garante que todo código gerado seja compilável.
+### 📝 Commit Convention
+
+We use [Conventional Commits](https://www.conventionalcommits.org/).
+
+**Format:** `<type>(<scope>): <subject>`
+
+**Types:**
+
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `perf`: A code change that improves performance
+- `test`: Adding missing tests or correcting existing tests
+- `chore`: Changes to the build process or auxiliary tools and libraries such as documentation generation
+
+**Examples:**
+
+- `feat(codegen): implement structural typing for interfaces`
+- `fix(cli): resolve panic when input file is missing`
+- `chore(deps): upgrade axum to v0.7`
+
+## 🚀 Pull Request Process
+
+1.  Create a branch complying with the strategy above.
+2.  Ensure tests pass locally: `cargo nextest run --workspace`
+3.  Run the full clippy suite and fix all warnings:
+    ```bash
+    cargo clippy --workspace -- -D warnings -W clippy::unwrap_used -W clippy::expect_used -W clippy::panic
+    ```
+4.  Run formatter: `cargo fmt -- --check`
+5.  Open a PR to `main`.
+6.  Fill out the **PR Template** completely.
+7.  Wait for CI checks to pass and request review.
+
+## 🧪 Test Infrastructure
+
+Tests live in the `tests/` crate and are organized by tier:
+
+```
+tests/src/
+├── unit/          — unit tests for isolated functions/utilities
+├── snapshot/      — insta snapshot tests (codegen output verification)
+└── compilation/   — compilation tests (generate Rust, invoke rustc)
+```
+
+### Running specific test types
 
 ```bash
-# Rodar a suite completa (Unitários + Integração + Snapshots)
+# All tests (preferred: uses nextest)
+cargo nextest run --workspace
+
+# Legacy test runner
 cargo test --workspace
 
-# Se houver snapshots novos (e corretos), atualize-os:
+# Only snapshot tests (insta)
+cargo test -p tests snapshot
+
+# Only compilation tests
+cargo test -p tests compilation
+
+# Update snapshots after intentional codegen changes
 cargo insta review
-# Ou aceite automaticamente se tiver certeza:
-cargo insta test --accept
 ```
 
-## 🧹 Linting e Formatação
+### Strict code rules (enforced by CI)
 
-O CI irá falhar se o código não estiver formatado ou tiver warnings.
+- **Never** use `.unwrap()`, `.expect()`, or `panic!()` — use `?` and `Result<T, TyrusError>`.
+- **Never** use `todo!()` or `unimplemented!()` — use `compile_error!()` or proper error variants.
+- **Never** use string concatenation for code generation — use `quote!` macros.
+- Functions must stay under 50 lines; cognitive complexity threshold is 15.
+- All new code must be covered by at least one test.
 
-```bash
-cargo fmt
-cargo clippy --workspace -- -D warnings
-```
+## 🏗 Code Generation Module Map
 
-## 📝 Processo de Pull Request
+When working on code generation, the relevant files are under `crates/tyrus_codegen/src/convert/`:
 
-1. Fork o projeto.
-2. Crie uma branch (`git checkout -b feature/minha-feature`).
-3. Comite suas mudanças seguindo [Conventional Commits](https://www.conventionalcommits.org/) (ex: `feat: implement while loops`).
-4. Abra um PR para a branch `main`.
-5. Aguarde a revisão.
-
-## ⚖️ Padrões de Código
-
-Consulte `Guidelines.md` para entender as regras de engenharia (Newtypes, Visitor Pattern, Error Handling).
+| Module | Responsibility |
+|---|---|
+| `interface.rs` | `RustGenerator` struct + `Visit` impl (pipeline entry point) |
+| `helpers.rs` | `to_snake_case`, `to_pascal_case`, `is_string_expr` |
+| `stmt.rs` | Statement conversion |
+| `fn_decl.rs` | Function declaration processing |
+| `class.rs` | Class → struct+impl, `Arc<Mutex<T>>`, NestJS patterns |
+| `module.rs` | Module/import handling |
+| `type_mapper.rs` | TypeScript → Rust type mapping |
+| `expr/mod.rs` | Expression dispatcher |
+| `expr/call.rs` | Function/method calls, array methods |
+| `expr/member.rs` | Property access, mutex state |
+| `expr/binary.rs` | Binary operators |
+| `expr/arrow.rs` | Arrow functions → closures |
+| `expr/literal.rs` | Literals, objects, arrays, template literals |
+| `expr/misc.rs` | Assignments, updates, optional chaining |

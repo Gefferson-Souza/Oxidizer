@@ -11,8 +11,10 @@ pub struct RustGenerator {
     pub code: String,
     pub is_exporting: bool,
     pub is_index: bool,
+    pub is_controller: bool,
     pub controllers: Vec<ControllerMetadata>,
     pub main_body: String,
+    pub current_class_state_fields: std::collections::HashMap<String, String>,
 }
 
 impl RustGenerator {
@@ -21,8 +23,10 @@ impl RustGenerator {
             code: String::new(),
             is_exporting: false,
             is_index,
+            is_controller: false,
             controllers: Vec::new(),
             main_body: String::new(),
+            current_class_state_fields: std::collections::HashMap::new(),
         }
     }
 }
@@ -41,7 +45,8 @@ impl Visit for RustGenerator {
                 } else {
                     continue; // Skip non-identifier keys for now
                 };
-                let field_name = format_ident!("{}", super::func::to_snake_case(&field_name_str));
+                let field_name =
+                    format_ident!("{}", super::helpers::to_snake_case(&field_name_str));
 
                 let mut field_type = map_ts_type(prop.type_ann.as_ref());
 
@@ -119,7 +124,7 @@ impl Visit for RustGenerator {
                     if let swc_ecma_ast::TsType::TsLitType(lit) = &**t {
                         if let swc_ecma_ast::TsLit::Str(s) = &lit.lit {
                             let value = s.value.as_str().unwrap_or("").to_string();
-                            let variant_name = super::func::to_pascal_case(&value);
+                            let variant_name = super::helpers::to_pascal_case(&value);
                             let variant_ident = format_ident!("{}", variant_name);
                             valid_variants.push((value, variant_ident));
                         }
@@ -343,7 +348,7 @@ impl Visit for RustGenerator {
             }
             _ => {
                 // Script statements (ExprStmt, VarDecl, If, Loop, etc.): write to self.main_body
-                let stmt_code = super::func::convert_stmt(n);
+                let stmt_code = self.convert_stmt(n);
                 self.main_body.push_str(&stmt_code.to_string());
                 self.main_body.push('\n');
             }

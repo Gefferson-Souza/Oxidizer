@@ -6,7 +6,7 @@ Status: Aceito
 ## Contexto
 
 O framework alvo do projeto é o **NestJS** (TypeScript). Queremos que o código Rust gerado utilize um framework web robusto.
-Escolhemos **Axum** (do ecosistema Tokio) por sua performance, ergonomia e compatibilidade com async.
+Escolhemos **Axum 0.7** (do ecosistema Tokio) por sua performance, ergonomia e compatibilidade com async.
 
 ## Decisão
 
