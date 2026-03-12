@@ -45,7 +45,8 @@ impl Visit for RustGenerator {
                 } else {
                     continue; // Skip non-identifier keys for now
                 };
-                let field_name = format_ident!("{}", super::func::to_snake_case(&field_name_str));
+                let field_name =
+                    format_ident!("{}", super::helpers::to_snake_case(&field_name_str));
 
                 let mut field_type = map_ts_type(prop.type_ann.as_ref());
 
@@ -123,7 +124,7 @@ impl Visit for RustGenerator {
                     if let swc_ecma_ast::TsType::TsLitType(lit) = &**t {
                         if let swc_ecma_ast::TsLit::Str(s) = &lit.lit {
                             let value = s.value.as_str().unwrap_or("").to_string();
-                            let variant_name = super::func::to_pascal_case(&value);
+                            let variant_name = super::helpers::to_pascal_case(&value);
                             let variant_ident = format_ident!("{}", variant_name);
                             valid_variants.push((value, variant_ident));
                         }

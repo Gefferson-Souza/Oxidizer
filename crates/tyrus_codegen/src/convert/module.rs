@@ -128,7 +128,7 @@ impl RustGenerator {
                         if imported_name.chars().next().is_some_and(char::is_uppercase) {
                             imported_name.clone()
                         } else {
-                            super::func::to_snake_case(&imported_name)
+                            super::helpers::to_snake_case(&imported_name)
                         };
 
                     let local_name = named.local.sym.to_string();
@@ -136,7 +136,7 @@ impl RustGenerator {
                         if local_name.chars().next().is_some_and(char::is_uppercase) {
                             local_name.clone()
                         } else {
-                            super::func::to_snake_case(&local_name)
+                            super::helpers::to_snake_case(&local_name)
                         };
 
                     let use_stmt = if imported_rust_name == local_rust_name {
@@ -157,7 +157,7 @@ impl RustGenerator {
                         if local_name.chars().next().is_some_and(char::is_uppercase) {
                             local_name.clone()
                         } else {
-                            super::func::to_snake_case(&local_name)
+                            super::helpers::to_snake_case(&local_name)
                         };
 
                     // Default import usually implies importing the struct/fn with the same name as the module or file
@@ -177,7 +177,7 @@ impl RustGenerator {
                         if local_name.chars().next().is_some_and(char::is_uppercase) {
                             local_name.clone()
                         } else {
-                            super::func::to_snake_case(&local_name)
+                            super::helpers::to_snake_case(&local_name)
                         };
                     let use_stmt = format!("use {} as {};", module_path, local_rust_name);
                     self.code.push_str(&use_stmt);

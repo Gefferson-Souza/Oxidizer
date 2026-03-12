@@ -3,7 +3,7 @@ use swc_ecma_ast::{
     AssignTarget, ClassDecl, ClassMember, Constructor, Expr, ExprStmt, Lit, Pat, Stmt,
 };
 
-use super::func::to_snake_case;
+use super::helpers::to_snake_case;
 use super::interface::RustGenerator;
 use super::type_mapper::{is_optional_type, map_ts_type};
 
