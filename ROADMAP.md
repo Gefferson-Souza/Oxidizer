@@ -60,6 +60,22 @@ This roadmap tracks the evolution of Tyrus from a research prototype to a produc
   - `expr/misc.rs` — assignments, updates, optional chaining
 - [x] **`func.rs` Deleted:** All references in `interface.rs`, `module.rs`, and `class.rs` updated to import from the new modules.
 
+### 🗂️ Milestone 11: Deep Module Decomposition (Chunk 3)
+
+- [x] **`class.rs` Decomposed:** The monolithic 1048-line `class.rs` split into 5 focused modules under `class/`:
+  - `mod.rs` — class dispatcher + property conversion
+  - `constructor.rs` — constructor transpilation + DI detection
+  - `method.rs` — method transpilation + decorator parsing
+  - `routing.rs` — Axum router generation + `FromRequestParts`
+  - `mutation.rs` — static self-mutation analysis
+- [x] **Orchestrator Split:** The 508-line `lib.rs` decomposed into 4 modules:
+  - `lib.rs` — slim public API (58 lines)
+  - `pipeline.rs` — core multi-file build orchestration
+  - `scaffold.rs` — project scaffolding (main.rs, Cargo.toml, mod.rs)
+  - `format.rs` — code formatting + AppError generation
+- [x] **`type_mapper.rs` Deduplicated:** Consolidated `map_ts_type`/`map_inner_type` into `map_type_core` (304→257 lines)
+- [x] **CI Optimized:** Parallel `fmt`+`clippy` checks, combined build+test job (~9min→~5min)
+
 ---
 
 ## 🔬 Future Work (Academic Research)

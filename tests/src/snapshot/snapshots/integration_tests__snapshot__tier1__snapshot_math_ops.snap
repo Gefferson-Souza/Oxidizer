@@ -1,0 +1,22 @@
+---
+source: tests/src/snapshot/tier1.rs
+expression: rust
+---
+fn add(a: f64, b: f64) -> f64 {
+    return a + b;
+}
+fn subtract(a: f64, b: f64) -> f64 {
+    return a - b;
+}
+fn multiply(a: f64, b: f64) -> f64 {
+    return a * b;
+}
+fn divide(a: f64, b: f64) -> f64 {
+    return a / b;
+}
+fn modulo(a: f64, b: f64) -> f64 {
+    return a % b;
+}
+fn complex(x: f64, y: f64, z: f64) -> f64 {
+    return x + y * z - x / y;
+}

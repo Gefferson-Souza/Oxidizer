@@ -1,4 +1,10 @@
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, dead_code)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    dead_code,
+    unused_imports
+)]
 
 mod compilation;
 mod helpers;
