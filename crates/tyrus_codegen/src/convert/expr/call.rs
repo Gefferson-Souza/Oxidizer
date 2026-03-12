@@ -287,6 +287,16 @@ impl RustGenerator {
                 if let Some(prop_ident) = nested_member.prop.as_ident() {
                     let prop_name = to_snake_case(prop_ident.sym.as_ref());
                     let field = format_ident!("{}", prop_name);
+                    // If it's a state field wrapped in Arc<Mutex<>>, lock before push
+                    // Clone args to avoid move since caller may use them after push
+                    if self
+                        .current_class_state_fields
+                        .contains_key(prop_ident.sym.as_ref())
+                    {
+                        let cloned_args: Vec<_> =
+                            args.iter().map(|a| quote! { #a.clone() }).collect();
+                        return quote! { self.#field.lock().unwrap_or_else(|e| e.into_inner()).#method_ident(#(#cloned_args),*) };
+                    }
                     return quote! { self.#field.#method_ident(#(#args),*) };
                 }
             }

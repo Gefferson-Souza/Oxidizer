@@ -215,9 +215,17 @@ pub fn build_project(input_dir: &Path, output_dir: &Path) -> Result<(), TyrusErr
     let error_content = get_app_error_code();
     fs::write(error_rs, error_content).map_err(TyrusError::IoError)?;
 
-    // Append mod error; pub use error::AppError; to lib.rs
+    // Prepend #![allow(unused)] and append mod error + pub use error::AppError to lib.rs
     let mut lib_content = fs::read_to_string(&src_lib).map_err(TyrusError::IoError)?;
-    lib_content.push_str("\npub mod error;\npub use error::AppError;\n");
+    // Add crate-level allow(unused) to suppress NestJS module import warnings
+    lib_content = format!("#![allow(unused)]\n\n{}", lib_content);
+    // Only add `pub mod error;` if not already present (generate_mod_rs may have added it)
+    if !lib_content.contains("pub mod error;") {
+        lib_content.push_str("\npub mod error;\n");
+    }
+    if !lib_content.contains("pub use error::AppError;") {
+        lib_content.push_str("pub use error::AppError;\n");
+    }
     fs::write(&src_lib, lib_content).map_err(TyrusError::IoError)?;
 
     // 5. Generate main.rs

@@ -902,6 +902,9 @@ impl RustGenerator {
             return_type = quote! { Result<#inner_type, crate::AppError> };
         }
 
+        // Check if this method returns Option<T> (from T | null union)
+        let returns_option = is_optional_type(method.function.return_type.as_deref());
+
         // Convert body
         let mut body_stmts = Vec::new();
         if let Some(body) = &method.function.body {
@@ -923,16 +926,28 @@ impl RustGenerator {
                     } else if method.function.is_async {
                         // For async methods, wrap in Ok
                         quote! { return Ok(#expr); }
+                    } else if returns_option {
+                        // For methods returning Option<T>, wrap non-null returns in Some()
+                        let is_null = matches!(&**arg, Expr::Lit(Lit::Null(_)));
+                        let is_undefined =
+                            matches!(&**arg, Expr::Ident(id) if id.sym.as_ref() == "undefined");
+                        if is_null || is_undefined {
+                            quote! { return None; }
+                        } else {
+                            quote! { return Some(#expr); }
+                        }
                     } else {
                         quote! { return #expr; }
                     }
+                } else if returns_option {
+                    quote! { return None; }
                 } else {
                     quote! { return Ok(().into()); } // For handlers returning void?
                 }
             };
 
             for stmt in &body.stmts {
-                if is_handler || method.function.is_async {
+                if is_handler || method.function.is_async || returns_option {
                     body_stmts.push(self.convert_stmt_recursive(stmt, &mut return_handler));
                 } else {
                     body_stmts.push(self.convert_stmt(stmt));

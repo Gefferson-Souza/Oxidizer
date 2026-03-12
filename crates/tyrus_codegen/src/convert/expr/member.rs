@@ -30,7 +30,8 @@ impl RustGenerator {
                     } else if type_str == "String" {
                         return quote! { self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()).clone() };
                     } else {
-                        return quote! { self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()) };
+                        // Collection/complex types: clone to release MutexGuard
+                        return quote! { self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()).clone() };
                     }
                 } else {
                     return quote! { self.#field_ident.clone() };
@@ -42,6 +43,12 @@ impl RustGenerator {
         match &member.prop {
             swc_ecma_ast::MemberProp::Ident(ident) => {
                 let name = ident.sym.as_ref();
+
+                // Map TS .length to Rust .len() (cast to f64 for TS number compat)
+                if name == "length" {
+                    return quote! { #obj.len() as f64 };
+                }
+
                 let prop_name = if name.chars().next().is_some_and(char::is_uppercase) {
                     name.to_string()
                 } else {
@@ -69,10 +76,10 @@ impl RustGenerator {
 
                 if let Expr::Lit(Lit::Num(n)) = expr {
                     let idx = n.value as usize;
-                    quote! { #obj[#idx] }
+                    quote! { #obj[#idx].clone() }
                 } else {
                     let expr_tokens = self.convert_expr(&computed.expr);
-                    quote! { #obj[#expr_tokens] }
+                    quote! { #obj[#expr_tokens].clone() }
                 }
             }
             _ => quote! { compile_error!("Tyrus: unsupported member expression") },

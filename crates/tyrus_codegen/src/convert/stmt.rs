@@ -72,6 +72,7 @@ impl RustGenerator {
             Stmt::Decl(Decl::Var(var_decl)) => {
                 let mut declarations = Vec::new();
                 for decl in &var_decl.decls {
+                    // Pre-compute init expression for non-Ident patterns
                     let init_expr_opt = decl.init.as_ref().map(|init| self.convert_expr(init));
 
                     match &decl.name {
@@ -79,7 +80,20 @@ impl RustGenerator {
                             let var_name = to_snake_case(&ident.id.sym);
                             let var_ident = format_ident!("{}", var_name);
 
-                            if let Some(init_expr) = init_expr_opt {
+                            // Check for typed object literal: const x: Type = { ... }
+                            let final_init = if let (Some(type_ann), Some(init)) =
+                                (&ident.type_ann, &decl.init)
+                            {
+                                if let swc_ecma_ast::Expr::Object(obj) = &**init {
+                                    self.try_convert_typed_object_lit(&type_ann.type_ann, obj)
+                                } else {
+                                    Some(self.convert_expr(init))
+                                }
+                            } else {
+                                decl.init.as_ref().map(|init| self.convert_expr(init))
+                            };
+
+                            if let Some(init_expr) = final_init {
                                 declarations.push(quote! {
                                     let mut #var_ident = #init_expr;
                                 });
@@ -251,5 +265,45 @@ impl RustGenerator {
             }
             _ => quote! { /* other stmts todo */ },
         }
+    }
+
+    /// Try to convert an object literal with a known type annotation into a struct constructor.
+    /// e.g., `const x: User = { id: 1, name: "foo" }` → `User { id: 1f64, name: String::from("foo") }`
+    /// Returns None if type annotation can't be extracted (falls back to serde_json::json!).
+    pub(crate) fn try_convert_typed_object_lit(
+        &self,
+        ts_type: &swc_ecma_ast::TsType,
+        obj: &swc_ecma_ast::ObjectLit,
+    ) -> Option<TokenStream> {
+        // Extract the type name from a TsTypeRef
+        let type_name = if let swc_ecma_ast::TsType::TsTypeRef(type_ref) = ts_type {
+            if let Some(ident) = type_ref.type_name.as_ident() {
+                ident.sym.to_string()
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        };
+
+        let type_ident = format_ident!("{}", type_name);
+        let mut fields = Vec::new();
+
+        for prop in &obj.props {
+            if let swc_ecma_ast::PropOrSpread::Prop(p) = prop {
+                if let swc_ecma_ast::Prop::KeyValue(kv) = &**p {
+                    if let swc_ecma_ast::PropName::Ident(key_ident) = &kv.key {
+                        let field_name = format_ident!("{}", to_snake_case(key_ident.sym.as_ref()));
+                        let val = self.convert_expr(&kv.value);
+                        fields.push(quote! { #field_name: #val });
+                    }
+                } else if let swc_ecma_ast::Prop::Shorthand(shorthand) = &**p {
+                    let field_name = format_ident!("{}", to_snake_case(shorthand.sym.as_ref()));
+                    fields.push(quote! { #field_name: #field_name.clone() });
+                }
+            }
+        }
+
+        Some(quote! { #type_ident { #(#fields),* } })
     }
 }
