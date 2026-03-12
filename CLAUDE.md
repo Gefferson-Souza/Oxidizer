@@ -66,9 +66,9 @@ cargo insta review                     # Review snapshot changes
 | `tyrus_parser` | ~55 | Wraps SWC parser. `.ts` → `Program` |
 | `tyrus_ast` | ~9 | Reserved for future typed IR |
 | `tyrus_analyzer` | ~320 | `LintVisitor` + `DecoratorVisitor` |
-| `tyrus_codegen` | ~2540 | **Core.** `RustGenerator` → TokenStream. `func.rs` decomposed into `helpers/stmt/fn_decl/expr/*`. |
+| `tyrus_codegen` | ~2540 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*`. |
 | `tyrus_di` | ~195 | DI graph (petgraph). Topological sort. |
-| `tyrus_orchestrator` | ~505 | Pipeline coordination. Being split. |
+| `tyrus_orchestrator` | ~527 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
 | `tyrus_diagnostics` | ~69 | `TyrusError` + miette |
 | `tyrus_common` | ~70 | `FilePath`, `to_snake_case()`, config |
 | `tyrus_test_utils` | ~86 | `assert_rust_compiles()` (allows unwrap in tests) |
@@ -92,7 +92,12 @@ crates/tyrus_codegen/src/
 │       ├── arrow.rs       # Arrow functions
 │       ├── literal.rs     # Object/array/template literals
 │       └── misc.rs        # Assignment, update, optional chaining
-│   ├── class.rs          # Class → struct+impl (1033 lines, next to split)
+│   ├── class/            # Class → struct+impl (split from 1048-line monolith)
+│   │   ├── mod.rs         # Class dispatcher + property conversion
+│   │   ├── constructor.rs # Constructor transpilation + DI
+│   │   ├── method.rs      # Method transpilation + decorators
+│   │   ├── routing.rs     # Axum router generation + FromRequestParts
+│   │   └── mutation.rs    # Self-mutation detection
 │   └── module.rs         # Module/import handling
 └── stdlib/               # Standard library mappings
     ├── mod.rs, console.rs, array.rs, string.rs, math.rs, json.rs
@@ -142,5 +147,5 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunk 1 (clean slate + strict rules) + Chunk 2 (func.rs decomposition)
-**Next:** Chunk 3 (class.rs decomposition + orchestrator split) → Chunk 4 (tier 1 tests)
+**Completed:** Chunks 1-3 (clean slate + strict rules + func.rs/class.rs/orchestrator decomposition)
+**Next:** Chunk 4 (tier 1-4 test implementation)

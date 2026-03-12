@@ -2,114 +2,119 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use swc_ecma_ast::{TsType, TsTypeAnn};
 
-/// Maps TypeScript types to Rust types
-#[allow(clippy::borrowed_box)]
-pub fn map_ts_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
-    if let Some(type_ann) = type_ann {
-        match &*type_ann.type_ann {
-            TsType::TsKeywordType(k) => match k.kind {
-                swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => quote! { String },
-                swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => quote! { f64 },
-                swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => quote! { bool },
-                swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword => quote! { () },
-                _ => quote! { serde_json::Value },
-            },
-            TsType::TsArrayType(array_type) => {
-                let inner_type = map_inner_type(&array_type.elem_type);
-                quote! { Vec<#inner_type> }
-            }
-            TsType::TsTypeRef(t) => {
-                if let Some(ident) = t.type_name.as_ident() {
-                    let name = ident.sym.as_str();
-                    match name {
-                        "Date" => quote! { String },
-                        "Array" => {
-                            if let Some(type_params) = &t.type_params {
-                                if let Some(first_param) = type_params.params.first() {
-                                    let inner = map_inner_type(first_param);
-                                    quote! { Vec<#inner> }
-                                } else {
-                                    quote! { Vec<serde_json::Value> }
-                                }
+/// Core type mapping logic: converts a `TsType` to a Rust `TokenStream`.
+/// Handles keywords, arrays, type references (including generics), and unions.
+fn map_type_core(ts_type: &TsType) -> TokenStream {
+    match ts_type {
+        TsType::TsKeywordType(k) => match k.kind {
+            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => quote! { String },
+            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => quote! { f64 },
+            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => quote! { bool },
+            swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword => quote! { () },
+            _ => quote! { serde_json::Value },
+        },
+        TsType::TsArrayType(array_type) => {
+            let inner_type = map_type_core(&array_type.elem_type);
+            quote! { Vec<#inner_type> }
+        }
+        TsType::TsTypeRef(t) => {
+            if let Some(ident) = t.type_name.as_ident() {
+                let name = ident.sym.as_str();
+                match name {
+                    "Date" => quote! { String },
+                    "Array" => {
+                        if let Some(type_params) = &t.type_params {
+                            if let Some(first_param) = type_params.params.first() {
+                                let inner = map_type_core(first_param);
+                                quote! { Vec<#inner> }
                             } else {
                                 quote! { Vec<serde_json::Value> }
                             }
+                        } else {
+                            quote! { Vec<serde_json::Value> }
                         }
-                        "Record" => {
-                            if let Some(type_params) = &t.type_params {
-                                if type_params.params.len() >= 2 {
-                                    let key = map_inner_type(&type_params.params[0]);
-                                    let value = map_inner_type(&type_params.params[1]);
-                                    quote! { std::collections::HashMap<#key, #value> }
-                                } else {
-                                    quote! { std::collections::HashMap<String, serde_json::Value> }
-                                }
+                    }
+                    "Record" => {
+                        if let Some(type_params) = &t.type_params {
+                            if type_params.params.len() >= 2 {
+                                let key = map_type_core(&type_params.params[0]);
+                                let value = map_type_core(&type_params.params[1]);
+                                quote! { std::collections::HashMap<#key, #value> }
                             } else {
                                 quote! { std::collections::HashMap<String, serde_json::Value> }
                             }
+                        } else {
+                            quote! { std::collections::HashMap<String, serde_json::Value> }
+                        }
+                    }
+                    _ => {
+                        // User defined type (Struct or Enum)
+                        let type_ident =
+                            proc_macro2::Ident::new(name, proc_macro2::Span::call_site());
+
+                        if let Some(type_params) = &t.type_params {
+                            let params: Vec<_> = type_params
+                                .params
+                                .iter()
+                                .map(|p| map_type_core(p))
+                                .collect();
+                            quote! { #type_ident<#(#params),*> }
+                        } else {
+                            quote! { #type_ident }
+                        }
+                    }
+                }
+            } else {
+                quote! { serde_json::Value }
+            }
+        }
+        TsType::TsUnionOrIntersectionType(union_or_intersection) => {
+            // Check for Optional (T | undefined)
+            if let swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(union) =
+                union_or_intersection
+            {
+                let mut is_optional = false;
+                let mut inner_type = None;
+
+                for type_opt in &union.types {
+                    match &**type_opt {
+                        TsType::TsKeywordType(k)
+                            if k.kind == swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword
+                                || k.kind == swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword =>
+                        {
+                            is_optional = true;
                         }
                         _ => {
-                            // User defined type (Struct or Enum)
-                            let type_ident =
-                                proc_macro2::Ident::new(name, proc_macro2::Span::call_site());
-
-                            if let Some(type_params) = &t.type_params {
-                                let params: Vec<_> = type_params
-                                    .params
-                                    .iter()
-                                    .map(|p| map_inner_type(p))
-                                    .collect();
-                                quote! { #type_ident<#(#params),*> }
-                            } else {
-                                quote! { #type_ident }
+                            if inner_type.is_none() {
+                                inner_type = Some(map_type_core(type_opt));
                             }
                         }
                     }
-                } else {
-                    quote! { serde_json::Value }
                 }
-            }
-            TsType::TsUnionOrIntersectionType(union_or_intersection) => {
-                // Check for Optional (T | undefined)
-                if let swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(union) =
-                    union_or_intersection
-                {
-                    let mut is_optional = false;
-                    let mut inner_type = None;
 
-                    for type_opt in &union.types {
-                        match &**type_opt {
-                            TsType::TsKeywordType(k)
-                                if k.kind
-                                    == swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword
-                                    || k.kind == swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword =>
-                            {
-                                is_optional = true;
-                            }
-                            _ => {
-                                if inner_type.is_none() {
-                                    inner_type = Some(map_inner_type(type_opt));
-                                }
-                            }
-                        }
-                    }
-
-                    if is_optional {
-                        if let Some(inner) = inner_type {
-                            quote! { Option<#inner> }
-                        } else {
-                            quote! { Option<serde_json::Value> }
-                        }
+                if is_optional {
+                    if let Some(inner) = inner_type {
+                        quote! { Option<#inner> }
                     } else {
-                        // Regular union - fallback to Value for now
-                        quote! { serde_json::Value }
+                        quote! { Option<serde_json::Value> }
                     }
                 } else {
+                    // Regular union - fallback to Value for now
                     quote! { serde_json::Value }
                 }
+            } else {
+                quote! { serde_json::Value }
             }
-            _ => quote! { serde_json::Value },
         }
+        _ => quote! { serde_json::Value },
+    }
+}
+
+/// Maps TypeScript types to Rust types from an optional type annotation.
+#[allow(clippy::borrowed_box)]
+pub fn map_ts_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
+    if let Some(type_ann) = type_ann {
+        map_type_core(&type_ann.type_ann)
     } else {
         quote! { serde_json::Value }
     }
@@ -127,7 +132,7 @@ pub fn unwrap_promise_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
                     if let Some(type_params) = &type_ref.type_params {
                         if let Some(first_param) = type_params.params.first() {
                             // Recursively map the inner type
-                            return map_inner_type(first_param);
+                            return map_type_core(first_param);
                         }
                     }
                 }
@@ -191,61 +196,9 @@ pub fn is_void_or_promise_void(type_ann: Option<&TsTypeAnn>) -> bool {
     }
 }
 
+/// Maps a TsType directly to a Rust TokenStream.
 pub fn map_inner_type(ts_type: &swc_ecma_ast::TsType) -> TokenStream {
-    match ts_type {
-        TsType::TsKeywordType(k) => match k.kind {
-            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => quote! { String },
-            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => quote! { f64 },
-            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => quote! { bool },
-            swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword => quote! { () },
-            _ => quote! { serde_json::Value },
-        },
-        TsType::TsArrayType(array_type) => {
-            let inner_type = map_inner_type(&array_type.elem_type);
-            quote! { Vec<#inner_type> }
-        }
-        TsType::TsTypeRef(t) => {
-            if let Some(ident) = t.type_name.as_ident() {
-                let name = ident.sym.as_str();
-                match name {
-                    "Date" => quote! { String },
-                    "Array" => {
-                        if let Some(type_params) = &t.type_params {
-                            if let Some(first_param) = type_params.params.first() {
-                                let inner = map_inner_type(first_param);
-                                quote! { Vec<#inner> }
-                            } else {
-                                quote! { Vec<serde_json::Value> }
-                            }
-                        } else {
-                            quote! { Vec<serde_json::Value> }
-                        }
-                    }
-                    "Record" => {
-                        if let Some(type_params) = &t.type_params {
-                            if type_params.params.len() >= 2 {
-                                let key = map_inner_type(&type_params.params[0]);
-                                let value = map_inner_type(&type_params.params[1]);
-                                quote! { std::collections::HashMap<#key, #value> }
-                            } else {
-                                quote! { std::collections::HashMap<String, serde_json::Value> }
-                            }
-                        } else {
-                            quote! { std::collections::HashMap<String, serde_json::Value> }
-                        }
-                    }
-                    _ => {
-                        let type_ident =
-                            proc_macro2::Ident::new(name, proc_macro2::Span::call_site());
-                        quote! { #type_ident }
-                    }
-                }
-            } else {
-                quote! { serde_json::Value }
-            }
-        }
-        _ => quote! { serde_json::Value },
-    }
+    map_type_core(ts_type)
 }
 
 #[cfg(test)]
