@@ -76,8 +76,25 @@ Manteremos a estrutura de Workspace, mas com adições acadêmicas:
 - [x] **Fase 1: Definições (Meta)**
   - [x] Adotar SemVer no `Cargo.toml`.
   - [x] Criar `docs/specs/GRAMMAR.md` (Esqueleto).
+- [x] **Fase 4: Padronização de Código (Qualidade de Engenharia)**
+  - [x] `.cargo/config.toml` com `-Dwarnings` e clippy lint estritos (`unwrap_used`, `expect_used`, `panic`, `todo`, `unimplemented`).
+  - [x] `clippy.toml` com limiares de complexidade cognitiva (15), linhas por função (50) e parâmetros (5).
+  - [x] `deny.toml` para auditoria de dependências e licenças via `cargo-deny`.
+  - [x] CI atualizado: `actions/checkout@v4`, `Swatinem/rust-cache@v2`, `cargo nextest`, verificação E2E do demo.
+  - [x] Toda base de código livre de `panic!()`, `.expect()`, e `todo!()`.
+  - [x] `tyrus_ast` reservado para IR futuro (arquivo `lib.rs` com comentário explicativo).
+  - [x] `tyrus_analyzer/graph.rs` removido (código morto).
+- [x] **Fase 5: Decomposição do Módulo de Geração de Código**
+  - [x] `func.rs` (1144 linhas) decomposto em 10 módulos focados:
+    - `helpers.rs`, `stmt.rs`, `fn_decl.rs`
+    - `expr/` com: `mod.rs`, `binary.rs`, `call.rs`, `member.rs`, `arrow.rs`, `literal.rs`, `misc.rs`
+  - [x] `func.rs` deletado após migração completa.
+  - [x] Infraestrutura de testes reconstruída em tiers (unit/snapshot/compilation).
 - [ ] **Fase 2: Benchmarking (Evidência)**
   - [ ] Configurar `criterion` (crate de benchmark Rust).
   - [ ] Criar cenário de teste comparativo.
 - [ ] **Fase 3: Tradução (Acessibilidade)**
   - [ ] Criar `README.pt-br.md`.
+- [ ] **Fase 6: Decomposição de `class.rs`**
+  - [ ] `class.rs` (1033 linhas) ainda precisa ser decomposto em módulos menores.
+  - [ ] Alvo: módulos separados para NestJS controller mapping, service patterns e DTO handling.

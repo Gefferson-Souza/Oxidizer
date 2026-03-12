@@ -1,5 +1,8 @@
 pub mod class;
-pub mod func;
+pub(crate) mod expr;
+pub(crate) mod fn_decl;
+pub mod helpers;
 pub mod interface;
 pub mod module;
+pub(crate) mod stmt;
 pub mod type_mapper;

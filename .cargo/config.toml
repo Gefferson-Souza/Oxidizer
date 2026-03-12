@@ -1,0 +1,16 @@
+# .cargo/config.toml
+# Strict linting rules for TypeRust workspace.
+# All violations are compile errors. No exceptions.
+
+[target.'cfg(all())']
+rustflags = [
+    "-Dwarnings",
+    "-Wclippy::unwrap_used",
+    "-Wclippy::expect_used",
+    "-Wclippy::panic",
+    "-Wclippy::todo",
+    "-Wclippy::unimplemented",
+    "-Wclippy::needless_pass_by_value",
+    "-Wclippy::redundant_closure_for_method_calls",
+    "-Wclippy::implicit_clone",
+]
