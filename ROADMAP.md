@@ -35,6 +35,31 @@ This roadmap tracks the evolution of Tyrus from a research prototype to a produc
 - [x] **DTO/Entity Unification:** Smart wrapping strategies to align Class (Mutex) and Interface (Raw) types.
 - [x] **Thread-Safe Derives:** `PartialEq` works on DTOs (Mutex removed).
 
+### 🔧 Milestone 9: Safe Transpilation Infrastructure
+
+- [x] **Strict Linting:** `.cargo/config.toml` with `-Dwarnings`, enforcing `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::todo`, `clippy::unimplemented`.
+- [x] **Quality Thresholds:** `clippy.toml` with cognitive complexity (15), function lines (50), and parameter count (5) limits.
+- [x] **Dependency Audit:** `deny.toml` with `cargo-deny` for license and security checks.
+- [x] **CI Modernization:** GitHub Actions v4, `Swatinem/rust-cache@v2`, `cargo nextest`, end-to-end demo compilation in CI.
+- [x] **Panic-Free Codebase:** All `todo!()` replaced with `compile_error!()`, all `.expect()` replaced with `?` or proper error handling.
+- [x] **Dead Code Removal:** `tyrus_ast` emptied (reserved for future IR), `tyrus_analyzer/graph.rs` deleted.
+- [x] **Test Infrastructure Rebuild:** Structured test tiers (unit/snapshot/compilation) replacing the old ad-hoc test setup.
+
+### 🗂️ Milestone 10: Codegen Module Decomposition
+
+- [x] **`func.rs` Decomposed:** The monolithic 1144-line `func.rs` split into 10 focused modules:
+  - `helpers.rs` — case conversion utilities and type detection helpers
+  - `stmt.rs` — statement conversion logic
+  - `fn_decl.rs` — function declaration processing
+  - `expr/mod.rs` — expression dispatcher
+  - `expr/binary.rs` — binary operator transpilation
+  - `expr/call.rs` — function/method calls, array methods, axios/fetch
+  - `expr/member.rs` — property access and mutex state
+  - `expr/arrow.rs` — arrow functions to closures
+  - `expr/literal.rs` — literals, objects, arrays, template literals
+  - `expr/misc.rs` — assignments, updates, optional chaining
+- [x] **`func.rs` Deleted:** All references in `interface.rs`, `module.rs`, and `class.rs` updated to import from the new modules.
+
 ---
 
 ## 🔬 Future Work (Academic Research)

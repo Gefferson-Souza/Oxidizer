@@ -96,6 +96,34 @@ cargo build --release
 
 For a deep dive into the compiler's internals, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+---
+
+## 🏗 Code Generation Module Structure
+
+The `tyrus_codegen` crate is organized into focused, single-responsibility modules under `crates/tyrus_codegen/src/convert/`:
+
+```
+convert/
+├── mod.rs          — module declarations and re-exports
+├── interface.rs    — RustGenerator struct definition + Visit impl (entry point)
+├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
+├── stmt.rs         — statement conversion (convert_stmt, convert_stmt_recursive)
+├── fn_decl.rs      — function declaration processing (process_fn_decl)
+├── class.rs        — class → struct+impl conversion, Arc<Mutex<T>> state management
+├── module.rs       — module/import handling
+├── type_mapper.rs  — TypeScript → Rust type mapping
+└── expr/
+    ├── mod.rs      — expression dispatcher (convert_expr)
+    ├── binary.rs   — binary operators (convert_bin_expr)
+    ├── call.rs     — function/method calls, axios/fetch/array methods
+    ├── member.rs   — property access, mutex state (convert_member_expr)
+    ├── arrow.rs    — arrow functions → closures (convert_arrow_expr)
+    ├── literal.rs  — literals, object/array/template expressions
+    └── misc.rs     — assignments, updates, optional chaining
+```
+
+All Rust code is generated using `quote!` macros producing `proc_macro2::TokenStream` — never string concatenation.
+
 ## 📄 License
 
 MIT License. See [LICENSE](LICENSE) for details.
