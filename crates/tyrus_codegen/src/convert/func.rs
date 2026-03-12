@@ -88,7 +88,7 @@ impl super::interface::RustGenerator {
             if is_async {
                 for stmt in &block_stmt.stmts {
                     body_stmts.push(self.convert_stmt_recursive(stmt, &mut |ret_stmt| {
-                         if let Some(arg) = &ret_stmt.arg {
+                        if let Some(arg) = &ret_stmt.arg {
                             let expr = self.convert_expr(arg);
                             if !is_void && matches!(arg.as_ref(), swc_ecma_ast::Expr::Object(_)) {
                                 quote! {
@@ -259,9 +259,7 @@ impl super::interface::RustGenerator {
                                 for prop in &obj_pat.props {
                                     match prop {
                                         swc_ecma_ast::ObjectPatProp::KeyValue(kv) => {
-                                            if let swc_ecma_ast::PropName::Ident(key) =
-                                                &kv.key
-                                            {
+                                            if let swc_ecma_ast::PropName::Ident(key) = &kv.key {
                                                 let key_name = format_ident!(
                                                     "{}",
                                                     to_snake_case(key.sym.as_ref())
@@ -269,9 +267,7 @@ impl super::interface::RustGenerator {
                                                 if let Pat::Ident(val_ident) = &*kv.value {
                                                     let val_name = format_ident!(
                                                         "{}",
-                                                        to_snake_case(
-                                                            val_ident.sym.as_ref()
-                                                        )
+                                                        to_snake_case(val_ident.sym.as_ref())
                                                     );
                                                     declarations.push(quote! {
                                                         let mut #val_name = #source_ident.#key_name.clone();
@@ -285,8 +281,7 @@ impl super::interface::RustGenerator {
                                                 to_snake_case(assign.key.sym.as_ref())
                                             );
                                             if let Some(default_val) = &assign.value {
-                                                let default_expr =
-                                                    self.convert_expr(default_val);
+                                                let default_expr = self.convert_expr(default_val);
                                                 declarations.push(quote! {
                                                     let mut #key_name = #source_ident.#key_name.clone().unwrap_or(#default_expr);
                                                 });
@@ -314,10 +309,8 @@ impl super::interface::RustGenerator {
                                 });
                                 for (idx, elem) in arr_pat.elems.iter().enumerate() {
                                     if let Some(Pat::Ident(ident)) = elem {
-                                        let var_name = format_ident!(
-                                            "{}",
-                                            to_snake_case(ident.sym.as_ref())
-                                        );
+                                        let var_name =
+                                            format_ident!("{}", to_snake_case(ident.sym.as_ref()));
                                         let index = idx;
                                         declarations.push(quote! {
                                             let mut #var_name = #source_ident[#index].clone();
@@ -429,7 +422,7 @@ impl super::interface::RustGenerator {
                 if name == "undefined" {
                     return quote! { None };
                 }
-                if name.chars().next().is_some_and(|c| c.is_uppercase()) {
+                if name.chars().next().is_some_and(char::is_uppercase) {
                     let ident_token = format_ident!("{}", name);
                     quote! { #ident_token }
                 } else {
@@ -452,7 +445,7 @@ impl super::interface::RustGenerator {
                     quote! { #v }
                 }
                 Lit::Null(_) => quote! { None },
-                _ => quote! { todo!("unsupported literal") },
+                _ => quote! { compile_error!("Tyrus: unsupported literal type") },
             },
             Expr::Member(member) => self.convert_member_expr(member),
             Expr::Call(call) => self.convert_call_expr(call),
@@ -486,7 +479,7 @@ impl super::interface::RustGenerator {
                 quote! { if #test { #cons } else { #alt } }
             }
             Expr::OptChain(opt_chain) => self.convert_opt_chain(opt_chain),
-            _ => quote! { todo!() },
+            _ => quote! { compile_error!("Tyrus: unsupported expression") },
         }
     }
 
@@ -500,8 +493,7 @@ impl super::interface::RustGenerator {
             swc_ecma_ast::OptChainBase::Member(member) => {
                 let obj = self.convert_expr(&member.obj);
                 if let Some(prop_ident) = member.prop.as_ident() {
-                    let prop_name =
-                        format_ident!("{}", to_snake_case(prop_ident.sym.as_ref()));
+                    let prop_name = format_ident!("{}", to_snake_case(prop_ident.sym.as_ref()));
                     // obj?.prop → obj.as_ref().and_then(|__v| __v.prop.clone())
                     // If obj is already Option, use and_then; otherwise just access
                     quote! { #obj.as_ref().and_then(|__v| __v.#prop_name.clone()) }
@@ -595,7 +587,7 @@ impl super::interface::RustGenerator {
             swc_ecma_ast::MemberProp::Ident(ident) => {
                 let name = ident.sym.as_ref();
                 // If it starts with uppercase, preserve it (Enum variant, etc.)
-                let prop_name = if name.chars().next().is_some_and(|c| c.is_uppercase()) {
+                let prop_name = if name.chars().next().is_some_and(char::is_uppercase) {
                     name.to_string()
                 } else {
                     to_snake_case(name)
@@ -608,7 +600,7 @@ impl super::interface::RustGenerator {
                 // Check if obj_str looks like a type name (Capitalized, no dots/method calls yet)
                 // Note: obj is a TokenStream, to_string gives "Status" or "self . status".
                 // Simple heuristic: if it's a single word starting with Uppercase, treat as Enum/Static.
-                if obj_str.chars().next().is_some_and(|c| c.is_uppercase())
+                if obj_str.chars().next().is_some_and(char::is_uppercase)
                     && !obj_str.contains('.')
                     && !obj_str.contains('(')
                 {
@@ -636,7 +628,7 @@ impl super::interface::RustGenerator {
                     quote! { #obj[#expr_tokens] }
                 }
             }
-            _ => quote! { todo!() },
+            _ => quote! { compile_error!("Tyrus: unsupported member expression") },
         }
     }
 
@@ -666,7 +658,7 @@ impl super::interface::RustGenerator {
             BinaryOp::NullishCoalescing => quote! { #left.unwrap_or(#right) },
             _ => {
                 let op_str = format!("{:?}", bin.op);
-                quote! { todo!("Unsupported binary op: {}", #op_str) }
+                quote! { compile_error!(concat!("Tyrus: unsupported binary operator: ", #op_str)) }
             }
         }
     }
@@ -1009,7 +1001,7 @@ impl super::interface::RustGenerator {
                 }
                 self.convert_expr(expr)
             }
-            _ => quote! { todo!("complex callee") },
+            _ => quote! { compile_error!("Tyrus: unsupported call expression") },
         };
         let args: Vec<_> = call
             .args
@@ -1084,7 +1076,7 @@ impl super::interface::RustGenerator {
                                     quote! { self.#field }
                                 }
                             } else {
-                                quote! { todo!() }
+                                quote! { compile_error!("Tyrus: unsupported self member assignment") }
                             }
                         } else if let Some(prop_ident) = member.prop.as_ident() {
                             let prop_name = to_snake_case(prop_ident.sym.as_ref());
@@ -1092,17 +1084,17 @@ impl super::interface::RustGenerator {
                             let obj = self.convert_expr(&member.obj);
                             quote! { #obj.#field }
                         } else {
-                            quote! { todo!("complex member assign") }
+                            quote! { compile_error!("Tyrus: unsupported member assignment pattern") }
                         }
                     }
                     swc_ecma_ast::SimpleAssignTarget::Ident(ident) => {
                         let name = format_ident!("{}", to_snake_case(ident.sym.as_ref()));
                         quote! { #name }
                     }
-                    _ => quote! { todo!() },
+                    _ => quote! { compile_error!("Tyrus: unsupported assignment target") },
                 }
             }
-            _ => quote! { todo!() },
+            _ => quote! { compile_error!("Tyrus: unsupported assignment pattern") },
         };
 
         match assign.op {

@@ -1,103 +1,149 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-Tyrus (TypeRust) is an academic TypeScript-to-Rust compiler. It transpiles a strict subset of TypeScript ("Oxidizable Standard") into memory-safe Rust code with formal semantic preservation. No `any`, `var`, or `eval` are allowed. The project uses a Cargo workspace with 10 crates under `crates/`.
+**Tyrus** (TypeRust) is an academic TypeScript-to-Rust transpiler. It converts a strict subset of TypeScript ("Oxidizable Standard") into memory-safe Rust code. No `any`, `var`, or `eval` allowed. Cargo workspace with 10 crates under `crates/`.
 
-## Build & Development Commands
+## STRICT RULES (NEVER VIOLATE)
+
+These rules are enforced by `.cargo/config.toml` and CI. Violations = compile error.
+
+| Rule | Violation | Use Instead |
+|------|-----------|-------------|
+| No `.unwrap()` | `clippy::unwrap_used` | `?`, `.unwrap_or()`, `.unwrap_or_default()`, `.unwrap_or_else()`, `match` |
+| No `.expect()` | `clippy::expect_used` | Same as unwrap alternatives |
+| No `panic!()` | `clippy::panic` | `Result<T, TyrusError>` |
+| No `todo!()` | `clippy::todo` | `compile_error!("Tyrus: ...")` in generated code, `Result::Err` in lib code |
+| No string concat for codegen | Manual review | `quote!` macros only |
+| Files < 400 lines | Code review | Split into modules |
+| Functions < 50 lines | `clippy::too_many_lines` | Extract helpers |
+| Max 5 function params | `clippy::too_many_arguments` | Create context structs |
+| Max 4 nesting levels | `clippy::cognitive_complexity` | Early returns, extract functions |
+| `pub(crate)` not `pub` | Code review | Only expose what other crates need |
+
+## Build & Dev Commands
 
 ```bash
 # Build
-cargo build --workspace              # Debug build (all crates)
-cargo build --release                # Release build with LTO
+cargo build --workspace
 
-# Run the compiler
-cargo run --bin tyrus -- check <file.ts>                        # Lint/analyze
-cargo run --bin tyrus -- build <dir>/src --output <dir>/output  # Transpile project
-
-# Tests
-cargo test --workspace               # All tests
-cargo test -p tests                   # Integration/snapshot tests only
-cargo test -p tyrus_codegen           # Single crate tests
-cargo test test_snapshot_             # Run tests matching a pattern
+# Tests (use nextest for speed)
+cargo nextest run --workspace          # All tests (parallel)
+cargo test -p integration_tests        # Integration tests only
+cargo test -p tyrus_codegen            # Single crate
 
 # Lint & Format (must pass CI)
 cargo fmt -- --check
-cargo clippy --workspace -- -D warnings -W clippy::unwrap_used -W clippy::expect_used -W clippy::panic
+cargo clippy --workspace               # -Dwarnings is in .cargo/config.toml
+
+# Run the compiler
+cargo run --bin tyrus -- check <file.ts>
+cargo run --bin tyrus -- build <dir>/src --output <dir>/output
+
+# Snapshots
+cargo insta review                     # Review snapshot changes
 ```
 
-## CI Requirements
-
-CI runs format check, clippy (with `unwrap_used`, `expect_used`, `panic` as warnings promoted to errors), build, tests, and compiles the `examples/real_world_demo/` output to verify end-to-end correctness. All code must be panic-free — use `Result<T, TyrusError>` instead.
-
-## Architecture: Compilation Pipeline
-
-The compiler is a multi-pass pipeline, each stage in its own crate:
+## Architecture
 
 ```
 .ts input
-  → tyrus_parser       (SWC-based lexing/parsing → swc_ecma_ast::Program)
-  → tyrus_analyzer      (lint validation + decorator extraction + DI graph)
-  → tyrus_di            (dependency injection resolution via petgraph topological sort)
-  → tyrus_orchestrator  (multi-file coordination, module wiring, ordering)
-  → tyrus_codegen       (AST → Rust TokenStream via quote! macros)
+  → tyrus_parser       (SWC parsing → swc_ecma_ast::Program)
+  → tyrus_analyzer     (LintVisitor + DecoratorVisitor)
+  → tyrus_di           (petgraph topological sort for DI)
+  → tyrus_orchestrator (multi-file coordination)
+  → tyrus_codegen      (quote! → proc_macro2::TokenStream)
   → formatted .rs output
 ```
 
-### Crate Responsibilities
+### Crate Map
 
-| Crate | Role |
-|---|---|
-| `tyrus_cli` | CLI entry point (clap). Binary crate. |
-| `tyrus_parser` | Wraps SWC parser. Input: `.ts` file → Output: `swc_ecma_ast::Program` |
-| `tyrus_ast` | Internal AST type definitions |
-| `tyrus_analyzer` | `LintVisitor` (enforces Oxidizable Standard), `DecoratorVisitor` (extracts NestJS metadata) |
-| `tyrus_codegen` | Core transpilation. `RustGenerator` visitor converts TS AST → `proc_macro2::TokenStream` |
-| `tyrus_di` | NestJS-style dependency injection engine. Uses `petgraph::DiGraph` for topological sort. |
-| `tyrus_orchestrator` | Coordinates the full pipeline: parse → analyze → codegen. Handles multi-file projects. |
-| `tyrus_diagnostics` | `TyrusError` variants with `miette` integration for rich error reporting |
-| `tyrus_common` | Shared types (`FilePath` newtype), config, filesystem utilities |
-| `tyrus_test_utils` | Test helpers including `assert_rust_compiles()` |
+| Crate | Lines | Role |
+|-------|-------|------|
+| `tyrus_cli` | ~64 | CLI (clap). Binary crate. |
+| `tyrus_parser` | ~55 | Wraps SWC parser. `.ts` → `Program` |
+| `tyrus_ast` | ~9 | Reserved for future typed IR |
+| `tyrus_analyzer` | ~320 | `LintVisitor` + `DecoratorVisitor` |
+| `tyrus_codegen` | ~2540 | **Core.** `RustGenerator` → TokenStream. Being refactored into modules. |
+| `tyrus_di` | ~195 | DI graph (petgraph). Topological sort. |
+| `tyrus_orchestrator` | ~505 | Pipeline coordination. Being split. |
+| `tyrus_diagnostics` | ~69 | `TyrusError` + miette |
+| `tyrus_common` | ~70 | `FilePath`, `to_snake_case()`, config |
+| `tyrus_test_utils` | ~86 | `assert_rust_compiles()` (allows unwrap in tests) |
 
-### Key Code Generation Files
+### Codegen Module Structure (Target)
 
-- `crates/tyrus_codegen/src/convert/interface.rs` — `RustGenerator`: main visitor, interfaces → structs, type aliases → enums
-- `crates/tyrus_codegen/src/convert/func.rs` — Function transpilation, array/string method mapping, expression conversion
-- `crates/tyrus_codegen/src/convert/class.rs` — Class → struct+impl, state management with `Arc<Mutex<T>>`, NestJS controller/service patterns
+```
+crates/tyrus_codegen/src/
+├── convert/
+│   ├── mod.rs            # Module declarations
+│   ├── interface.rs      # RustGenerator visitor, interfaces → structs
+│   ├── helpers.rs        # to_snake_case, to_pascal_case, is_string_expr, is_primitive_type
+│   ├── fn_decl.rs        # Function declaration transpilation
+│   ├── stmt.rs           # Statement conversion
+│   ├── type_mapper.rs    # TS→Rust type mapping
+│   └── expr/             # Expression conversion
+│       ├── mod.rs         # Expression dispatcher
+│       ├── binary.rs      # Binary operators (+, -, *, /, ==, etc.)
+│       ├── call.rs        # Function/method calls
+│       ├── member.rs      # Member access (obj.field)
+│       ├── arrow.rs       # Arrow functions
+│       ├── literal.rs     # Object/array/template literals
+│       └── misc.rs        # Assignment, update, optional chaining
+├── class/                # Class transpilation
+│   ├── mod.rs             # Class dispatcher
+│   ├── struct_gen.rs      # Struct definition generation
+│   ├── constructor.rs     # Constructor transpilation
+│   ├── method.rs          # Method transpilation
+│   ├── routing.rs         # Axum routing (@Controller → Router)
+│   └── mutation.rs        # Self-mutation detection
+└── stdlib/               # Standard library mappings
+    ├── mod.rs, console.rs, array.rs, string.rs, math.rs, json.rs
+```
 
-## Key Transpilation Patterns
+## Type Mappings (TS → Rust)
 
-- **Types:** `string→String`, `number→f64`, `boolean→bool`, `Promise<T>→Result<T, AppError>`, `Record<K,V>→HashMap<K,V>`
-- **Interfaces** → `#[derive(Serialize, Deserialize)] struct` with serde
-- **String union types** (`type Status = "open" | "closed"`) → Rust enums
-- **Array methods** (`.map`, `.filter`, `.forEach`, `.find`, `.some`, `.every`) → iterator chains with `.collect()`. Supports `(item, index)` callbacks via `.enumerate()`
-- **String methods** (`.includes→.contains`, `.replace→.replacen`, `.split→.split().collect()`, etc.)
-- **Classes** → structs with `impl` blocks. State fields use `Arc<Mutex<T>>` for interior mutability. Constructor-injected deps wrapped in `Arc<T>`.
-- **NestJS decorators** → Axum: `@Controller("/path")` → router, `@Get()` → `axum::routing::get`, `@Injectable()` → DI registration
-- **Async/await** → `pub async fn` with tokio, `await` → `.await`
+| TypeScript | Rust |
+|------------|------|
+| `string` | `String` |
+| `number` | `f64` |
+| `boolean` | `bool` |
+| `void` | `()` |
+| `T[]` / `Array<T>` | `Vec<T>` |
+| `Promise<T>` | `Result<T, AppError>` |
+| `Record<K,V>` | `HashMap<K,V>` |
+| `T \| undefined` | `Option<T>` |
+| `interface` | `#[derive(Serialize, Deserialize)] struct` |
+| `type Status = "a" \| "b"` | `enum Status { A, B }` |
+| `class` | `struct + impl` |
 
-## Code Generation Approach
+## Testing Architecture
 
-All Rust code is generated using `quote!` macros producing `proc_macro2::TokenStream` — never string concatenation. This ensures hygienic, injection-free code generation.
-
-## Visitor Pattern
-
-Three visitors traverse the SWC AST via `swc_ecma_visit::Visit`:
-1. `LintVisitor` — rejects `var`, `any`, `eval`
-2. `DecoratorVisitor` — extracts `@Module`, `@Injectable`, `@Controller` metadata
-3. `RustGenerator` — produces Rust token streams
-
-## Testing
-
-- **Snapshot tests** (insta): fixtures in `tests/fixtures/*/input.ts`, verified against `.snap` files
-- **Build integration tests**: run tyrus CLI via `assert_cmd`, verify generated Rust compiles
-- **Compilation tests**: `assert_rust_compiles()` helper runs `rustc` on generated output
+```
+tests/
+├── src/
+│   ├── unit/          # FAST (<5s): Test codegen functions directly
+│   ├── snapshot/      # MEDIUM (<10s): Full transpilation → insta snapshots
+│   └── compilation/   # SLOW (<60s): Batch cargo check per tier
+├── fixtures/
+│   ├── tier1/         # Basic: variables, math, functions, control flow
+│   ├── tier2/         # Intermediate: interfaces, classes, async
+│   ├── tier3/         # Advanced: generics, optional chaining, destructuring
+│   └── tier4/         # NestJS: @Injectable, @Controller, full project
+```
 
 ## Conventions
 
-- **Commit format:** `<type>(<scope>): <subject>` — Conventional Commits (see CONTRIBUTING.md)
-- **Branching:** `feat/`, `fix/`, `chore/`, `refactor/` prefixes. `main` is protected.
-- **Error handling:** Always `Result<T, TyrusError>`. Never `unwrap()`, `expect()`, or `panic!()`.
-- **Guidelines.md** contains detailed engineering guidelines (in Portuguese).
+- **Commits:** `<type>: <description>` — Types: feat, fix, refactor, test, chore, docs, perf, ci
+- **Branches:** `feat/`, `fix/`, `chore/`, `refactor/` prefixes
+- **Error handling:** Always `Result<T, TyrusError>`. Never unwrap/expect/panic.
+- **Generated code errors:** Use `compile_error!("Tyrus: ...")` instead of `todo!()`
+- **Immutability:** Prefer `&self`, use `&mut self` only when mutation is detected
+- **Code gen:** `quote!` macros only. Never string concatenation.
+
+## Active Refactoring
+
+See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
+Currently executing: Clean slate → strict rules → codegen decomposition → tiered tests.

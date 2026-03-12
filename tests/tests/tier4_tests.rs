@@ -86,8 +86,7 @@ fn test_tier4_full_build() {
     // But tyrus_orchestrator is an external crate to integration_tests?
     // integration_tests/Cargo.toml has tyrus_orchestrator dependency.
 
-    tyrus_orchestrator::build_project(fixture_path, output_dir.clone())
-        .expect("build_project failed");
+    tyrus_orchestrator::build_project(&fixture_path, &output_dir).expect("build_project failed");
 
     // Verify main.rs content
     let main_rs_path = output_dir.join("src/main.rs");

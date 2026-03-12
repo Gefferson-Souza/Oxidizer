@@ -18,7 +18,9 @@ pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Optio
         "parse" => {
             if let Some(arg) = args.first() {
                 let val = gen.convert_expr_or_spread(arg);
-                Some(quote! { serde_json::from_str::<serde_json::Value>(&#val).unwrap_or_default() })
+                Some(
+                    quote! { serde_json::from_str::<serde_json::Value>(&#val).unwrap_or_default() },
+                )
             } else {
                 None
             }

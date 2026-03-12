@@ -775,7 +775,7 @@ impl RustGenerator {
             // Fallback if we can't parse constructor body
             quote! {
                 pub fn new(#(#params),*) -> Self {
-                    todo!("Complex constructor not yet supported")
+                    compile_error!("Tyrus: complex constructor pattern not yet supported")
                 }
             }
         }
@@ -835,7 +835,7 @@ impl RustGenerator {
                 .function
                 .body
                 .as_ref()
-                .map_or(false, |body| Self::body_mutates_self(&body.stmts));
+                .is_some_and(|body| Self::body_mutates_self(&body.stmts));
             if mutates {
                 params.push(quote! { &mut self });
             } else {
@@ -990,7 +990,7 @@ impl RustGenerator {
                     || if_stmt
                         .alt
                         .as_ref()
-                        .map_or(false, |alt| Self::stmt_mutates_self(alt))
+                        .is_some_and(|alt| Self::stmt_mutates_self(alt))
             }
             Stmt::Block(block) => Self::body_mutates_self(&block.stmts),
             Stmt::For(for_stmt) => Self::stmt_mutates_self(&for_stmt.body),

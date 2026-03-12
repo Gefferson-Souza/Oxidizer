@@ -1,12 +1,12 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tyrus_diagnostics::TyrusError;
 
 use walkdir::WalkDir;
 
 use tyrus_common::fs::FilePath;
 
-pub fn check(path: FilePath) -> Result<(), TyrusError> {
+pub fn check(path: &FilePath) -> Result<(), TyrusError> {
     let program = tyrus_parser::parse(path.as_ref())?;
 
     // Read source code for error reporting
@@ -31,12 +31,7 @@ pub fn check(path: FilePath) -> Result<(), TyrusError> {
     Ok(())
 }
 
-pub fn pipeline() -> Result<(), TyrusError> {
-    // Stub implementation
-    Ok(())
-}
-
-pub fn build(path: FilePath) -> Result<String, TyrusError> {
+pub fn build(path: &FilePath) -> Result<String, TyrusError> {
     let program = tyrus_parser::parse(path.as_ref())?;
     // Default to false for single file build
     let generated_code = tyrus_codegen::generate(&program, false);
@@ -54,10 +49,10 @@ pub fn build(path: FilePath) -> Result<String, TyrusError> {
         code.push_str(get_app_error_code());
     }
 
-    format_code(code)
+    format_code(&code)
 }
 
-pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), TyrusError> {
+pub fn build_project(input_dir: &Path, output_dir: &Path) -> Result<(), TyrusError> {
     let mut controllers: Vec<String> = Vec::new(); // Just names of controllers
     let mut class_module_map: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
@@ -66,7 +61,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     let mut file_paths = Vec::new();
 
     // 1. Walk, Parse, and Collect Info
-    for entry in WalkDir::new(&input_dir) {
+    for entry in WalkDir::new(input_dir) {
         let entry = entry.map_err(|e| TyrusError::IoError(e.into()))?;
         let path = entry.path();
 
@@ -74,7 +69,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
             let program = tyrus_parser::parse(path)?;
 
             // Calculate module path
-            let relative_path = path.strip_prefix(&input_dir).unwrap_or(path);
+            let relative_path = path.strip_prefix(input_dir).unwrap_or(path);
             let file_stem = path
                 .file_stem()
                 .ok_or_else(|| {
@@ -171,7 +166,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     // 3. Transpile
     for (i, program) in programs.iter().enumerate() {
         let path = &file_paths[i];
-        let relative_path = path.strip_prefix(&input_dir).unwrap_or(path);
+        let relative_path = path.strip_prefix(input_dir).unwrap_or(path);
         let relative_path = relative_path.strip_prefix("src").unwrap_or(relative_path);
         let output_path = output_dir.join("src").join(relative_path);
 
@@ -183,7 +178,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
         let is_index = path.file_stem().and_then(|s| s.to_str()) == Some("index");
 
         let generated = tyrus_codegen::generate(program, is_index);
-        let formatted_code = format_code(generated.code)?;
+        let formatted_code = format_code(&generated.code)?;
 
         let output_file = output_path.with_file_name(format!("{}.rs", sanitized_stem));
 
@@ -200,7 +195,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     }
 
     // 4. Generate mod.rs
-    for entry in WalkDir::new(&output_dir) {
+    for entry in WalkDir::new(output_dir) {
         let entry = entry.map_err(|e| TyrusError::IoError(e.into()))?;
         let path = entry.path();
         if path.is_dir() {
@@ -244,7 +239,7 @@ pub fn build_project(input_dir: PathBuf, output_dir: PathBuf) -> Result<(), Tyru
     fs::write(main_rs, main_content).map_err(TyrusError::IoError)?;
 
     // 6. Generate Cargo.toml
-    generate_cargo_toml(&output_dir)?;
+    generate_cargo_toml(output_dir)?;
 
     Ok(())
 }
@@ -264,7 +259,7 @@ fn generate_main_rs(
     main_content.push_str("use axum::Extension;\n\n");
 
     main_content.push_str("#[tokio::main]\n");
-    main_content.push_str("async fn main() {\n");
+    main_content.push_str("async fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
 
     // Instantiate components in order
     let mut instantiated_vars = std::collections::HashMap::new();
@@ -322,11 +317,11 @@ fn generate_main_rs(
     }
 
     main_content.push_str(";\n\n");
-    main_content.push_str("    let listener = TcpListener::bind(\"0.0.0.0:3000\").await.expect(\"Failed to bind to address\");\n");
+    main_content.push_str("    let listener = TcpListener::bind(\"0.0.0.0:3000\").await?;\n");
     main_content.push_str("    println!(\"Server running on http://0.0.0.0:3000\");\n");
     main_content.push_str("    axum::serve(listener, app.into_make_service())\n");
-    main_content.push_str("        .await\n");
-    main_content.push_str("        .expect(\"Server failed\");\n");
+    main_content.push_str("        .await?;\n");
+    main_content.push_str("    Ok(())\n");
     main_content.push_str("}\n");
 
     Ok(main_content)
@@ -435,7 +430,7 @@ fn generate_mod_rs(dir: &Path) -> Result<(), TyrusError> {
     Ok(())
 }
 
-fn format_code(code: String) -> Result<String, TyrusError> {
+fn format_code(code: &str) -> Result<String, TyrusError> {
     // Skip formatting for code containing async (edition compatibility)
     if code.contains("async fn") {
         return Ok(format!(
