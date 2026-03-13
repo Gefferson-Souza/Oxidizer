@@ -4,9 +4,10 @@
 //! array literals (→ vec![]), and template literals (→ format!).
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use swc_ecma_ast::*;
 
+use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
 
 impl RustGenerator {
@@ -85,5 +86,44 @@ impl RustGenerator {
         }
 
         quote! { format!(#fmt_str, #(#args),*) }
+    }
+
+    /// Try to convert an object literal with a known type annotation into a struct constructor.
+    /// e.g., `const x: User = { id: 1, name: "foo" }` → `User { id: 1f64, name: String::from("foo") }`
+    /// Returns None if type annotation can't be extracted (falls back to serde_json::json!).
+    pub(crate) fn try_convert_typed_object_lit(
+        &self,
+        ts_type: &swc_ecma_ast::TsType,
+        obj: &swc_ecma_ast::ObjectLit,
+    ) -> Option<TokenStream> {
+        let type_name = if let swc_ecma_ast::TsType::TsTypeRef(type_ref) = ts_type {
+            if let Some(ident) = type_ref.type_name.as_ident() {
+                ident.sym.to_string()
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        };
+
+        let type_ident = format_ident!("{}", type_name);
+        let mut fields = Vec::new();
+
+        for prop in &obj.props {
+            if let swc_ecma_ast::PropOrSpread::Prop(p) = prop {
+                if let swc_ecma_ast::Prop::KeyValue(kv) = &**p {
+                    if let swc_ecma_ast::PropName::Ident(key_ident) = &kv.key {
+                        let field_name = format_ident!("{}", to_snake_case(key_ident.sym.as_ref()));
+                        let val = self.convert_expr(&kv.value);
+                        fields.push(quote! { #field_name: #val });
+                    }
+                } else if let swc_ecma_ast::Prop::Shorthand(shorthand) = &**p {
+                    let field_name = format_ident!("{}", to_snake_case(shorthand.sym.as_ref()));
+                    fields.push(quote! { #field_name: #field_name.clone() });
+                }
+            }
+        }
+
+        Some(quote! { #type_ident { #(#fields),* } })
     }
 }
