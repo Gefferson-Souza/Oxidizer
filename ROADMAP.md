@@ -95,6 +95,18 @@ This roadmap tracks the evolution of Tyrus from a research prototype to a produc
 - [x] **Array Methods:** `includes` added to stdlib
 - [x] **Equivalence Tests:** 23 tests verifying TS↔Rust output identity across arithmetic, control flow, string methods, array methods, and console.log
 
+### 🔧 Milestone 13B: Control Flow Expansion (Phase 4)
+
+- [x] **Bug Fix — Parenthesized expressions:** `(2+3)*4` now preserves operator precedence
+- [x] **Bug Fix — Optional chaining:** `and_then` closure wraps in `Some()` for non-optional fields
+- [x] **Bug Fix — Array .find():** Fixed double-reference `&&f64` type mismatch with `**item` deref
+- [x] **Unblock Analyzer:** Removed rejection for `for`, `do-while`, `for-of`, `switch`
+- [x] **Traditional for loop:** `for(let i=0; i<n; i++)` → `{ init; while test { body; update; } }`
+- [x] **do-while loop:** `do { body } while (cond)` → `loop { body; if !cond { break; } }`
+- [x] **switch statement:** `switch(x) { case "a": ... }` → `match x { __v if __v == ... => ... }`
+- [x] **Equivalence Tests:** 28 tests — added parenthesized precedence, for, for-of, do-while, switch
+- [x] **Total Test Count:** 115 tests passing (1 skipped)
+
 ---
 
 ## 🔬 Future Work (Academic Research)

@@ -11,14 +11,15 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 109 (94 integration + 2 tier4 + 9 codegen + 4 common) |
-| Equivalence tests | 23 (proving TS↔Rust output identity) |
+| Tests passing | 115 (28 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped) |
+| Equivalence tests | 28 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
+| Control flow | while, for, for-of, do-while, switch, if/else |
 | String methods | 9 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString) |
 | Array methods | 10 (map, filter, forEach, find, some, every, reduce, join, includes, push) |
 | Math functions | 8 (max, min, round, floor, ceil, abs, random, spread variants) |
-| Blocked by analyzer | 6 constructs (for, for-in, for-of, do-while, switch, try-catch) |
-| Known bugs | 2 (parenthesized expr precedence, top-level var empty output) |
+| Blocked by analyzer | 2 constructs (for-in, try-catch) |
+| Known bugs | 1 (optional chaining on Option fields creates double-Option — needs type inference) |
 
 ---
 
@@ -28,7 +29,7 @@
 Phase 1 ✅ Foundation     (Milestones 1-8)   — Core transpilation, types, NestJS
 Phase 2 ✅ Quality         (Milestones 9-12)  — Strict rules, decomposition, test suite
 Phase 3 ✅ Equivalence     (Milestone 13A)    — Prove output identity for basics
-Phase 4 🔨 Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
+Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
 Phase 5 📋 Stdlib Complete (Milestone 14)     — Full JS/TS method coverage
 Phase 6 📋 Advanced TS     (Milestone 15)     — Class inheritance, enums, advanced patterns
 Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
