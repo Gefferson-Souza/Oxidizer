@@ -38,7 +38,7 @@ impl UsersService {
             .cloned();
     }
     pub fn create(&self, name: String, email: String) -> User {
-        let mut user = User {
+        let user = User {
             id: self
                 .users
                 .lock()

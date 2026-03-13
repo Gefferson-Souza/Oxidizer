@@ -15,7 +15,7 @@ pub struct User {
     pub profile: Option<Profile>,
 }
 fn get_user_name(user: User) -> String {
-    let mut name = user
+    let name = user
         .profile
         .as_ref()
         .and_then(|__v| __v.name.clone())

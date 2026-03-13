@@ -53,6 +53,14 @@ pub fn handle(
                 None
             }
         }
+        "includes" => {
+            if let Some(arg) = args.first() {
+                let val = gen.convert_expr_or_spread(arg);
+                Some(quote! { #obj_tokens.contains(&#val) })
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

@@ -58,6 +58,7 @@ impl RustGenerator {
                 quote! { if #test { #cons } else { #alt } }
             }
             Expr::OptChain(opt_chain) => self.convert_opt_chain(opt_chain),
+            Expr::Unary(unary) => self.convert_unary_expr(unary),
             _ => quote! { compile_error!("Tyrus: unsupported expression") },
         }
     }

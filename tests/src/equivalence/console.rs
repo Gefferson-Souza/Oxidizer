@@ -1,0 +1,38 @@
+use crate::helpers::assert_output_equivalent;
+
+#[test]
+fn test_equivalence_console_log_number() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    console.log(42);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_console_log_string() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    console.log("hello world");
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_console_log_boolean() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    console.log(true);
+    console.log(false);
+}
+main();
+"#,
+    );
+}

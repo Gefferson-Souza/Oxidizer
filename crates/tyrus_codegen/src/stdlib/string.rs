@@ -54,7 +54,23 @@ pub fn handle(
         }
         "trim" => {
             if args.is_empty() {
-                Some(quote! { #obj_tokens.trim() })
+                Some(quote! { #obj_tokens.trim().to_string() })
+            } else {
+                None
+            }
+        }
+        "startsWith" => {
+            if let Some(arg) = args.first() {
+                let val = gen.convert_expr_or_spread(arg);
+                Some(quote! { #obj_tokens.starts_with(&#val as &str) })
+            } else {
+                None
+            }
+        }
+        "endsWith" => {
+            if let Some(arg) = args.first() {
+                let val = gen.convert_expr_or_spread(arg);
+                Some(quote! { #obj_tokens.ends_with(&#val as &str) })
             } else {
                 None
             }

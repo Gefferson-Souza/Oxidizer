@@ -65,6 +65,19 @@ impl RustGenerator {
         }
     }
 
+    pub(crate) fn convert_unary_expr(&self, expr: &UnaryExpr) -> TokenStream {
+        let arg = self.convert_expr(&expr.arg);
+        match expr.op {
+            UnaryOp::Minus => quote! { -(#arg) },
+            UnaryOp::Plus => arg,
+            UnaryOp::Bang => quote! { !(#arg) },
+            UnaryOp::TypeOf => {
+                quote! { compile_error!("Tyrus: typeof not supported") }
+            }
+            _ => quote! { compile_error!("Tyrus: unsupported unary operator") },
+        }
+    }
+
     pub(crate) fn convert_opt_chain(&self, opt_chain: &swc_ecma_ast::OptChainExpr) -> TokenStream {
         match &*opt_chain.base {
             swc_ecma_ast::OptChainBase::Member(member) => {

@@ -4,8 +4,8 @@ expression: rust
 ---
 // Note: async/await code - formatting skipped for edition compatibility
 # [derive (Default , Debug , Clone , PartialEq , serde :: Serialize , serde :: Deserialize)] # [serde (rename_all = "camelCase")] pub struct UserData { pub id : f64 , pub name : String }
-async fn fetch_user (id : f64) -> Result < UserData , AppError > { let mut response = reqwest :: Client :: new () . get (format ! ("https://api.example.com/users/{}" , id)) . send () . await ? ; let mut data = response . json () . await ? ; return Ok (data) ; }
-async fn process_user (id : f64) -> Result < String , AppError > { let mut user = fetch_user (id) . await ? ; return Ok (user . name) ; }
+async fn fetch_user (id : f64) -> Result < UserData , AppError > { let response = reqwest :: Client :: new () . get (format ! ("https://api.example.com/users/{}" , id)) . send () . await ? ; let data = response . json () . await ? ; return Ok (data) ; }
+async fn process_user (id : f64) -> Result < String , AppError > { let user = fetch_user (id) . await ? ; return Ok (user . name) ; }
 
 
 use axum::{response::{IntoResponse, Response}, http::StatusCode};

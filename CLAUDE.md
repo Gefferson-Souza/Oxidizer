@@ -91,7 +91,7 @@ crates/tyrus_codegen/src/
 │       ├── member.rs      # Member access (obj.field)
 │       ├── arrow.rs       # Arrow functions
 │       ├── literal.rs     # Object/array/template literals
-│       └── misc.rs        # Assignment, update, optional chaining
+│       └── misc.rs        # Assignment, update, unary, optional chaining
 │   ├── class/            # Class → struct+impl (split from 1048-line monolith)
 │   │   ├── mod.rs         # Class dispatcher + property conversion
 │   │   ├── constructor.rs # Constructor transpilation + DI
@@ -126,7 +126,12 @@ tests/
 ├── src/
 │   ├── unit/          # FAST (<5s): Test codegen functions directly
 │   ├── snapshot/      # MEDIUM (<10s): Full transpilation → insta snapshots
-│   └── compilation/   # SLOW (<60s): Batch cargo check per tier
+│   ├── compilation/   # SLOW (<60s): Batch cargo check per tier
+│   └── equivalence/   # SEMANTIC: Run TS (Node) + Rust, compare stdout
+│       ├── basic.rs    # Arithmetic, control flow, unary ops
+│       ├── strings.rs  # String methods equivalence
+│       ├── arrays.rs   # Array methods equivalence
+│       └── console.rs  # console.log formatting
 ├── fixtures/
 │   ├── tier1/         # Basic: variables, math, functions, control flow
 │   ├── tier2/         # Intermediate: interfaces, classes, async
@@ -148,4 +153,5 @@ tests/
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
 **Completed:** Chunks 1-7 (clean slate + strict rules + module decomposition + tier 1-4 tests)
-**Status:** Full test coverage across all 4 tiers (86 tests passing)
+**Current:** Milestone 13A — Semantic Equivalence (23 equivalence tests verifying TS↔Rust output identity)
+**Status:** 109 tests passing (94 integration + 2 tier4 + 9 codegen + 4 common)

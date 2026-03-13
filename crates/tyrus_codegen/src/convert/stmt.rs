@@ -71,6 +71,7 @@ impl RustGenerator {
             }
             Stmt::Decl(Decl::Var(var_decl)) => {
                 let mut declarations = Vec::new();
+                let is_const = matches!(var_decl.kind, VarDeclKind::Const);
                 for decl in &var_decl.decls {
                     // Pre-compute init expression for non-Ident patterns
                     let init_expr_opt = decl.init.as_ref().map(|init| self.convert_expr(init));
@@ -94,8 +95,18 @@ impl RustGenerator {
                             };
 
                             if let Some(init_expr) = final_init {
+                                if is_const {
+                                    declarations.push(quote! {
+                                        let #var_ident = #init_expr;
+                                    });
+                                } else {
+                                    declarations.push(quote! {
+                                        let mut #var_ident = #init_expr;
+                                    });
+                                }
+                            } else if is_const {
                                 declarations.push(quote! {
-                                    let mut #var_ident = #init_expr;
+                                    let #var_ident;
                                 });
                             } else {
                                 declarations.push(quote! {
