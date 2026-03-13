@@ -2,4 +2,5 @@ mod arrays;
 mod basic;
 mod console;
 mod control_flow;
+mod math;
 mod strings;

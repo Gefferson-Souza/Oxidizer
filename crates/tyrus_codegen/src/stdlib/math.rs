@@ -86,6 +86,77 @@ pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Optio
                 None
             }
         }
+        "pow" => {
+            if args.len() == 2 {
+                let base = gen.convert_expr_or_spread(&args[0]);
+                let exp = gen.convert_expr_or_spread(&args[1]);
+                Some(quote! { (#base as f64).powf(#exp as f64) })
+            } else {
+                None
+            }
+        }
+        "sqrt" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).sqrt() })
+            } else {
+                None
+            }
+        }
+        "log" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).ln() })
+            } else {
+                None
+            }
+        }
+        "trunc" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x).trunc() })
+            } else {
+                None
+            }
+        }
+        "sin" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).sin() })
+            } else {
+                None
+            }
+        }
+        "cos" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).cos() })
+            } else {
+                None
+            }
+        }
+        "tan" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).tan() })
+            } else {
+                None
+            }
+        }
+        "sign" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                // JS Math.sign(0) returns 0, but Rust f64::signum() returns 1.0
+                Some(quote! {
+                    {
+                        let __v = #x;
+                        if __v == 0.0 { 0.0 } else { __v.signum() }
+                    }
+                })
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

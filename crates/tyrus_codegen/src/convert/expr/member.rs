@@ -56,6 +56,17 @@ impl RustGenerator {
                 };
                 let prop = format_ident!("{}", prop_name);
 
+                // Handle Math constants
+                if let Expr::Ident(obj_ident) = &*member.obj {
+                    if obj_ident.sym.as_ref() == "Math" {
+                        match name {
+                            "PI" => return quote! { std::f64::consts::PI },
+                            "E" => return quote! { std::f64::consts::E },
+                            _ => {}
+                        }
+                    }
+                }
+
                 // Heuristic: if obj is a single Capitalized word, treat as Enum/Static access
                 let obj_str = obj.to_string();
                 if obj_str.chars().next().is_some_and(char::is_uppercase)

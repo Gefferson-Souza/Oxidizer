@@ -50,14 +50,32 @@ pub fn try_handle_method_call(
     method: &str,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    // Check if object is array-like or string-like based on heuristic or type (if available)
-    // For now we try to apply array/string methods if the method name matches unique ones
+    // For methods that exist on both String and Array (slice, indexOf, includes),
+    // use a heuristic: check if the object looks like a string expression.
+    let mut is_string = crate::convert::helpers::is_string_expr(obj);
 
-    if let Some(res) = array::handle(gen, obj, method, args) {
-        return Some(res);
+    // Also check if the object is a variable declared with `: string` type annotation
+    if !is_string {
+        if let Expr::Ident(ident) = obj {
+            let snake = crate::convert::helpers::to_snake_case(&ident.sym);
+            is_string = gen.string_vars.borrow().contains(&snake);
+        }
     }
-    if let Some(res) = string::handle(gen, obj, method, args) {
-        return Some(res);
+
+    if is_string {
+        if let Some(res) = string::handle(gen, obj, method, args) {
+            return Some(res);
+        }
+        if let Some(res) = array::handle(gen, obj, method, args) {
+            return Some(res);
+        }
+    } else {
+        if let Some(res) = array::handle(gen, obj, method, args) {
+            return Some(res);
+        }
+        if let Some(res) = string::handle(gen, obj, method, args) {
+            return Some(res);
+        }
     }
 
     None
