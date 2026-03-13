@@ -2,8 +2,11 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use tempfile::TempDir;
+
+static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Shared target directory for compilation caching.
 /// Dependencies are compiled once and reused across all tests via CARGO_TARGET_DIR.
@@ -91,6 +94,10 @@ rand = "0.8"
 /// # Panics
 /// Panics if compilation or execution fails.
 pub fn compile_and_run_rust(code: &str) -> String {
+    let run_id = RUN_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    let bin_name = format!("tyrus_run_{}_{}", pid, run_id);
+
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let project_path = temp_dir.path();
     let shared_target = get_shared_target_dir();
@@ -98,20 +105,22 @@ pub fn compile_and_run_rust(code: &str) -> String {
     let src_dir = project_path.join("src");
     fs::create_dir(&src_dir).expect("Failed to create src dir");
 
-    let cargo_toml = r#"
+    let cargo_toml = format!(
+        r#"
 [package]
-name = "tyrus_run"
+name = "{bin_name}"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "tyrus_run"
+name = "{bin_name}"
 path = "src/main.rs"
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
+serde = {{ version = "1.0", features = ["derive"] }}
 serde_json = "1.0"
-"#;
+"#
+    );
 
     fs::write(project_path.join("Cargo.toml"), cargo_toml)
         .expect("Failed to write Cargo.toml");
@@ -138,7 +147,7 @@ serde_json = "1.0"
         );
     }
 
-    let bin_path = shared_target.join("debug").join("tyrus_run");
+    let bin_path = shared_target.join("debug").join(&bin_name);
     let run_output = Command::new(&bin_path)
         .output()
         .expect("Failed to run compiled binary");
