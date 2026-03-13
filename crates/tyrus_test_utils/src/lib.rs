@@ -177,27 +177,18 @@ pub fn run_node(ts_code: &str) -> String {
             ts_file.to_str().unwrap_or_default(),
         ])
         .output()
-        .expect("Node.js not found. Install Node.js to run equivalence tests.");
+        .expect("Node.js not found. Install Node.js 22+ to run equivalence tests.");
 
     if output.status.success() {
         return String::from_utf8_lossy(&output.stdout).to_string();
     }
 
-    // Fallback: try as plain JS
-    let js_file = temp_dir.path().join("test.js");
-    fs::write(&js_file, ts_code).expect("Failed to write JS file");
-    let fallback = Command::new("node")
-        .arg(js_file.to_str().unwrap_or_default())
-        .output()
-        .expect("Failed to run Node.js");
-
-    if !fallback.status.success() {
-        let stderr = String::from_utf8_lossy(&fallback.stderr);
-        panic!(
-            "\n=== NODE EXECUTION FAILED ===\nCODE:\n{}\n\nSTDERR:\n{}",
-            ts_code, stderr
-        );
-    }
-
-    String::from_utf8_lossy(&fallback.stdout).to_string()
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    panic!(
+        "\n=== NODE EXECUTION FAILED ===\n\
+         Node.js 22+ is required for --experimental-strip-types.\n\
+         Check your Node version with: node --version\n\n\
+         CODE:\n{}\n\nSTDERR:\n{}",
+        ts_code, stderr
+    )
 }
