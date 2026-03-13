@@ -147,5 +147,5 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunks 1-7 (clean slate + strict rules + module decomposition + tier 1-4 tests)
-**Status:** Full test coverage across all 4 tiers (86 tests passing)
+**Completed:** Chunks 1-3 (clean slate + strict rules + func.rs/class.rs/orchestrator decomposition)
+**Next:** Chunk 4 (tier 1-4 test implementation)
