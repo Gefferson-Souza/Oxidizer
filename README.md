@@ -1,3 +1,5 @@
+> 🌐 **Language:** English | [Português (BR)](README.pt-br.md)
+
 # Tyrus: A High-Fidelity TypeScript-to-Rust Compiler
 
 _Academic Project in Compiler Theory & Semantic Preservation_
