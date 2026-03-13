@@ -90,11 +90,28 @@ Manteremos a estrutura de Workspace, mas com adições acadêmicas:
     - `expr/` com: `mod.rs`, `binary.rs`, `call.rs`, `member.rs`, `arrow.rs`, `literal.rs`, `misc.rs`
   - [x] `func.rs` deletado após migração completa.
   - [x] Infraestrutura de testes reconstruída em tiers (unit/snapshot/compilation).
+- [x] **Fase 6: Decomposição Profunda (class.rs + orchestrator)**
+  - [x] `class.rs` (1048 linhas) decomposto em 5 módulos sob `class/`:
+    - `mod.rs` — dispatcher + conversão de propriedades
+    - `constructor.rs` — transpilação de construtores + DI
+    - `method.rs` — transpilação de métodos + decorators
+    - `routing.rs` — geração de routers Axum + `FromRequestParts`
+    - `mutation.rs` — detecção de auto-mutação
+  - [x] Orchestrator `lib.rs` (508 linhas) decomposto em 4 módulos:
+    - `lib.rs` — API pública slim (58 linhas)
+    - `pipeline.rs` — orquestração multi-arquivo
+    - `scaffold.rs` — scaffolding de projeto (main.rs, Cargo.toml, mod.rs)
+    - `format.rs` — formatação de código + geração de AppError
+  - [x] `type_mapper.rs` deduplicado: `map_ts_type`/`map_inner_type` consolidados em `map_type_core` (304→257 linhas)
+- [x] **Fase 7: Suite de Testes Abrangente (4 Tiers)**
+  - [x] Tier 1: 34 testes — variáveis, operações matemáticas, strings, funções, controle de fluxo, console
+  - [x] Tier 2: Interfaces→structs, type aliases→enums, arrays (map/filter/forEach), classes→struct+impl, async/await
+  - [x] Tier 3: Generics, optional chaining, destructuring, métodos avançados de array/string, Math stdlib, ternary
+  - [x] Tier 4: NestJS @Injectable (Arc<Mutex<T>>), @Controller com routing Axum, JSON extractors
+  - [x] Verificação de compilação por tier via `cargo check` em batch
+  - [x] Total: 86 testes passando (71 integration + 2 tier4 + 9 codegen + 4 common)
 - [ ] **Fase 2: Benchmarking (Evidência)**
   - [ ] Configurar `criterion` (crate de benchmark Rust).
   - [ ] Criar cenário de teste comparativo.
 - [ ] **Fase 3: Tradução (Acessibilidade)**
   - [ ] Criar `README.pt-br.md`.
-- [ ] **Fase 6: Decomposição de `class.rs`**
-  - [ ] `class.rs` (1033 linhas) ainda precisa ser decomposto em módulos menores.
-  - [ ] Alvo: módulos separados para NestJS controller mapping, service patterns e DTO handling.
