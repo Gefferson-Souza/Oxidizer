@@ -1,0 +1,14 @@
+---
+source: tests/src/snapshot/tier3.rs
+expression: rust
+---
+fn find_first(nums: Vec<f64>) -> f64 {
+    let mut found = nums.iter().find(|n| n > 10f64).cloned().unwrap_or(0f64);
+    return found;
+}
+fn has_large(nums: Vec<f64>) -> bool {
+    return nums.into_iter().any(|n| n > 100f64);
+}
+fn all_positive(nums: Vec<f64>) -> bool {
+    return nums.into_iter().all(|n| n > 0f64);
+}

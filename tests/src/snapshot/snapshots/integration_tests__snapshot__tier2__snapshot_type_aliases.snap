@@ -1,0 +1,64 @@
+---
+source: tests/src/snapshot/tier2.rs
+expression: rust
+---
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde :: Serialize, serde :: Deserialize)]
+enum Status {
+    #[default]
+    #[serde(rename = "active")]
+    Active,
+    #[serde(rename = "inactive")]
+    Inactive,
+    #[serde(rename = "pending")]
+    Pending,
+}
+impl PartialEq<String> for Status {
+    fn eq(&self, other: &String) -> bool {
+        match self {
+            Status::Active => other == "active",
+            Status::Inactive => other == "inactive",
+            Status::Pending => other == "pending",
+        }
+    }
+}
+impl PartialEq<&str> for Status {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            Status::Active => *other == "active",
+            Status::Inactive => *other == "inactive",
+            Status::Pending => *other == "pending",
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde :: Serialize, serde :: Deserialize)]
+enum Priority {
+    #[default]
+    #[serde(rename = "low")]
+    Low,
+    #[serde(rename = "medium")]
+    Medium,
+    #[serde(rename = "high")]
+    High,
+    #[serde(rename = "critical")]
+    Critical,
+}
+impl PartialEq<String> for Priority {
+    fn eq(&self, other: &String) -> bool {
+        match self {
+            Priority::Low => other == "low",
+            Priority::Medium => other == "medium",
+            Priority::High => other == "high",
+            Priority::Critical => other == "critical",
+        }
+    }
+}
+impl PartialEq<&str> for Priority {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            Priority::Low => *other == "low",
+            Priority::Medium => *other == "medium",
+            Priority::High => *other == "high",
+            Priority::Critical => *other == "critical",
+        }
+    }
+}

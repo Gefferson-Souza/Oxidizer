@@ -1,0 +1,29 @@
+---
+source: tests/src/snapshot/tier1.rs
+expression: rust
+---
+fn max(a: f64, b: f64) -> f64 {
+    if a > b {
+        return a;
+    } else {
+        return b;
+    }
+}
+fn countdown(n: f64) -> f64 {
+    let mut result = 0f64;
+    let mut i = n;
+    while i > 0f64 {
+        result = result + i;
+        i = i - 1f64;
+    }
+    return result;
+}
+fn classify(x: f64) -> String {
+    if x > 0f64 {
+        return String::from("positive");
+    } else if x < 0f64 {
+        return String::from("negative");
+    } else {
+        return String::from("zero");
+    }
+}

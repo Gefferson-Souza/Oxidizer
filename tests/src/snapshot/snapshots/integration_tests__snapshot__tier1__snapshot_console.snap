@@ -1,0 +1,5 @@
+---
+source: tests/src/snapshot/tier1.rs
+expression: rust
+---
+
