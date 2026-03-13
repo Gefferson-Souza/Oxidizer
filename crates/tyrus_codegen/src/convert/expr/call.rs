@@ -223,15 +223,30 @@ impl RustGenerator {
                     .collect();
                 Some(quote! { #obj.into_iter().all(#(#args),*) })
             }
-            "find" | "reduce" => {
+            "find" => {
                 let obj = self.convert_expr(&member.obj);
-                let rust_method = format_ident!("{}", to_snake_case(method_name));
                 let args: Vec<_> = call
                     .args
                     .iter()
                     .map(|a| self.convert_expr(&a.expr))
                     .collect();
-                Some(quote! { #obj.into_iter().#rust_method(#(#args),*) })
+                Some(quote! { #obj.into_iter().find(#(#args),*) })
+            }
+            "reduce" => {
+                let obj = self.convert_expr(&member.obj);
+                let closure = call
+                    .args
+                    .first()
+                    .map(|a| self.convert_expr(&a.expr))
+                    .unwrap_or_else(|| {
+                        quote! { compile_error!("Tyrus: reduce requires a callback") }
+                    });
+                if call.args.len() >= 2 {
+                    let initial = self.convert_expr(&call.args[1].expr);
+                    Some(quote! { #obj.into_iter().fold(#initial, #closure) })
+                } else {
+                    Some(quote! { #obj.into_iter().reduce(#closure) })
+                }
             }
             "push" => Some(self.convert_push_call(member, call)),
             "replace" => Some(self.convert_replace_call(member, call)),
