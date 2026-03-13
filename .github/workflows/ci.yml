@@ -43,6 +43,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      - name: Setup Node.js 22 (for semantic equivalence tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Install nextest
         uses: taiki-e/install-action@nextest
 
