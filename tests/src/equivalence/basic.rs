@@ -163,3 +163,35 @@ main();
 "#,
     );
 }
+
+#[test]
+fn test_equivalence_exponentiation() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    console.log(2 ** 3);
+    console.log(3 ** 2);
+    console.log(2 ** 10);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_boolean_logic() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    const a: boolean = true;
+    const b: boolean = false;
+    console.log(a && b);
+    console.log(a || b);
+    console.log(!a);
+    console.log(!b);
+    console.log(a && !b);
+}
+main();
+"#,
+    );
+}

@@ -56,14 +56,18 @@ Adhering to strict "Safe Transpilation" principles:
 - JSON Serialization/Deserialization (via `serde`)
 - HTTP Client and REST patterns (via `axum` & `reqwest`)
 
-### 📦 Supported Patterns (Verified)
+### 📦 Supported Patterns (Verified with Semantic Equivalence Tests)
 
-- **Array Literals**: `[1, 2, 3]` -> `vec![1, 2, 3]`
-- **Computed Properties**: `obj["key"]` -> `obj["key"]` (via serde_json)
-- **Class State**: Automatic `Arc<Mutex<T>>` wrapping for services/controllers.
-- **DTOs**: Pure structs for data transfer objects.
-- **Standard Lib**: `map`, `filter`, `find`, `push` mapped to Rust equivalents.
-- **String Replace**: `str.replace(a, b)` -> `str.replacen(a, b, 1)` (Exact JS semantics).
+- **String Methods** (14): `includes`, `replace`, `split`, `toUpperCase`, `toLowerCase`, `trim`, `startsWith`, `endsWith`, `toString`, `substring`, `charAt`, `indexOf`, `repeat`, `slice`
+- **Array Methods** (14): `map`, `filter`, `forEach`, `find`, `some`, `every`, `reduce`/`fold`, `join`, `includes`, `push`, `indexOf`, `slice`, `concat`, `reverse`, `pop`
+- **Math Functions** (16): `max`, `min`, `round`, `floor`, `ceil`, `abs`, `random`, `pow`, `sqrt`, `log`, `trunc`, `sign`, `sin`, `cos`, `tan`, spread variants
+- **Math Constants**: `Math.PI`, `Math.E`
+- **Console**: `log`, `error`, `warn`, `info`, `debug`
+- **Control Flow**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternary
+- **Operators**: Arithmetic, comparison, logical, `**` (exponentiation), `%` (modulo)
+- **Class State**: Automatic `Arc<Mutex<T>>` wrapping for services/controllers
+- **Interfaces**: `interface` -> `#[derive(Serialize, Deserialize)] struct`
+- **String Unions**: `type Status = "a" | "b"` -> `enum` with `Display` and `PartialEq`
 
 ---
 
@@ -115,16 +119,16 @@ cargo build --release
 
 ## 🧪 Test Suite
 
-86 tests across 3 test types and 4 feature tiers:
+138 tests across 4 test types and 4 feature tiers:
 
-| Tier | Scope | Tests |
-|------|-------|-------|
-| **Tier 1** | Variables, math, strings, functions, control flow, console | 34 |
-| **Tier 2** | Interfaces, type aliases, arrays, classes, async/await | 12 |
-| **Tier 3** | Generics, optional chaining, destructuring, advanced methods | 18 |
-| **Tier 4** | NestJS `@Injectable`, `@Controller`, Axum routing, JSON | 7 |
+| Type | Count | Description |
+|------|-------|-------------|
+| **Equivalence** | 51 | Semantic proof: TS and Rust produce identical stdout |
+| **Unit** | 27 | Fast, isolated codegen function tests |
+| **Snapshot** | 6 | Full transpilation output via `insta` |
+| **Compilation** | 54 | Generated Rust passes `cargo check` per tier |
 
-Test types: **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`)
+Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`)
 
 ---
 

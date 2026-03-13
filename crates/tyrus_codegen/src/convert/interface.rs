@@ -169,6 +169,15 @@ impl Visit for RustGenerator {
                     })
                     .collect();
 
+                let display_arms: Vec<_> = valid_variants
+                    .iter()
+                    .map(|(value, variant_ident)| {
+                        quote! {
+                            #alias_name::#variant_ident => write!(f, #value)
+                        }
+                    })
+                    .collect();
+
                 let vis = if self.is_exporting {
                     quote! { pub }
                 } else {
@@ -194,6 +203,14 @@ impl Visit for RustGenerator {
                         fn eq(&self, other: &&str) -> bool {
                              match self {
                                 #(#eq_arms_str),*
+                            }
+                        }
+                    }
+
+                    impl std::fmt::Display for #alias_name {
+                        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                            match self {
+                                #(#display_arms),*
                             }
                         }
                     }
