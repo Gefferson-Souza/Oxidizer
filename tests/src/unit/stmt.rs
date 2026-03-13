@@ -77,3 +77,26 @@ fn test_return_statement() {
     let rust = transpile("function id(x: number): number { return x; }");
     assert!(rust.contains("return x"), "Expected 'return x' in: {rust}");
 }
+
+// ── Classes ──────────────────────────────────────────────────────────────
+
+#[test]
+fn test_class_generates_struct_and_impl() {
+    let rust = transpile(
+        "class Dog { private name: string; constructor(name: string) { this.name = name; } }",
+    );
+    assert!(
+        rust.contains("struct Dog"),
+        "Expected 'struct Dog' in: {rust}"
+    );
+    assert!(rust.contains("impl Dog"), "Expected 'impl Dog' in: {rust}");
+    assert!(rust.contains("fn new"), "Expected 'fn new' in: {rust}");
+}
+
+// ── Async Functions ──────────────────────────────────────────────────────
+
+#[test]
+fn test_async_function_signature() {
+    let rust = transpile(r#"async function getData(): Promise<string> { return "hello"; }"#);
+    assert!(rust.contains("async fn"), "Expected 'async fn' in: {rust}");
+}

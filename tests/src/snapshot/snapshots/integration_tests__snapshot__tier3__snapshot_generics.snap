@@ -1,0 +1,39 @@
+---
+source: tests/src/snapshot/tier3.rs
+expression: rust
+---
+#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Container<T: Clone> {
+    pub value: T,
+    pub label: String,
+}
+#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Wrapper<T> {
+    pub data: T,
+    #[serde(skip)]
+    pub _marker: std::marker::PhantomData<T>,
+}
+impl<T: serde::de::DeserializeOwned + serde::Serialize + Clone + Default + std::fmt::Debug>
+    Wrapper<T>
+{
+    pub fn new(data: T) -> Self {
+        Self {
+            data,
+            _marker: std::marker::PhantomData,
+        }
+    }
+    pub fn new_di() -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+            data: Default::default(),
+        }
+    }
+    pub fn get(&self) -> T {
+        return self.data.clone();
+    }
+}
+fn identity<T: serde::de::DeserializeOwned + serde::Serialize + Clone>(value: T) -> T {
+    return value;
+}

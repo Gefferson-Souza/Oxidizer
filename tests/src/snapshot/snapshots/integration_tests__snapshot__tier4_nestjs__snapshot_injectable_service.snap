@@ -1,0 +1,58 @@
+---
+source: tests/src/snapshot/tier4_nestjs.rs
+expression: rust
+---
+#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+    pub id: f64,
+    pub name: String,
+    pub email: String,
+}
+#[derive(Default, Debug, Clone)]
+struct UsersService {
+    pub users: std::sync::Arc<std::sync::Mutex<Vec<User>>>,
+}
+impl UsersService {
+    pub fn new() -> Self {
+        Self {
+            users: std::sync::Arc::new(std::sync::Mutex::new(vec![])),
+        }
+    }
+    pub fn new_di() -> Self {
+        Self {
+            users: std::sync::Arc::new(std::sync::Mutex::new(Default::default())),
+        }
+    }
+    pub fn find_all(&self) -> Vec<User> {
+        return self.users.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    }
+    pub fn find_by_id(&self, id: f64) -> User {
+        return self
+            .users
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+            .iter()
+            .find(|user| user.id == id)
+            .cloned();
+    }
+    pub fn create(&self, name: String, email: String) -> User {
+        let mut user = User {
+            id: self
+                .users
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone()
+                .len() as f64
+                + 1f64,
+            name,
+            email,
+        };
+        self.users
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(user.clone());
+        return user;
+    }
+}

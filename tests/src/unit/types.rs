@@ -49,3 +49,41 @@ fn test_string_literal_uses_string_from() {
         "Expected 'String::from' in: {rust}"
     );
 }
+
+// ── Interface / Struct Mappings ──────────────────────────────────────────
+
+#[test]
+fn test_interface_generates_struct() {
+    let rust = transpile("interface User { name: string; age: number; }");
+    assert!(
+        rust.contains("struct User"),
+        "Expected 'struct User' in: {rust}"
+    );
+    assert!(
+        rust.contains("name: String"),
+        "Expected 'name: String' in: {rust}"
+    );
+    assert!(rust.contains("age: f64"), "Expected 'age: f64' in: {rust}");
+}
+
+#[test]
+fn test_interface_has_serde_derive() {
+    let rust = transpile("interface User { name: string; }");
+    assert!(
+        rust.contains("Serialize"),
+        "Expected 'Serialize' in: {rust}"
+    );
+    assert!(
+        rust.contains("Deserialize"),
+        "Expected 'Deserialize' in: {rust}"
+    );
+}
+
+#[test]
+fn test_optional_field() {
+    let rust = transpile("interface Config { debug?: boolean; }");
+    assert!(
+        rust.contains("Option<bool>"),
+        "Expected 'Option<bool>' in: {rust}"
+    );
+}

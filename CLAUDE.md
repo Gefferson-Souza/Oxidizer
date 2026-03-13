@@ -147,5 +147,5 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunks 1-4 (clean slate + strict rules + module decomposition + tier 1 tests)
-**Next:** Chunk 5 (tier 2 tests — interfaces, type aliases, arrays, classes, async)
+**Completed:** Chunks 1-7 (clean slate + strict rules + module decomposition + tier 1-4 tests)
+**Status:** Full test coverage across all 4 tiers (86 tests passing)

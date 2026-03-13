@@ -83,3 +83,17 @@ fn test_string_template_literal() {
     );
     assert!(rust.contains("name"), "Expected 'name' in: {rust}");
 }
+
+// ── String Union Enums ───────────────────────────────────────────────────
+
+#[test]
+fn test_string_union_generates_enum() {
+    let rust = transpile(r#"type Status = "active" | "inactive" | "pending";"#);
+    assert!(
+        rust.contains("enum Status"),
+        "Expected 'enum Status' in: {rust}"
+    );
+    assert!(rust.contains("Active"), "Expected 'Active' in: {rust}");
+    assert!(rust.contains("Inactive"), "Expected 'Inactive' in: {rust}");
+    assert!(rust.contains("Pending"), "Expected 'Pending' in: {rust}");
+}

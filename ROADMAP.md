@@ -76,6 +76,15 @@ This roadmap tracks the evolution of Tyrus from a research prototype to a produc
 - [x] **`type_mapper.rs` Deduplicated:** Consolidated `map_ts_type`/`map_inner_type` into `map_type_core` (304→257 lines)
 - [x] **CI Optimized:** Parallel `fmt`+`clippy` checks, combined build+test job (~9min→~5min)
 
+### 🧪 Milestone 12: Comprehensive Test Suite (Chunks 4-7)
+
+- [x] **Tier 1 Tests (Chunk 4):** 34 tests — variables, math ops, string ops, functions, control flow, console
+- [x] **Tier 2 Tests (Chunk 5):** Interfaces→structs, type aliases→enums, arrays (map/filter/forEach), classes→struct+impl, async/await
+- [x] **Tier 3 Tests (Chunk 6):** Generics, optional chaining, destructuring, advanced array/string methods, Math stdlib, ternary expressions
+- [x] **Tier 4 Tests (Chunk 7):** NestJS @Injectable (Arc<Mutex<T>>), @Controller with Axum routing, JSON extractors
+- [x] **Compilation Verification:** Batch `cargo check` tests per tier confirming generated Rust compiles
+- [x] **Total Test Count:** 86 tests passing across the workspace (71 integration + 2 tier4 + 9 codegen + 4 common)
+
 ---
 
 ## 🔬 Future Work (Academic Research)
