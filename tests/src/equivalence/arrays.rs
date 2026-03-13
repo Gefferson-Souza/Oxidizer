@@ -144,9 +144,9 @@ fn test_equivalence_array_sort() {
     assert_output_equivalent(
         r#"
 function sortTest(): void {
-    const nums: number[] = [3, 1, 4, 1, 5, 9, 2, 6];
-    const sorted: number[] = nums.sort();
-    sorted.forEach((n: number): void => {
+    let nums: number[] = [3, 1, 4, 1, 5, 9, 2, 6];
+    nums.sort();
+    nums.forEach((n: number): void => {
         console.log(n);
     });
 }

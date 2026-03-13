@@ -111,9 +111,7 @@ pub fn handle(
             if args.is_empty() {
                 Some(quote! {
                     {
-                        let mut __sorted = #obj_tokens.clone();
-                        __sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                        __sorted
+                        #obj_tokens.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                     }
                 })
             } else {
@@ -122,7 +120,13 @@ pub fn handle(
         }
         "shift" => {
             if args.is_empty() {
-                Some(quote! { #obj_tokens.remove(0) })
+                Some(quote! {
+                    if #obj_tokens.is_empty() {
+                        Default::default()
+                    } else {
+                        #obj_tokens.remove(0)
+                    }
+                })
             } else {
                 None
             }
@@ -130,7 +134,7 @@ pub fn handle(
         "flat" => {
             if args.is_empty() {
                 Some(quote! {
-                    #obj_tokens.into_iter().flatten().collect::<Vec<_>>()
+                    #obj_tokens.iter().flatten().cloned().collect::<Vec<_>>()
                 })
             } else {
                 None
@@ -140,7 +144,7 @@ pub fn handle(
             if args.len() == 1 {
                 let callback = gen.convert_expr_or_spread(&args[0]);
                 Some(quote! {
-                    #obj_tokens.into_iter().flat_map(|x| (#callback)(x)).collect::<Vec<_>>()
+                    #obj_tokens.iter().flat_map(|x| (#callback)(x.clone())).collect::<Vec<_>>()
                 })
             } else {
                 None
