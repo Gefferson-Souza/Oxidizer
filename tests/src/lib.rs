@@ -7,6 +7,7 @@
 )]
 
 mod compilation;
+mod equivalence;
 mod helpers;
 mod snapshot;
 mod unit;
