@@ -109,6 +109,20 @@ main();
 }
 
 #[test]
+fn test_equivalence_array_reduce_with_initial() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    const nums: number[] = [1, 2, 3, 4, 5];
+    const sum: number = nums.reduce((acc: number, n: number): number => acc + n, 0);
+    console.log(sum);
+}
+main();
+"#,
+    );
+}
+
+#[test]
 fn test_equivalence_array_concat() {
     assert_output_equivalent(
         r#"

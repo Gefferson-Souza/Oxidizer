@@ -28,6 +28,7 @@ impl RustGenerator {
             BinaryOp::Mul => quote! { #left * #right },
             BinaryOp::Div => quote! { #left / #right },
             BinaryOp::Mod => quote! { #left % #right },
+            BinaryOp::Exp => quote! { (#left as f64).powf(#right as f64) },
             BinaryOp::Lt => quote! { #left < #right },
             BinaryOp::LtEq => quote! { #left <= #right },
             BinaryOp::Gt => quote! { #left > #right },
