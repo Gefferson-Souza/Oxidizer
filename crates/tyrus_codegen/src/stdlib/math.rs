@@ -119,6 +119,30 @@ pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Optio
                 None
             }
         }
+        "sin" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).sin() })
+            } else {
+                None
+            }
+        }
+        "cos" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).cos() })
+            } else {
+                None
+            }
+        }
+        "tan" => {
+            if args.len() == 1 {
+                let x = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { (#x as f64).tan() })
+            } else {
+                None
+            }
+        }
         "sign" => {
             if args.len() == 1 {
                 let x = gen.convert_expr_or_spread(&args[0]);

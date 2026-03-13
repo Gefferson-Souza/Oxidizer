@@ -116,3 +116,29 @@ main();
 "#,
     );
 }
+
+#[test]
+fn test_equivalence_math_sin_cos_tan() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    console.log(Math.sin(0));
+    console.log(Math.cos(0));
+    console.log(Math.tan(0));
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_math_e_constant() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    console.log(Math.E);
+}
+main();
+"#,
+    );
+}
