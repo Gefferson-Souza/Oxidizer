@@ -82,6 +82,49 @@ pub fn handle(
                 None
             }
         }
+        "substring" | "slice" => match args.len() {
+            1 => {
+                let start = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { #obj_tokens[(#start as usize)..].to_string() })
+            }
+            2 => {
+                let start = gen.convert_expr_or_spread(&args[0]);
+                let end = gen.convert_expr_or_spread(&args[1]);
+                Some(quote! { #obj_tokens[(#start as usize)..(#end as usize)].to_string() })
+            }
+            _ => None,
+        },
+        "charAt" => {
+            if args.len() == 1 {
+                let idx = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! {
+                    #obj_tokens.chars().nth(#idx as usize).map(|c| c.to_string()).unwrap_or_default()
+                })
+            } else {
+                None
+            }
+        }
+        "indexOf" => {
+            if args.len() == 1 {
+                let substr = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! {
+                    match #obj_tokens.find(&#substr as &str) {
+                        Some(i) => i as f64,
+                        None => -1.0,
+                    }
+                })
+            } else {
+                None
+            }
+        }
+        "repeat" => {
+            if args.len() == 1 {
+                let n = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { #obj_tokens.repeat(#n as usize) })
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

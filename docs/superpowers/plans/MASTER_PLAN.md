@@ -11,13 +11,14 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 115 (28 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped) |
-| Equivalence tests | 28 (proving TS↔Rust output identity) |
+| Tests passing | 133 (46 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped) |
+| Equivalence tests | 46 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else |
-| String methods | 9 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString) |
-| Array methods | 10 (map, filter, forEach, find, some, every, reduce, join, includes, push) |
-| Math functions | 8 (max, min, round, floor, ceil, abs, random, spread variants) |
+| String methods | 14 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice) |
+| Array methods | 14 (map, filter, forEach, find, some, every, reduce, join, includes, push, indexOf, slice, concat, reverse, pop) |
+| Math functions | 13 (max, min, round, floor, ceil, abs, random, spread variants, pow, sqrt, log, trunc, sign) |
+| Math constants | 2 (PI, E) |
 | Blocked by analyzer | 2 constructs (for-in, try-catch) |
 | Known bugs | 1 (optional chaining on Option fields creates double-Option — needs type inference) |
 
@@ -30,7 +31,7 @@ Phase 1 ✅ Foundation     (Milestones 1-8)   — Core transpilation, types, Nes
 Phase 2 ✅ Quality         (Milestones 9-12)  — Strict rules, decomposition, test suite
 Phase 3 ✅ Equivalence     (Milestone 13A)    — Prove output identity for basics
 Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
-Phase 5 📋 Stdlib Complete (Milestone 14)     — Full JS/TS method coverage
+Phase 5 🔄 Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (HIGH priority done)
 Phase 6 📋 Advanced TS     (Milestone 15)     — Class inheritance, enums, advanced patterns
 Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
 ```
@@ -75,41 +76,49 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 
 ### Micro 5.1: String Methods
 
-| Nano | Method | Rust Mapping | Priority |
-|------|--------|-------------|----------|
-| 5.1.1 | `substring(start, end)` | `s[start..end].to_string()` | HIGH |
-| 5.1.2 | `charAt(i)` | `s.chars().nth(i)` | HIGH |
-| 5.1.3 | `indexOf(substr)` | `s.find(substr)` | HIGH |
-| 5.1.4 | `repeat(n)` | `s.repeat(n)` | MEDIUM |
-| 5.1.5 | `padStart(len, fill)` | `format!("{:>width$}", s)` | LOW |
-| 5.1.6 | `padEnd(len, fill)` | `format!("{:<width$}", s)` | LOW |
-| 5.1.7 | `slice(start, end)` | `s[start..end].to_string()` | MEDIUM |
+| Nano | Method | Rust Mapping | Priority | Status |
+|------|--------|-------------|----------|--------|
+| 5.1.1 | `substring(start, end)` | `s[start..end].to_string()` | HIGH | ✅ |
+| 5.1.2 | `charAt(i)` | `s.chars().nth(i)` | HIGH | ✅ |
+| 5.1.3 | `indexOf(substr)` | `s.find(substr)` | HIGH | ✅ |
+| 5.1.4 | `repeat(n)` | `s.repeat(n)` | MEDIUM | ✅ |
+| 5.1.5 | `padStart(len, fill)` | `format!("{:>width$}", s)` | LOW | 📋 |
+| 5.1.6 | `padEnd(len, fill)` | `format!("{:<width$}", s)` | LOW | 📋 |
+| 5.1.7 | `slice(start, end)` | `s[start..end].to_string()` | MEDIUM | ✅ |
 
 ### Micro 5.2: Array Methods
 
-| Nano | Method | Rust Mapping | Priority |
-|------|--------|-------------|----------|
-| 5.2.1 | `indexOf(item)` | `.iter().position(\|x\| x == &item)` | HIGH |
-| 5.2.2 | `slice(start, end)` | `[start..end].to_vec()` | HIGH |
-| 5.2.3 | `concat(other)` | `.iter().chain(other.iter()).cloned().collect()` | MEDIUM |
-| 5.2.4 | `sort()` | `.sort_by(\|a,b\| a.partial_cmp(b).unwrap_or(Ordering::Equal))` | MEDIUM |
-| 5.2.5 | `reverse()` | `.reverse()` | LOW |
-| 5.2.6 | `pop()` | `.pop()` | LOW |
-| 5.2.7 | `shift()` | `.remove(0)` | LOW |
-| 5.2.8 | `flat()` / `flatMap()` | `.into_iter().flatten().collect()` | LOW |
+| Nano | Method | Rust Mapping | Priority | Status |
+|------|--------|-------------|----------|--------|
+| 5.2.1 | `indexOf(item)` | `.iter().position(\|x\| x == &item)` | HIGH | ✅ |
+| 5.2.2 | `slice(start, end)` | `[start..end].to_vec()` | HIGH | ✅ |
+| 5.2.3 | `concat(other)` | `.iter().chain(other.iter()).cloned().collect()` | MEDIUM | ✅ |
+| 5.2.4 | `sort()` | `.sort_by(\|a,b\| a.partial_cmp(b).unwrap_or(Ordering::Equal))` | MEDIUM | 📋 |
+| 5.2.5 | `reverse()` | `.reverse()` | LOW | ✅ |
+| 5.2.6 | `pop()` | `.pop()` | LOW | ✅ |
+| 5.2.7 | `shift()` | `.remove(0)` | LOW | 📋 |
+| 5.2.8 | `flat()` / `flatMap()` | `.into_iter().flatten().collect()` | LOW | 📋 |
 
 ### Micro 5.3: Math Functions
 
-| Nano | Method | Rust Mapping | Priority |
-|------|--------|-------------|----------|
-| 5.3.1 | `Math.pow(base, exp)` | `base.powf(exp)` | HIGH |
-| 5.3.2 | `Math.sqrt(x)` | `x.sqrt()` | HIGH |
-| 5.3.3 | `Math.PI` | `std::f64::consts::PI` | HIGH |
-| 5.3.4 | `Math.E` | `std::f64::consts::E` | MEDIUM |
-| 5.3.5 | `Math.log(x)` | `x.ln()` | MEDIUM |
-| 5.3.6 | `Math.sin/cos/tan(x)` | `x.sin()` / `.cos()` / `.tan()` | LOW |
-| 5.3.7 | `Math.sign(x)` | `x.signum()` | LOW |
-| 5.3.8 | `Math.trunc(x)` | `x.trunc()` | LOW |
+| Nano | Method | Rust Mapping | Priority | Status |
+|------|--------|-------------|----------|--------|
+| 5.3.1 | `Math.pow(base, exp)` | `base.powf(exp)` | HIGH | ✅ |
+| 5.3.2 | `Math.sqrt(x)` | `x.sqrt()` | HIGH | ✅ |
+| 5.3.3 | `Math.PI` | `std::f64::consts::PI` | HIGH | ✅ |
+| 5.3.4 | `Math.E` | `std::f64::consts::E` | MEDIUM | ✅ |
+| 5.3.5 | `Math.log(x)` | `x.ln()` | MEDIUM | ✅ |
+| 5.3.6 | `Math.sin/cos/tan(x)` | `x.sin()` / `.cos()` / `.tan()` | LOW | 📋 |
+| 5.3.7 | `Math.sign(x)` | custom zero-check + `signum()` | LOW | ✅ |
+| 5.3.8 | `Math.trunc(x)` | `x.trunc()` | LOW | ✅ |
+
+### Micro 5.X: Infrastructure — String/Array Disambiguation
+
+| Nano | Task | Status |
+|------|------|--------|
+| 5.X.1 | `string_vars` tracking via `RefCell<HashSet>` in `RustGenerator` | ✅ |
+| 5.X.2 | Type annotation detection in `convert_stmt` for `: string` variables | ✅ |
+| 5.X.3 | Dispatcher checks `string_vars` for Ident expressions | ✅ |
 
 ### Micro 5.4: Object Methods
 

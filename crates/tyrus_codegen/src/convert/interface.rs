@@ -15,6 +15,8 @@ pub struct RustGenerator {
     pub controllers: Vec<ControllerMetadata>,
     pub main_body: String,
     pub current_class_state_fields: std::collections::HashMap<String, String>,
+    /// Variables declared with `: string` type annotation (used for stdlib disambiguation)
+    pub(crate) string_vars: std::cell::RefCell<std::collections::HashSet<String>>,
 }
 
 impl RustGenerator {
@@ -27,6 +29,7 @@ impl RustGenerator {
             controllers: Vec::new(),
             main_body: String::new(),
             current_class_state_fields: std::collections::HashMap::new(),
+            string_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
         }
     }
 }
