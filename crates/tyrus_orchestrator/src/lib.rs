@@ -41,14 +41,17 @@ pub fn build(path: &FilePath) -> Result<String, TyrusError> {
 
     // Conditionally inject AppError boilerplate:
     // Only needed when async functions generate `Result<T, crate::AppError>` return types
-    if code.contains("crate::AppError") {
-        // Replace crate:: prefix with local reference since we're inlining the struct
+    let needs_app_error = code.contains("crate::AppError") || code.contains("crate :: AppError");
+    if needs_app_error {
         code = code.replace("crate::AppError", "AppError");
-        code.push_str(format::get_app_error_code());
-    } else if code.contains("crate :: AppError") {
         code = code.replace("crate :: AppError", "AppError");
-        code.push('\n');
-        code.push_str(format::get_app_error_code());
+        // Use full axum AppError for web code, simple variant for standalone async
+        let has_routing = code.contains("axum::Router") || code.contains("axum::routing");
+        if has_routing {
+            code.push_str(format::get_app_error_code());
+        } else {
+            code.push_str(format::get_app_error_simple());
+        }
     }
 
     format::format_code(&code)
@@ -83,18 +86,23 @@ pub fn build_simple_project(path: &FilePath, output_dir: &Path) -> Result<(), Ty
 /// Detect which crate dependencies the generated code needs.
 fn detect_dependencies(code: &str) -> String {
     let mut deps = String::new();
-    // Check serde_json BEFORE serde (serde_json contains "serde" as substring)
-    if code.contains("serde_json") {
+    let has_serde_json = code.contains("serde_json");
+    if has_serde_json {
         deps.push_str("serde_json = { version = \"1\" }\n");
     }
-    if code.contains("serde") {
+    // serde is needed for derive macros (Serialize/Deserialize) even without serde_json
+    if code.contains("serde::") || code.contains("serde ") || has_serde_json {
         deps.push_str("serde = { version = \"1\", features = [\"derive\"] }\n");
     }
-    if code.contains("reqwest") {
+    if code.contains("reqwest::") {
         deps.push_str("reqwest = { version = \"0.12\", features = [\"json\"] }\n");
     }
-    if code.contains("tokio") {
+    if code.contains("tokio::") {
         deps.push_str("tokio = { version = \"1\", features = [\"full\"] }\n");
+    }
+    // Only add axum when routing constructs are present (not just AppError template)
+    if code.contains("axum::") {
+        deps.push_str("axum = \"0.7\"\n");
     }
     deps
 }

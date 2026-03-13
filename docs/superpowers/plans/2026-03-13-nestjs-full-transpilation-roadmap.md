@@ -94,70 +94,25 @@
 
 #### Tasks
 
-- [ ] **Task 6.0.1: Add prettyplease to orchestrator**
+- [x] **Task 6.0.1: Add prettyplease to orchestrator** ✓
 
-  Add to `crates/tyrus_orchestrator/Cargo.toml`:
-  ```toml
-  prettyplease = "0.2"
-  syn = { version = "2.0", features = ["full", "parsing"] }
-  ```
+  Added `prettyplease = "0.2"` and `syn = { version = "2.0", features = ["full", "parsing"] }` to orchestrator.
 
-- [ ] **Task 6.0.2: Replace rustfmt subprocess with prettyplease**
+- [x] **Task 6.0.2: Replace rustfmt subprocess with prettyplease** ✓
 
-  Modify `crates/tyrus_orchestrator/src/format.rs`:
-  ```rust
-  pub(crate) fn format_code(code: &str) -> Result<String, TyrusError> {
-      let syntax_tree = syn::parse_file(code)
-          .map_err(|e| TyrusError::FormattingError(e.to_string()))?;
-      Ok(prettyplease::unparse(&syntax_tree))
-  }
-  ```
+  Replaced `Command::new("rustfmt")` subprocess + async-skip hack with `syn::parse_file` + `prettyplease::unparse`. Properly formats async code now.
 
-  This replaces the `Command::new("rustfmt")` subprocess call and the async-code skip hack.
+- [x] **Task 6.0.3: Upgrade thiserror to 2.0** ✓
 
-  Run: `cargo test --workspace` — all 157 tests must still pass.
+  Updated `tyrus_diagnostics` and `tyrus_di` from thiserror 1.0 → 2.0. No breaking changes.
 
-- [ ] **Task 6.0.3: Upgrade thiserror to 2.0**
+- [x] **Task 6.0.4: Add trybuild for compile-verification tests** ✓
 
-  Update `Cargo.toml` in `tyrus_diagnostics` and `tyrus_di`:
-  ```toml
-  thiserror = "2.0"
-  ```
+  Added `trybuild = "1.0"` to tests/Cargo.toml. Created `tests/trybuild/` directory.
 
-  Run: `cargo clippy --workspace` — verify no breaking changes.
+- [x] **Task 6.0.5: Upgrade generated AppError with named HTTP variants** ✓
 
-- [ ] **Task 6.0.4: Add trybuild for compile-verification tests**
-
-  Add to `tests/Cargo.toml`:
-  ```toml
-  trybuild = "1.0"
-  ```
-
-  Create `tests/trybuild/` directory for compile-pass/compile-fail test cases.
-
-- [ ] **Task 6.0.5: Update generated AppError to use thiserror derive**
-
-  Modify `crates/tyrus_orchestrator/src/format.rs` — `get_app_error_code()`:
-  Replace hand-written Error impl with `#[derive(Debug, thiserror::Error)]` in generated code.
-
-  The generated code should include:
-  ```rust
-  #[derive(Debug, thiserror::Error)]
-  enum AppError {
-      #[error("Not found: {0}")]
-      NotFound(String),
-      #[error("Bad request: {0}")]
-      BadRequest(String),
-      #[error("Unauthorized: {0}")]
-      Unauthorized(String),
-      #[error("Forbidden: {0}")]
-      Forbidden(String),
-      #[error("Conflict: {0}")]
-      Conflict(String),
-      #[error("Internal error: {0}")]
-      Internal(String),
-  }
-  ```
+  **Implementation note:** Could not use `#[derive(thiserror::Error)]` on generated `AppError` because it would implement `std::error::Error`, conflicting with the blanket `impl<E: Error> From<E> for AppError` needed for `?` operator support. Instead, used named enum variants with manual `Display` impl + blanket `From<E>`, giving us proper HTTP status code mapping via `IntoResponse` while keeping `?` ergonomics. Also added `axum` to `detect_dependencies()` for single-file builds.
 
 - [ ] **Task 6.0.6: Commit**
 
@@ -1636,16 +1591,54 @@ struct CreateUserDto {
 
 ---
 
+### Milestone 10.4: Transpiler Fuzzing & Property Testing (Research-Driven)
+
+**Why:** Research (TransFuzz, SANER 2023; RustAssure, 2025) shows that grammar-guided fuzzing and property-based testing find 47-385% more bugs than hand-written tests alone.
+
+#### Tasks
+
+- [ ] **Task 10.4.1: Add cargo-fuzz for transpiler robustness**
+
+  Create `fuzz/` directory with fuzz targets:
+  - `fuzz_parser`: Feed random/mutated TS to parser, verify no panics
+  - `fuzz_codegen`: Feed valid SWC ASTs to codegen, verify no panics
+  - `fuzz_pipeline`: Full transpilation pipeline, verify no panics
+
+- [ ] **Task 10.4.2: Add proptest for semantic properties**
+
+  Add to `tests/Cargo.toml`: `proptest = "1.0"`
+
+  Property tests:
+  - "For any valid numeric expression, TS and Rust produce the same f64"
+  - "For any valid string operation, TS and Rust produce the same String"
+  - "Generated Rust always compiles" (for valid Oxidizable TS input)
+
+- [ ] **Task 10.4.3: Grammar-guided AST mutation (TransFuzz approach)**
+
+  Create `tests/src/mutation/` module:
+  - Mutate existing fixture ASTs (swap operators, change literals, add/remove statements)
+  - Run mutations through transpiler + Node.js + Rust comparison
+  - Report any output divergence
+
+- [ ] **Task 10.4.4: Commit**
+
+  ```bash
+  git commit -m "test: transpiler fuzzing and property-based testing"
+  ```
+
+---
+
 ## Summary: Execution Order & Dependencies
 
 ```
-Phase 6: TypeScript Language Completeness (all milestones can run in parallel)
-├── 6.1 try-catch → Result (CRITICAL, no dependencies)
-├── 6.2 Top-level statements (CRITICAL, no dependencies)
-├── 6.3 Spread/rest (IMPORTANT, no dependencies)
-├── 6.4 Class inheritance (IMPORTANT, no dependencies)
-├── 6.5 Static/getters/setters (IMPORTANT, no dependencies — independent of 6.4)
-└── 6.6 Type assertions/enums (NICE, no dependencies)
+Phase 6: TypeScript Language Completeness
+├── 6.0 Infrastructure upgrade (P0, no dependencies — DO FIRST)
+├── 6.1 try-catch → Result (CRITICAL, depends on 6.0)
+├── 6.2 Top-level statements (CRITICAL, depends on 6.0)
+├── 6.3 Spread/rest (IMPORTANT, depends on 6.0)
+├── 6.4 Class inheritance (IMPORTANT, depends on 6.0)
+├── 6.5 Static/getters/setters (IMPORTANT, depends on 6.0 — independent of 6.4)
+└── 6.6 Type assertions/enums (NICE, depends on 6.0)
 
 Phase 7: NestJS Framework Completeness (depends on Phase 6)
 ├── 7.1 @Param/@Query/@Headers (CRITICAL, depends on 6.1)
@@ -1655,19 +1648,20 @@ Phase 7: NestJS Framework Completeness (depends on Phase 6)
 └── 7.5 Multi-module system (CRITICAL, depends on 6.2 + existing DI system)
 
 Phase 8: HTTP Equivalence (depends on Phase 7)
-├── 8.1 Reference NestJS project (no code deps)
+├── 8.1 Reference NestJS project (no code deps — can start during Phase 7)
 ├── 8.2 Transpile reference project (depends on 7.*)
 └── 8.3 Automated E2E comparison (depends on 8.2)
 
 Phase 9: Polish (depends on Phase 8)
-├── 9.1 Validation/DTOs
-├── 9.2 Logging
-└── 9.3 Configuration
+├── 9.1 Validation/DTOs (garde crate)
+├── 9.2 Logging (tracing)
+└── 9.3 Configuration (dotenv)
 
 Phase 10: Academic (depends on Phase 9)
-├── 10.1 Benchmarks
-├── 10.2 Formal spec
-└── 10.3 Paper
+├── 10.1 Benchmarks (Criterion.rs + wrk/k6)
+├── 10.2 Formal spec (EBNF)
+├── 10.3 Paper (TCC)
+└── 10.4 Fuzzing/property testing (cargo-fuzz + proptest)
 ```
 
 ## Metrics & Success Criteria
@@ -1684,11 +1678,47 @@ Phase 10: Academic (depends on Phase 9)
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| try-catch semantics divergence | High | Limit to synchronous try-catch first, add async later |
-| Class inheritance complexity | Medium | Use composition (base field) not trait objects |
-| Guard/middleware pattern mismatch | Medium | Start with simple function middleware, avoid Tower complexity |
+| try-catch semantics divergence | High | Limit to synchronous try-catch first, add async later. Research confirms closure+match pattern is community consensus. |
+| Class inheritance complexity | Medium | Use trait+composition+enum_dispatch (validated by gtk-rs, enum_dispatch crate). NOT dyn Trait. |
+| Guard/middleware pattern mismatch | Medium | Start with simple function middleware via `tower::middleware::from_fn`. See Axum middleware docs. |
 | Optional chaining double-Option | Low | Known limitation, defer to Phase 6 type inference |
 | Multi-module DI complexity | High | Start with linear modules (no circular), add graph resolution later |
 | SWC AST changes | Low | Pin SWC version, update periodically |
-| Generated Rust doesn't compile | High | Every milestone includes compilation test |
+| Generated Rust doesn't compile | High | Every milestone includes compilation test + trybuild (P0 in 6.0) |
 | Node.js version mismatch | Low | Pin Node 22+ with --experimental-strip-types |
+| prettyplease output diverges from rustfmt | Low | prettyplease produces ~97-98% identical output to rustfmt. Snapshot tests will catch any regressions. |
+| garde validation error format differs from NestJS | Medium | Test validation error shapes explicitly in Phase 9.1. May need custom error formatter. |
+
+---
+
+## Research References
+
+Academic papers and industry projects that informed this plan:
+
+### Academic Papers
+| Paper | Venue | Key Insight |
+|-------|-------|-------------|
+| Safe & Efficient Gradual Typing for TypeScript | POPL 2015 | Strict TS subset can have sound static typing — validates "Oxidizable Standard" |
+| Ownership Guided C to Rust Translation | CAV 2023 | Ownership inference succeeds for ~11% of pointers — restricting input is correct |
+| Aliasing Limits on Translating C to Safe Rust | OOPSLA 2023 | Fundamental limits of safe Rust translation — validates subset approach |
+| TransFuzz: Detecting JS Transpiler Bugs | SANER 2023 | Grammar-guided AST mutation finds 47-385% more bugs |
+| RustAssure: Differential Symbolic Testing | arXiv 2025 | Symbolic equivalence catches semantic divergence across all inputs |
+| VERT: Verified Equivalent Rust Transpilation | arXiv 2024 | LLM-assisted transpilation with verification |
+
+### Industry Projects
+| Project | Stars | Pattern Adopted |
+|---------|-------|-----------------|
+| AssemblyScript | 17841 | Strict TS subset → compiled target (same as Oxidizable Standard) |
+| ts2c | 1358 | TS→C89 via strict subset (most mature in category) |
+| C2Rust | 4656 | Two-phase: correct first, then idiomatic. prettyplease for formatting. |
+| Haxe | 6857 | Multi-target transpiler architecture, extern definitions |
+| enum_dispatch | ~700 | 10x performance over dyn Trait for closed hierarchies |
+
+### Crate Decisions
+| Decision | Choice | Alternative | Why |
+|----------|--------|-------------|-----|
+| Formatting | prettyplease | rustfmt subprocess | No external dependency, handles async, 10x faster |
+| Validation | garde 0.22 | validator 0.20 | Built-in Axum integration, #[garde(dive)] for nested, more validators |
+| Error types | thiserror 2.0 | anyhow | Structured variants needed for HTTP status mapping |
+| Inheritance | enum_dispatch | dyn Trait | 10x perf, static dispatch, exhaustive matching |
+| Compile testing | trybuild | manual cargo check | Standard in Rust ecosystem, snapshot-based |

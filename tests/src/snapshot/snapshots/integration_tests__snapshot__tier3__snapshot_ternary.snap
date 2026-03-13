@@ -6,9 +6,5 @@ fn max_of(mut a: f64, mut b: f64) -> f64 {
     return if a > b { a } else { b };
 }
 fn label(mut active: bool) -> String {
-    return if active {
-        String::from("Active")
-    } else {
-        String::from("Inactive")
-    };
+    return if active { String::from("Active") } else { String::from("Inactive") };
 }

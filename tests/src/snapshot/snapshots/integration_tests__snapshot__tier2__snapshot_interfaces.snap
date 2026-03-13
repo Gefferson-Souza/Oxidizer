@@ -2,7 +2,7 @@
 source: tests/src/snapshot/tier2.rs
 expression: rust
 ---
-#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub name: String,
@@ -10,7 +10,7 @@ pub struct User {
     pub email: String,
     pub active: bool,
 }
-#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Product {
     pub id: f64,
@@ -18,7 +18,7 @@ pub struct Product {
     pub price: f64,
     pub description: Option<String>,
 }
-#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiResponse {
     pub data: Vec<User>,

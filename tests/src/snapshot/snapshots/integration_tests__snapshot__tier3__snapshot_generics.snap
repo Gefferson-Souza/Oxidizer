@@ -2,25 +2,25 @@
 source: tests/src/snapshot/tier3.rs
 expression: rust
 ---
-#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Container<T: Clone> {
     pub value: T,
     pub label: String,
 }
-#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Wrapper<T> {
     pub data: T,
     #[serde(skip)]
     pub _marker: std::marker::PhantomData<T>,
 }
-impl<T: serde::de::DeserializeOwned + serde::Serialize + Clone + Default + std::fmt::Debug>
-    Wrapper<T>
-{
+impl<
+    T: serde::de::DeserializeOwned + serde::Serialize + Clone + Default + std::fmt::Debug,
+> Wrapper<T> {
     pub fn new(data: T) -> Self {
         Self {
-            data,
+            data: data,
             _marker: std::marker::PhantomData,
         }
     }
@@ -34,6 +34,8 @@ impl<T: serde::de::DeserializeOwned + serde::Serialize + Clone + Default + std::
         return self.data.clone();
     }
 }
-fn identity<T: serde::de::DeserializeOwned + serde::Serialize + Clone>(mut value: T) -> T {
+fn identity<T: serde::de::DeserializeOwned + serde::Serialize + Clone>(
+    mut value: T,
+) -> T {
     return value;
 }

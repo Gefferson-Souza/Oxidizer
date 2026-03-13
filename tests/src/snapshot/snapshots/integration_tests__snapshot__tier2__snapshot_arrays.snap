@@ -3,11 +3,7 @@ source: tests/src/snapshot/tier2.rs
 expression: rust
 ---
 fn double_all(mut nums: Vec<f64>) -> Vec<f64> {
-    return nums
-        .clone()
-        .into_iter()
-        .map(|n| n * 2f64)
-        .collect::<Vec<_>>();
+    return nums.clone().into_iter().map(|n| n * 2f64).collect::<Vec<_>>();
 }
 fn evens(mut nums: Vec<f64>) -> Vec<f64> {
     return nums
@@ -21,8 +17,10 @@ fn evens(mut nums: Vec<f64>) -> Vec<f64> {
 }
 fn sum(mut nums: Vec<f64>) -> f64 {
     let mut total = 0f64;
-    nums.iter().cloned().for_each(|n| {
-        total = total + n;
-    });
+    nums.iter()
+        .cloned()
+        .for_each(|n| {
+            total = total + n;
+        });
     return total;
 }
