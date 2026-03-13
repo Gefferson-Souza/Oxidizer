@@ -34,7 +34,7 @@ impl UsersService {
             .unwrap_or_else(|e| e.into_inner())
             .clone()
             .iter()
-            .find(|user| user.id == id)
+            .find(|item| (|user| user.id == id)(**item))
             .cloned();
     }
     pub fn create(&self, name: String, email: String) -> User {

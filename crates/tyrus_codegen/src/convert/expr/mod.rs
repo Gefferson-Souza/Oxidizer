@@ -47,7 +47,10 @@ impl RustGenerator {
                 quote! { #arg.await? }
             }
             Expr::New(new_expr) => self.convert_new_expr(new_expr),
-            Expr::Paren(paren) => self.convert_expr(&paren.expr),
+            Expr::Paren(paren) => {
+                let inner = self.convert_expr(&paren.expr);
+                quote! { (#inner) }
+            }
             Expr::Arrow(arrow) => self.convert_arrow_expr(arrow),
             Expr::Array(arr) => self.convert_array_lit(arr),
             Expr::Tpl(tpl) => self.convert_tpl(tpl),

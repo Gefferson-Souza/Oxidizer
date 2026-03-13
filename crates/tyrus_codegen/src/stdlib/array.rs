@@ -40,7 +40,7 @@ pub fn handle(
         "find" => {
             if args.len() == 1 {
                 let predicate = gen.convert_expr_or_spread(&args[0]);
-                Some(quote! { #obj_tokens.iter().find(#predicate).cloned() })
+                Some(quote! { #obj_tokens.iter().find(|item| (#predicate)(**item)).cloned() })
             } else {
                 None
             }

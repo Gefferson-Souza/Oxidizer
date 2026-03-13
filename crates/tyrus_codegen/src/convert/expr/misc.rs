@@ -84,7 +84,7 @@ impl RustGenerator {
                 let obj = self.convert_expr(&member.obj);
                 if let Some(prop_ident) = member.prop.as_ident() {
                     let prop_name = format_ident!("{}", to_snake_case(prop_ident.sym.as_ref()));
-                    quote! { #obj.as_ref().and_then(|__v| __v.#prop_name.clone()) }
+                    quote! { #obj.as_ref().and_then(|__v| Some(__v.#prop_name.clone())) }
                 } else {
                     quote! { #obj }
                 }
