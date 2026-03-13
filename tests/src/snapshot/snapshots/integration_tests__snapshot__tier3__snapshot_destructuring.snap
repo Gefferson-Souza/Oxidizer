@@ -8,7 +8,7 @@ pub struct Point {
     pub x: f64,
     pub y: f64,
 }
-fn get_coords(point: Point) -> f64 {
+fn get_coords(mut point: Point) -> f64 {
     let __destructured = point;
     let mut x = __destructured.x.clone();
     let mut y = __destructured.y.clone();

@@ -19,13 +19,13 @@ impl RustGenerator {
         // Check if async
         let is_async = n.function.is_async;
 
-        // Extract parameters
+        // Extract parameters — mark all as `mut` since TS allows reassignment
         let mut params = Vec::new();
         for param in &n.function.params {
             if let Pat::Ident(ident_pat) = &param.pat {
                 let param_name = format_ident!("{}", ident_pat.sym.to_string());
                 let param_type = map_ts_type(ident_pat.type_ann.as_ref());
-                params.push(quote! { #param_name: #param_type });
+                params.push(quote! { mut #param_name: #param_type });
             }
         }
 

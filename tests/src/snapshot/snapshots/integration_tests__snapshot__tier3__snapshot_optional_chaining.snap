@@ -14,7 +14,7 @@ pub struct User {
     pub id: f64,
     pub profile: Option<Profile>,
 }
-fn get_user_name(user: User) -> String {
+fn get_user_name(mut user: User) -> String {
     let name = user
         .profile
         .as_ref()
@@ -22,7 +22,7 @@ fn get_user_name(user: User) -> String {
         .unwrap_or(String::from("Unknown"));
     return name;
 }
-fn get_address(user: User) -> String {
+fn get_address(mut user: User) -> String {
     return user
         .profile
         .as_ref()

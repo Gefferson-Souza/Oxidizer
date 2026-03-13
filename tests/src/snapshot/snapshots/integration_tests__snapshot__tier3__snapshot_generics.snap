@@ -34,6 +34,6 @@ impl<T: serde::de::DeserializeOwned + serde::Serialize + Clone + Default + std::
         return self.data.clone();
     }
 }
-fn identity<T: serde::de::DeserializeOwned + serde::Serialize + Clone>(value: T) -> T {
+fn identity<T: serde::de::DeserializeOwned + serde::Serialize + Clone>(mut value: T) -> T {
     return value;
 }

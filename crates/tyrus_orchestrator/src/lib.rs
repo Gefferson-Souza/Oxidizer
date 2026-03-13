@@ -66,21 +66,34 @@ pub fn build_simple_project(path: &FilePath, output_dir: &Path) -> Result<(), Ty
     std::fs::create_dir_all(&src_dir).map_err(TyrusError::IoError)?;
 
     let main_rs = src_dir.join("main.rs");
-    std::fs::write(main_rs, code).map_err(TyrusError::IoError)?;
+    std::fs::write(&main_rs, &code).map_err(TyrusError::IoError)?;
 
     let cargo_toml = output_dir.join("Cargo.toml");
-    let cargo_content = r#"[package]
-name = "tyrus_app"
-version = "0.1.0"
-edition = "2021"
-
-[workspace]
-
-[[bin]]
-name = "tyrus_app"
-path = "src/main.rs"
-"#;
+    let deps = detect_dependencies(&code);
+    let cargo_content = format!(
+        "[package]\nname = \"tyrus_app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n\
+         [workspace]\n\n[[bin]]\nname = \"tyrus_app\"\npath = \"src/main.rs\"\n\n\
+         [dependencies]\n{deps}"
+    );
     std::fs::write(cargo_toml, cargo_content).map_err(TyrusError::IoError)?;
 
     Ok(())
+}
+
+/// Detect which crate dependencies the generated code needs.
+fn detect_dependencies(code: &str) -> String {
+    let mut deps = String::new();
+    if code.contains("serde") {
+        deps.push_str("serde = { version = \"1\", features = [\"derive\"] }\n");
+    }
+    if code.contains("HashMap") {
+        deps.push_str("# std::collections::HashMap is in std, no crate needed\n");
+    }
+    if code.contains("reqwest") {
+        deps.push_str("reqwest = { version = \"0.12\", features = [\"json\"] }\n");
+    }
+    if code.contains("tokio") {
+        deps.push_str("tokio = { version = \"1\", features = [\"full\"] }\n");
+    }
+    deps
 }
