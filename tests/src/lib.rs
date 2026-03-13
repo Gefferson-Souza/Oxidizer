@@ -6,6 +6,7 @@
     unused_imports
 )]
 
+mod cli;
 mod compilation;
 mod equivalence;
 mod helpers;

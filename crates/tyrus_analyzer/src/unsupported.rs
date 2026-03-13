@@ -35,6 +35,11 @@ const BLOCKED_GLOBALS: &[(&str, &str, &str)] = &[
         "tyrus::unsupported::dom",
         "SessionStorage is not available in Rust",
     ),
+    (
+        "XMLHttpRequest",
+        "tyrus::unsupported::dom",
+        "XMLHttpRequest is not available in Rust — use reqwest",
+    ),
 ];
 
 const BLOCKED_FUNCTIONS: &[(&str, &str, &str, &str)] = &[
