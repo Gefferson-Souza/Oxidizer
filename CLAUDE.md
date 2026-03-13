@@ -152,6 +152,6 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunks 1-7 + Milestone 13A (semantic equivalence) + Milestone 13B (control flow expansion)
-**Current:** Phase 5 — Stdlib Complete (full JS/TS method coverage)
-**Status:** 115 tests passing (28 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped)
+**Completed:** Chunks 1-7 + Milestone 13A + 13B + Milestone 14 HIGH priority (stdlib)
+**Current:** Phase 5 — Remaining LOW priority stdlib methods + Phase 6 planning
+**Status:** 133 tests passing (46 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped)

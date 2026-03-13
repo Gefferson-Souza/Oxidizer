@@ -61,6 +61,52 @@ pub fn handle(
                 None
             }
         }
+        "indexOf" => {
+            if args.len() == 1 {
+                let val = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! {
+                    #obj_tokens.iter().position(|x| x == &#val).map(|i| i as f64).unwrap_or(-1.0)
+                })
+            } else {
+                None
+            }
+        }
+        "slice" => match args.len() {
+            1 => {
+                let start = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! { #obj_tokens[(#start as usize)..].to_vec() })
+            }
+            2 => {
+                let start = gen.convert_expr_or_spread(&args[0]);
+                let end = gen.convert_expr_or_spread(&args[1]);
+                Some(quote! { #obj_tokens[(#start as usize)..(#end as usize)].to_vec() })
+            }
+            _ => None,
+        },
+        "concat" => {
+            if args.len() == 1 {
+                let other = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! {
+                    #obj_tokens.iter().chain(#other.iter()).cloned().collect::<Vec<_>>()
+                })
+            } else {
+                None
+            }
+        }
+        "reverse" => {
+            if args.is_empty() {
+                Some(quote! { #obj_tokens.reverse() })
+            } else {
+                None
+            }
+        }
+        "pop" => {
+            if args.is_empty() {
+                Some(quote! { #obj_tokens.pop() })
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

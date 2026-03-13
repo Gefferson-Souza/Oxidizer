@@ -81,6 +81,16 @@ impl RustGenerator {
                             let var_name = to_snake_case(&ident.id.sym);
                             let var_ident = format_ident!("{}", var_name);
 
+                            // Track string-typed variables for stdlib disambiguation
+                            if let Some(type_ann) = &ident.type_ann {
+                                if let swc_ecma_ast::TsType::TsKeywordType(kw) = &*type_ann.type_ann
+                                {
+                                    if kw.kind == swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword {
+                                        self.string_vars.borrow_mut().insert(var_name.clone());
+                                    }
+                                }
+                            }
+
                             // Check for typed object literal: const x: Type = { ... }
                             let final_init = if let (Some(type_ann), Some(init)) =
                                 (&ident.type_ann, &decl.init)
