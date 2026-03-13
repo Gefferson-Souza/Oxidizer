@@ -125,6 +125,78 @@ pub fn handle(
                 None
             }
         }
+        "padStart" => {
+            if !args.is_empty() {
+                let target_len = gen.convert_expr_or_spread(&args[0]);
+                if args.len() >= 2 {
+                    let fill = gen.convert_expr_or_spread(&args[1]);
+                    Some(quote! {
+                        {
+                            let __s = #obj_tokens;
+                            let __target = #target_len as usize;
+                            let __fill: String = #fill.to_string();
+                            if __s.len() >= __target {
+                                __s
+                            } else {
+                                let __pad_len = __target - __s.len();
+                                let __pad: String = __fill.chars().cycle().take(__pad_len).collect();
+                                format!("{}{}", __pad, __s)
+                            }
+                        }
+                    })
+                } else {
+                    Some(quote! {
+                        {
+                            let __s = #obj_tokens;
+                            let __target = #target_len as usize;
+                            if __s.len() >= __target {
+                                __s
+                            } else {
+                                format!("{:>width$}", __s, width = __target)
+                            }
+                        }
+                    })
+                }
+            } else {
+                None
+            }
+        }
+        "padEnd" => {
+            if !args.is_empty() {
+                let target_len = gen.convert_expr_or_spread(&args[0]);
+                if args.len() >= 2 {
+                    let fill = gen.convert_expr_or_spread(&args[1]);
+                    Some(quote! {
+                        {
+                            let __s = #obj_tokens;
+                            let __target = #target_len as usize;
+                            let __fill: String = #fill.to_string();
+                            if __s.len() >= __target {
+                                __s
+                            } else {
+                                let __pad_len = __target - __s.len();
+                                let __pad: String = __fill.chars().cycle().take(__pad_len).collect();
+                                format!("{}{}", __s, __pad)
+                            }
+                        }
+                    })
+                } else {
+                    Some(quote! {
+                        {
+                            let __s = #obj_tokens;
+                            let __target = #target_len as usize;
+                            if __s.len() >= __target {
+                                __s
+                            } else {
+                                format!("{:<width$}", __s, width = __target)
+                            }
+                        }
+                    })
+                }
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

@@ -36,7 +36,7 @@ Phase 1 ✅ Foundation     (Milestones 1-8)   — Core transpilation, types, Nes
 Phase 2 ✅ Quality         (Milestones 9-12)  — Strict rules, decomposition, test suite
 Phase 3 ✅ Equivalence     (Milestone 13A)    — Prove output identity for basics
 Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
-Phase 5 🔄 Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (HIGH priority done)
+Phase 5 ✅ Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (ALL methods done)
 Phase 5.5 ✅ Architecture  (CLI+IR+Analyzer)  — Branded CLI, typed IR, expanded analyzer
 Phase 6 📋 Advanced TS     (Milestone 15)     — Class inheritance, enums, advanced patterns
 Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
@@ -88,8 +88,8 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 | 5.1.2 | `charAt(i)` | `s.chars().nth(i)` | HIGH | ✅ |
 | 5.1.3 | `indexOf(substr)` | `s.find(substr)` | HIGH | ✅ |
 | 5.1.4 | `repeat(n)` | `s.repeat(n)` | MEDIUM | ✅ |
-| 5.1.5 | `padStart(len, fill)` | `format!("{:>width$}", s)` | LOW | 📋 |
-| 5.1.6 | `padEnd(len, fill)` | `format!("{:<width$}", s)` | LOW | 📋 |
+| 5.1.5 | `padStart(len, fill)` | `format!("{:>width$}", s)` | LOW | ✅ |
+| 5.1.6 | `padEnd(len, fill)` | `format!("{:<width$}", s)` | LOW | ✅ |
 | 5.1.7 | `slice(start, end)` | `s[start..end].to_string()` | MEDIUM | ✅ |
 
 ### Micro 5.2: Array Methods
@@ -99,11 +99,11 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 | 5.2.1 | `indexOf(item)` | `.iter().position(\|x\| x == &item)` | HIGH | ✅ |
 | 5.2.2 | `slice(start, end)` | `[start..end].to_vec()` | HIGH | ✅ |
 | 5.2.3 | `concat(other)` | `.iter().chain(other.iter()).cloned().collect()` | MEDIUM | ✅ |
-| 5.2.4 | `sort()` | `.sort_by(\|a,b\| a.partial_cmp(b).unwrap_or(Ordering::Equal))` | MEDIUM | 📋 |
+| 5.2.4 | `sort()` | `.sort_by(\|a,b\| a.partial_cmp(b).unwrap_or(Ordering::Equal))` | MEDIUM | ✅ |
 | 5.2.5 | `reverse()` | `.reverse()` | LOW | ✅ |
 | 5.2.6 | `pop()` | `.pop()` | LOW | ✅ |
-| 5.2.7 | `shift()` | `.remove(0)` | LOW | 📋 |
-| 5.2.8 | `flat()` / `flatMap()` | `.into_iter().flatten().collect()` | LOW | 📋 |
+| 5.2.7 | `shift()` | `.remove(0)` | LOW | ✅ |
+| 5.2.8 | `flat()` / `flatMap()` | `.into_iter().flatten().collect()` | LOW | ✅ |
 
 ### Micro 5.3: Math Functions
 
@@ -128,11 +128,11 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 
 ### Micro 5.4: Object Methods
 
-| Nano | Method | Rust Mapping | Priority |
-|------|--------|-------------|----------|
-| 5.4.1 | `Object.keys(obj)` | `obj.keys().cloned().collect::<Vec<_>>()` | HIGH |
-| 5.4.2 | `Object.values(obj)` | `obj.values().cloned().collect::<Vec<_>>()` | HIGH |
-| 5.4.3 | `Object.entries(obj)` | `obj.iter().collect::<Vec<_>>()` | MEDIUM |
+| Nano | Method | Rust Mapping | Priority | Status |
+|------|--------|-------------|----------|--------|
+| 5.4.1 | `Object.keys(obj)` | `obj.keys().cloned().collect::<Vec<_>>()` | HIGH | ✅ |
+| 5.4.2 | `Object.values(obj)` | `obj.values().cloned().collect::<Vec<_>>()` | HIGH | ✅ |
+| 5.4.3 | `Object.entries(obj)` | `obj.iter().collect::<Vec<_>>()` | MEDIUM | ✅ |
 
 ### Micro 5.5: Console Methods
 

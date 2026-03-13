@@ -107,6 +107,45 @@ pub fn handle(
                 None
             }
         }
+        "sort" => {
+            if args.is_empty() {
+                Some(quote! {
+                    {
+                        let mut __sorted = #obj_tokens.clone();
+                        __sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                        __sorted
+                    }
+                })
+            } else {
+                None
+            }
+        }
+        "shift" => {
+            if args.is_empty() {
+                Some(quote! { #obj_tokens.remove(0) })
+            } else {
+                None
+            }
+        }
+        "flat" => {
+            if args.is_empty() {
+                Some(quote! {
+                    #obj_tokens.into_iter().flatten().collect::<Vec<_>>()
+                })
+            } else {
+                None
+            }
+        }
+        "flatMap" => {
+            if args.len() == 1 {
+                let callback = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! {
+                    #obj_tokens.into_iter().flat_map(|x| (#callback)(x)).collect::<Vec<_>>()
+                })
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

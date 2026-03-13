@@ -138,3 +138,42 @@ main();
 "#,
     );
 }
+
+#[test]
+fn test_equivalence_array_sort() {
+    assert_output_equivalent(
+        r#"
+function sortTest(): void {
+    const nums: number[] = [3, 1, 4, 1, 5, 9, 2, 6];
+    const sorted: number[] = nums.sort();
+    sorted.forEach((n: number): void => {
+        console.log(n);
+    });
+}
+function main(): void {
+    sortTest();
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_array_shift() {
+    assert_output_equivalent(
+        r#"
+function shiftTest(): void {
+    let items: number[] = [10, 20, 30];
+    const first: number = items.shift();
+    console.log(first);
+    items.forEach((n: number): void => {
+        console.log(n);
+    });
+}
+function main(): void {
+    shiftTest();
+}
+main();
+"#,
+    );
+}

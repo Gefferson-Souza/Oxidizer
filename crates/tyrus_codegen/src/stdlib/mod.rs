@@ -7,6 +7,7 @@ pub mod array;
 pub mod console;
 pub mod json;
 pub mod math;
+pub mod object;
 pub mod string;
 
 /// Main dispatcher for stdlib method calls
@@ -33,6 +34,11 @@ pub fn try_handle_stdlib_call(
                     "JSON" => {
                         if let Some(prop) = member.prop.as_ident() {
                             return json::handle(gen, prop.sym.as_ref(), args);
+                        }
+                    }
+                    "Object" => {
+                        if let Some(prop) = member.prop.as_ident() {
+                            return object::handle(gen, prop.sym.as_ref(), args);
                         }
                     }
                     _ => {}
