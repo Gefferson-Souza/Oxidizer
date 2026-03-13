@@ -72,7 +72,98 @@
 
 **Objective:** Fill in all TypeScript language features needed by real NestJS codebases.
 **Prerequisite for:** All NestJS framework phases.
-**Estimated Scope:** ~40 tasks across 6 milestones.
+**Estimated Scope:** ~50 tasks across 7 milestones.
+
+---
+
+### Milestone 6.0: Transpiler Infrastructure Upgrade (Research-Driven)
+
+**Why:** Research identified critical tooling improvements that should land BEFORE any new features. These reduce friction for all subsequent milestones.
+
+**Academic Justification:**
+- **prettyplease**: Used by C2Rust (4656 stars) for formatting generated Rust. Eliminates external `rustfmt` dependency. Handles async code that our current subprocess approach skips.
+- **trybuild**: Standard in Rust compiler testing. Used by serde, diesel, sqlx for verifying generated code compiles.
+- **thiserror 2.0**: Generates `#[derive(Error)]` in transpiled Axum apps. Replaces hand-written AppError in `format.rs`.
+
+**Files:**
+- Modify: `crates/tyrus_orchestrator/Cargo.toml` — Add `prettyplease`, `syn` (features = ["full", "parsing"])
+- Modify: `crates/tyrus_orchestrator/src/format.rs` — Replace `rustfmt` subprocess with `prettyplease::unparse()`
+- Modify: `crates/tyrus_diagnostics/Cargo.toml` — Upgrade `thiserror` from 1.0 to 2.0
+- Modify: `crates/tyrus_di/Cargo.toml` — Upgrade `thiserror` from 1.0 to 2.0
+- Modify: `tests/Cargo.toml` — Add `trybuild`
+
+#### Tasks
+
+- [ ] **Task 6.0.1: Add prettyplease to orchestrator**
+
+  Add to `crates/tyrus_orchestrator/Cargo.toml`:
+  ```toml
+  prettyplease = "0.2"
+  syn = { version = "2.0", features = ["full", "parsing"] }
+  ```
+
+- [ ] **Task 6.0.2: Replace rustfmt subprocess with prettyplease**
+
+  Modify `crates/tyrus_orchestrator/src/format.rs`:
+  ```rust
+  pub(crate) fn format_code(code: &str) -> Result<String, TyrusError> {
+      let syntax_tree = syn::parse_file(code)
+          .map_err(|e| TyrusError::FormattingError(e.to_string()))?;
+      Ok(prettyplease::unparse(&syntax_tree))
+  }
+  ```
+
+  This replaces the `Command::new("rustfmt")` subprocess call and the async-code skip hack.
+
+  Run: `cargo test --workspace` — all 157 tests must still pass.
+
+- [ ] **Task 6.0.3: Upgrade thiserror to 2.0**
+
+  Update `Cargo.toml` in `tyrus_diagnostics` and `tyrus_di`:
+  ```toml
+  thiserror = "2.0"
+  ```
+
+  Run: `cargo clippy --workspace` — verify no breaking changes.
+
+- [ ] **Task 6.0.4: Add trybuild for compile-verification tests**
+
+  Add to `tests/Cargo.toml`:
+  ```toml
+  trybuild = "1.0"
+  ```
+
+  Create `tests/trybuild/` directory for compile-pass/compile-fail test cases.
+
+- [ ] **Task 6.0.5: Update generated AppError to use thiserror derive**
+
+  Modify `crates/tyrus_orchestrator/src/format.rs` — `get_app_error_code()`:
+  Replace hand-written Error impl with `#[derive(Debug, thiserror::Error)]` in generated code.
+
+  The generated code should include:
+  ```rust
+  #[derive(Debug, thiserror::Error)]
+  enum AppError {
+      #[error("Not found: {0}")]
+      NotFound(String),
+      #[error("Bad request: {0}")]
+      BadRequest(String),
+      #[error("Unauthorized: {0}")]
+      Unauthorized(String),
+      #[error("Forbidden: {0}")]
+      Forbidden(String),
+      #[error("Conflict: {0}")]
+      Conflict(String),
+      #[error("Internal error: {0}")]
+      Internal(String),
+  }
+  ```
+
+- [ ] **Task 6.0.6: Commit**
+
+  ```bash
+  git commit -m "chore: upgrade transpiler infrastructure (prettyplease, thiserror 2.0, trybuild)"
+  ```
 
 ---
 
@@ -510,6 +601,11 @@ fn log(args: Vec<String>) { }
 
 **Why:** NestJS guards extend `CanActivate`, interceptors extend `NestInterceptor`, services can extend base classes.
 
+**Research-Validated Approach:** Based on analysis of gtk-rs, enum_dispatch crate, and Rust community patterns (see Research section), we use a **trait + composition + enum_dispatch** strategy:
+- Base class → trait definition + struct
+- Derived class → struct with base field + trait impl
+- Polymorphic contexts → `enum_dispatch` for 10x performance over `dyn Trait`
+
 **TypeScript → Rust Mapping:**
 ```typescript
 class Animal {
@@ -526,25 +622,36 @@ class Dog extends Animal {
     speak(): string { return this.name + " barks"; }
 }
 
-// → Rust (composition over inheritance)
+// → Rust (trait + composition, validated by gtk-rs patterns)
+trait AnimalTrait {
+    fn name(&self) -> &str;
+    fn speak(&self) -> String;
+}
+
 struct Animal { name: String }
-impl Animal {
-    fn new(name: String) -> Self { Self { name } }
+impl AnimalTrait for Animal {
+    fn name(&self) -> &str { &self.name }
     fn speak(&self) -> String { format!("{} makes a sound", self.name) }
 }
+
 struct Dog { base: Animal, breed: String }
-impl Dog {
-    fn new(name: String, breed: String) -> Self {
-        Self { base: Animal::new(name), breed }
-    }
+impl AnimalTrait for Dog {
+    fn name(&self) -> &str { &self.base.name }
     fn speak(&self) -> String { format!("{} barks", self.base.name) }
 }
+
+// For polymorphic usage (enum_dispatch for 10x perf vs dyn Trait)
+#[enum_dispatch(AnimalTrait)]
+enum AnyAnimal { Animal(Animal), Dog(Dog) }
 ```
 
+**Crate dependency:** Add `enum_dispatch = "0.3"` to generated Cargo.toml when inheritance is detected.
+
 **Files:**
-- Modify: `crates/tyrus_codegen/src/convert/class/mod.rs` — Detect extends
+- Modify: `crates/tyrus_codegen/src/convert/class/mod.rs` — Detect extends, generate trait
 - Modify: `crates/tyrus_codegen/src/convert/class/constructor.rs` — super() calls
 - Modify: `crates/tyrus_codegen/src/convert/expr/call.rs` — super.method() calls
+- Modify: `crates/tyrus_orchestrator/src/scaffold.rs` — Add enum_dispatch to generated deps
 - Create: `tests/fixtures/tier3/inheritance.ts`
 - Create: `tests/src/equivalence/inheritance.rs`
 
@@ -1388,29 +1495,84 @@ class AppModule {}
 
 **Why:** Real NestJS projects validate input with class-validator.
 
+**Research Decision:** Use `garde` (0.22+) over `validator` crate. Reasons:
+1. **Built-in Axum integration** (no manual validation in handlers)
+2. **`#[garde(dive)]`** maps directly to `@ValidateNested()`
+3. **More validators** (phone, IP, alphanumeric) than `validator`
+4. **Context-aware custom validators** (useful for DI-injected validation)
+
 **TypeScript → Rust Mapping:**
 ```typescript
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, Min, Max } from 'class-validator';
 class CreateUserDto {
     @IsString() @IsNotEmpty() name: string;
-    @IsString() @IsOptional() email?: string;
+    @IsEmail() email: string;
+    @Min(0) @Max(150) age: number;
+    @IsOptional() bio?: string;
 }
 
-// → Rust (with validator crate)
-#[derive(Deserialize, Validate)]
+// → Rust (with garde crate — research-validated choice)
+#[derive(Deserialize, garde::Validate)]
 struct CreateUserDto {
-    #[validate(length(min = 1))]
+    #[garde(length(min = 1))]
     name: String,
-    email: Option<String>,
+    #[garde(email)]
+    email: String,
+    #[garde(range(min = 0.0, max = 150.0))]
+    age: f64,
+    #[garde(skip)]
+    bio: Option<String>,
 }
 ```
 
+**class-validator → garde Mapping Table:**
+
+| TypeScript | Rust (garde) |
+|------------|-------------|
+| `@IsNotEmpty()` | `#[garde(length(min = 1))]` |
+| `@IsEmail()` | `#[garde(email)]` |
+| `@IsUrl()` | `#[garde(url)]` |
+| `@Length(min, max)` | `#[garde(length(min = N, max = M))]` |
+| `@Min(n)` / `@Max(n)` | `#[garde(range(min = N, max = M))]` |
+| `@Matches(regex)` | `#[garde(pattern(r"regex"))]` |
+| `@IsOptional()` | `#[garde(skip)]` on `Option<T>` |
+| `@ValidateNested()` | `#[garde(dive)]` |
+| `@IsPhoneNumber()` | `#[garde(phone_number)]` |
+
 #### Tasks
 
-- [ ] **Task 9.1.1: Map class-validator decorators to validator crate**
-- [ ] **Task 9.1.2: Generate validation middleware for @Body() parameters**
-- [ ] **Task 9.1.3: Test validation error responses match NestJS format**
-- [ ] **Task 9.1.4: Commit**
+- [ ] **Task 9.1.1: Add garde to generated Cargo.toml**
+
+  Modify `crates/tyrus_orchestrator/src/scaffold.rs`:
+  - When class-validator imports are detected, add `garde = { version = "0.22", features = ["full"] }` to generated deps
+
+- [ ] **Task 9.1.2: Detect class-validator decorators in analyzer**
+
+  Modify `crates/tyrus_analyzer/src/decorators.rs`:
+  - Extract validation decorators from class properties
+  - Store in decorator metadata for codegen consumption
+
+- [ ] **Task 9.1.3: Generate garde attributes on DTO structs**
+
+  Modify `crates/tyrus_codegen/src/convert/class/mod.rs`:
+  - When a class has validation decorators, add `#[derive(garde::Validate)]`
+  - Map each decorator to corresponding `#[garde(...)]` attribute
+
+- [ ] **Task 9.1.4: Generate validation middleware for @Body()**
+
+  Modify `crates/tyrus_codegen/src/convert/class/method.rs`:
+  - When `@Body()` param has a type with validation decorators:
+  - Generate: `Json(body): Json<T>` + `body.validate(&()).map_err(|e| AppError::BadRequest(e.to_string()))?`
+
+- [ ] **Task 9.1.5: Write equivalence test for validation errors**
+
+  Test that NestJS validation errors match Rust validation errors (HTTP 400 with field-level messages).
+
+- [ ] **Task 9.1.6: Commit**
+
+  ```bash
+  git commit -m "feat(codegen): class-validator to garde validation transpilation"
+  ```
 
 ---
 

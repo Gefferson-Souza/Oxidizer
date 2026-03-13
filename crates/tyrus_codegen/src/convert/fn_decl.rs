@@ -12,7 +12,7 @@ use super::type_mapper::{map_ts_type, unwrap_promise_type};
 
 impl RustGenerator {
     /// Convert a TypeScript function declaration to a Rust function.
-    pub fn process_fn_decl(&mut self, n: &FnDecl) {
+    pub(crate) fn process_fn_decl(&mut self, n: &FnDecl) {
         let fn_name = to_snake_case(&n.ident.sym);
         let fn_ident = format_ident!("{}", fn_name);
 

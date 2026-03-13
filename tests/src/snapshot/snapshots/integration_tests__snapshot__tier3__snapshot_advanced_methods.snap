@@ -11,8 +11,8 @@ fn find_first(mut nums: Vec<f64>) -> f64 {
     return found;
 }
 fn has_large(mut nums: Vec<f64>) -> bool {
-    return nums.into_iter().any(|n| n > 100f64);
+    return nums.iter().cloned().any(|n| n > 100f64);
 }
 fn all_positive(mut nums: Vec<f64>) -> bool {
-    return nums.into_iter().all(|n| n > 0f64);
+    return nums.iter().cloned().all(|n| n > 0f64);
 }

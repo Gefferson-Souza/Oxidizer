@@ -5,7 +5,7 @@ use swc_ecma_ast::*;
 use super::super::convert::interface::RustGenerator;
 
 /// Handle string method calls
-pub fn handle(
+pub(crate) fn handle(
     gen: &RustGenerator,
     obj: &Expr,
     method: &str,

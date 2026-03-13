@@ -212,7 +212,7 @@ impl RustGenerator {
                     .iter()
                     .map(|a| self.convert_expr(&a.expr))
                     .collect();
-                Some(quote! { #obj.into_iter().any(#(#args),*) })
+                Some(quote! { #obj.iter().cloned().any(#(#args),*) })
             }
             "every" => {
                 let obj = self.convert_expr(&member.obj);
@@ -221,7 +221,7 @@ impl RustGenerator {
                     .iter()
                     .map(|a| self.convert_expr(&a.expr))
                     .collect();
-                Some(quote! { #obj.into_iter().all(#(#args),*) })
+                Some(quote! { #obj.iter().cloned().all(#(#args),*) })
             }
             "find" => {
                 let obj = self.convert_expr(&member.obj);

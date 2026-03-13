@@ -3,15 +3,15 @@ use swc_ecma_ast::{Callee, Expr, ExprOrSpread};
 
 use crate::convert::interface::RustGenerator;
 
-pub mod array;
-pub mod console;
-pub mod json;
-pub mod math;
-pub mod object;
-pub mod string;
+pub(crate) mod array;
+pub(crate) mod console;
+pub(crate) mod json;
+pub(crate) mod math;
+pub(crate) mod object;
+pub(crate) mod string;
 
 /// Main dispatcher for stdlib method calls
-pub fn try_handle_stdlib_call(
+pub(crate) fn try_handle_stdlib_call(
     gen: &RustGenerator,
     callee: &Callee,
     args: &[ExprOrSpread],
@@ -50,7 +50,7 @@ pub fn try_handle_stdlib_call(
 }
 
 /// Try to handle method call on an expression (e.g., str.includes())
-pub fn try_handle_method_call(
+pub(crate) fn try_handle_method_call(
     gen: &RustGenerator,
     obj: &Expr,
     method: &str,

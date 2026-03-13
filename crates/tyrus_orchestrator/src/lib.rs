@@ -83,11 +83,12 @@ pub fn build_simple_project(path: &FilePath, output_dir: &Path) -> Result<(), Ty
 /// Detect which crate dependencies the generated code needs.
 fn detect_dependencies(code: &str) -> String {
     let mut deps = String::new();
+    // Check serde_json BEFORE serde (serde_json contains "serde" as substring)
+    if code.contains("serde_json") {
+        deps.push_str("serde_json = { version = \"1\" }\n");
+    }
     if code.contains("serde") {
         deps.push_str("serde = { version = \"1\", features = [\"derive\"] }\n");
-    }
-    if code.contains("HashMap") {
-        deps.push_str("# std::collections::HashMap is in std, no crate needed\n");
     }
     if code.contains("reqwest") {
         deps.push_str("reqwest = { version = \"0.12\", features = [\"json\"] }\n");

@@ -5,7 +5,7 @@ use swc_ecma_ast::*;
 use super::super::convert::interface::RustGenerator;
 
 /// Handle console.* calls
-pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Option<TokenStream> {
+pub(crate) fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Option<TokenStream> {
     match method {
         "log" => {
             let args_tokens: Vec<_> = args.iter().map(|a| gen.convert_expr_or_spread(a)).collect();

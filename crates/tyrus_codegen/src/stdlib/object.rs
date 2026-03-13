@@ -5,7 +5,7 @@ use swc_ecma_ast::*;
 use super::super::convert::interface::RustGenerator;
 
 /// Handle Object static method calls (Object.keys, Object.values, Object.entries)
-pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Option<TokenStream> {
+pub(crate) fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Option<TokenStream> {
     match method {
         "keys" => {
             if args.len() == 1 {
