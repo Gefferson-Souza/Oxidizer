@@ -122,15 +122,13 @@ serde_json = "1.0"
 "#
     );
 
-    fs::write(project_path.join("Cargo.toml"), cargo_toml)
-        .expect("Failed to write Cargo.toml");
+    fs::write(project_path.join("Cargo.toml"), cargo_toml).expect("Failed to write Cargo.toml");
 
     let wrapped_code = format!(
         "#![allow(dead_code, unused_variables, unused_imports, unused_mut)]\n{}",
         code
     );
-    fs::write(src_dir.join("main.rs"), &wrapped_code)
-        .expect("Failed to write main.rs");
+    fs::write(src_dir.join("main.rs"), &wrapped_code).expect("Failed to write main.rs");
 
     let build_output = Command::new("cargo")
         .args(["build", "--quiet"])

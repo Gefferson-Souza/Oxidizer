@@ -85,6 +85,16 @@ This roadmap tracks the evolution of Tyrus from a research prototype to a produc
 - [x] **Compilation Verification:** Batch `cargo check` tests per tier confirming generated Rust compiles
 - [x] **Total Test Count:** 86 tests passing across the workspace (71 integration + 2 tier4 + 9 codegen + 4 common)
 
+### 🔬 Milestone 13A: Semantic Equivalence + Basic Coverage
+
+- [x] **Equivalence Testing Infrastructure:** `assert_output_equivalent()` — runs TS (Node.js) and generated Rust, compares stdout
+- [x] **Bug Fix — const/let:** `const` → `let` (immutable), `let` → `let mut` (mutable)
+- [x] **Bug Fix — Unary ops:** Support for `!`, `-`, `+` operators
+- [x] **Bug Fix — trim():** Returns `String` instead of `&str`
+- [x] **String Methods:** `startsWith`, `endsWith` added to stdlib
+- [x] **Array Methods:** `includes` added to stdlib
+- [x] **Equivalence Tests:** 23 tests verifying TS↔Rust output identity across arithmetic, control flow, string methods, array methods, and console.log
+
 ---
 
 ## 🔬 Future Work (Academic Research)
