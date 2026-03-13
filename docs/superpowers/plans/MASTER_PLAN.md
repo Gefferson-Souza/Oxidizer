@@ -11,14 +11,15 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 133 (46 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped) |
-| Equivalence tests | 46 (proving TS↔Rust output identity) |
+| Tests passing | 135 (48 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped) |
+| Equivalence tests | 48 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else |
 | String methods | 14 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice) |
 | Array methods | 14 (map, filter, forEach, find, some, every, reduce, join, includes, push, indexOf, slice, concat, reverse, pop) |
-| Math functions | 13 (max, min, round, floor, ceil, abs, random, spread variants, pow, sqrt, log, trunc, sign) |
+| Math functions | 16 (max, min, round, floor, ceil, abs, random, spread variants, pow, sqrt, log, trunc, sign, sin, cos, tan) |
 | Math constants | 2 (PI, E) |
+| Console methods | 5 (log, error, warn, info, debug) |
 | Blocked by analyzer | 2 constructs (for-in, try-catch) |
 | Known bugs | 1 (optional chaining on Option fields creates double-Option — needs type inference) |
 
@@ -108,7 +109,7 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 | 5.3.3 | `Math.PI` | `std::f64::consts::PI` | HIGH | ✅ |
 | 5.3.4 | `Math.E` | `std::f64::consts::E` | MEDIUM | ✅ |
 | 5.3.5 | `Math.log(x)` | `x.ln()` | MEDIUM | ✅ |
-| 5.3.6 | `Math.sin/cos/tan(x)` | `x.sin()` / `.cos()` / `.tan()` | LOW | 📋 |
+| 5.3.6 | `Math.sin/cos/tan(x)` | `x.sin()` / `.cos()` / `.tan()` | LOW | ✅ |
 | 5.3.7 | `Math.sign(x)` | custom zero-check + `signum()` | LOW | ✅ |
 | 5.3.8 | `Math.trunc(x)` | `x.trunc()` | LOW | ✅ |
 
@@ -130,10 +131,11 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 
 ### Micro 5.5: Console Methods
 
-| Nano | Method | Rust Mapping | Priority |
-|------|--------|-------------|----------|
-| 5.5.1 | `console.warn()` | `eprintln!("[WARN] {}", ...)` | LOW |
-| 5.5.2 | `console.info()` | `println!("[INFO] {}", ...)` | LOW |
+| Nano | Method | Rust Mapping | Priority | Status |
+|------|--------|-------------|----------|--------|
+| 5.5.1 | `console.warn()` | `eprintln!(...)` | LOW | ✅ |
+| 5.5.2 | `console.info()` | `println!(...)` | LOW | ✅ |
+| 5.5.3 | `console.debug()` | `println!(...)` | LOW | ✅ |
 
 ---
 
