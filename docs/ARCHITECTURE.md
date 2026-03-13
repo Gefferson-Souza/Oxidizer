@@ -23,11 +23,17 @@ This stage validates the AST against the **Oxidizable Standard**.
 
 ### 3. Orchestration (`tyrus_orchestrator`)
 
-The coordinator of the full pipeline.
+The coordinator of the full pipeline, decomposed into focused modules:
 
-- **Responsibility:** Manages multi-file resolution, project scoping, and generation of the Rust directory structure (`Cargo.toml`, `src/main.rs`).
-- **Dependency Injection:** Resolves singleton patterns (NestJS Services) to `Arc<T>` / Axum `State` via `tyrus_di`.
-- **Graph Resolution:** Uses `tyrus_di` to topologically sort dependencies and determine instantiation order.
+- **`lib.rs`** — Public API: `check()`, `build()`, `build_project()`
+- **`pipeline.rs`** — Core multi-file build orchestration (walk/parse, analyze, DI graph, transpile, mod.rs)
+- **`scaffold.rs`** — Project scaffolding: `generate_main_rs()`, `generate_cargo_toml()`, `generate_mod_rs()`
+- **`format.rs`** — Code formatting and `AppError` code generation
+
+Responsibilities:
+- Manages multi-file resolution, project scoping, and Rust project structure generation.
+- Resolves singleton patterns (NestJS Services) to `Arc<T>` / Axum `State` via `tyrus_di`.
+- Uses `tyrus_di` to topologically sort dependencies and determine instantiation order.
 
 ### 4. Dependency Management (`tyrus_di`)
 
@@ -72,9 +78,14 @@ convert/
 ├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
 ├── stmt.rs         — statement conversion (convert_stmt, convert_stmt_recursive)
 ├── fn_decl.rs      — function declaration processing (process_fn_decl)
-├── class.rs        — class → struct+impl, Arc<Mutex<T>> state, NestJS controller/service patterns
 ├── module.rs       — module/import handling
-├── type_mapper.rs  — TypeScript → Rust type mapping
+├── type_mapper.rs  — TypeScript → Rust type mapping (deduplicated map_type_core)
+├── class/          — class → struct+impl (decomposed from monolithic class.rs)
+│   ├── mod.rs          — dispatcher + property conversion
+│   ├── constructor.rs  — constructor transpilation + DI
+│   ├── method.rs       — method transpilation + decorators
+│   ├── routing.rs      — Axum router generation + FromRequestParts
+│   └── mutation.rs     — self-mutation detection
 └── expr/
     ├── mod.rs      — expression dispatcher (convert_expr)
     ├── binary.rs   — binary operators (convert_bin_expr)

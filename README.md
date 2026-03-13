@@ -109,9 +109,14 @@ convert/
 ├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
 ├── stmt.rs         — statement conversion (convert_stmt, convert_stmt_recursive)
 ├── fn_decl.rs      — function declaration processing (process_fn_decl)
-├── class.rs        — class → struct+impl conversion, Arc<Mutex<T>> state management
 ├── module.rs       — module/import handling
-├── type_mapper.rs  — TypeScript → Rust type mapping
+├── type_mapper.rs  — TypeScript → Rust type mapping (deduplicated map_type_core)
+├── class/          — class → struct+impl (split from monolithic class.rs)
+│   ├── mod.rs          — dispatcher + property conversion
+│   ├── constructor.rs  — constructor transpilation + DI
+│   ├── method.rs       — method transpilation + decorators
+│   ├── routing.rs      — Axum router generation + FromRequestParts
+│   └── mutation.rs     — self-mutation detection
 └── expr/
     ├── mod.rs      — expression dispatcher (convert_expr)
     ├── binary.rs   — binary operators (convert_bin_expr)

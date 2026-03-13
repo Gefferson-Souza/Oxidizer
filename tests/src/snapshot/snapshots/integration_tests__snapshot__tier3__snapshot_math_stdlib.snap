@@ -1,0 +1,10 @@
+---
+source: tests/src/snapshot/tier3.rs
+expression: rust
+---
+fn clamp(value: f64, min: f64, max: f64) -> f64 {
+    return min.max(max.min(value));
+}
+fn round_to_two(n: f64) -> f64 {
+    return (n * 100f64).round() / 100f64;
+}

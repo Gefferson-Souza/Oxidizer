@@ -1,0 +1,10 @@
+---
+source: tests/src/snapshot/tier1.rs
+expression: rust
+---
+fn greet(name: String) -> String {
+    return format!("Hello, {}!", name);
+}
+fn full_name(first: String, last: String) -> String {
+    return format!("{} {}", first, last);
+}

@@ -1,0 +1,29 @@
+---
+source: tests/src/snapshot/tier2.rs
+expression: rust
+---
+#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Calculator {
+    pub result: f64,
+}
+impl Calculator {
+    pub fn new() -> Self {
+        Self { result: 0f64 }
+    }
+    pub fn new_di() -> Self {
+        Self {
+            result: Default::default(),
+        }
+    }
+    pub fn add(&mut self, value: f64) -> f64 {
+        self.result = self.result.clone() + value;
+        return self.result.clone();
+    }
+    pub fn get_result(&self) -> f64 {
+        return self.result.clone();
+    }
+    pub fn reset(&mut self) -> () {
+        self.result = 0f64;
+    }
+}

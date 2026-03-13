@@ -1,0 +1,39 @@
+---
+source: tests/src/snapshot/tier2.rs
+expression: rust
+---
+// Note: async/await code - formatting skipped for edition compatibility
+# [derive (Default , Debug , Clone , PartialEq , serde :: Serialize , serde :: Deserialize)] # [serde (rename_all = "camelCase")] pub struct UserData { pub id : f64 , pub name : String }
+async fn fetch_user (id : f64) -> Result < UserData , AppError > { let mut response = reqwest :: Client :: new () . get (format ! ("https://api.example.com/users/{}" , id)) . send () . await ? ; let mut data = response . json () . await ? ; return Ok (data) ; }
+async fn process_user (id : f64) -> Result < String , AppError > { let mut user = fetch_user (id) . await ? ; return Ok (user . name) ; }
+
+
+use axum::{response::{IntoResponse, Response}, http::StatusCode};
+
+#[derive(Debug)]
+pub struct AppError(Box<dyn std::error::Error + Send + Sync>);
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            self.0.to_string(),
+        )
+            .into_response()
+    }
+}
+
+impl<E> From<E> for AppError
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn from(err: E) -> Self {
+        Self(Box::new(err))
+    }
+}
+
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

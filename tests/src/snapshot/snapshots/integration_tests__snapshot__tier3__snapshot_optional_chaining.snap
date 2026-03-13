@@ -1,0 +1,31 @@
+---
+source: tests/src/snapshot/tier3.rs
+expression: rust
+---
+#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    pub name: String,
+    pub address: Option<String>,
+}
+#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+    pub id: f64,
+    pub profile: Option<Profile>,
+}
+fn get_user_name(user: User) -> String {
+    let mut name = user
+        .profile
+        .as_ref()
+        .and_then(|__v| __v.name.clone())
+        .unwrap_or(String::from("Unknown"));
+    return name;
+}
+fn get_address(user: User) -> String {
+    return user
+        .profile
+        .as_ref()
+        .and_then(|__v| __v.address.clone())
+        .unwrap_or(String::from("No address"));
+}

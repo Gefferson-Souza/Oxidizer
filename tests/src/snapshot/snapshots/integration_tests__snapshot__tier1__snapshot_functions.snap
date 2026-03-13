@@ -1,0 +1,13 @@
+---
+source: tests/src/snapshot/tier1.rs
+expression: rust
+---
+fn square(x: f64) -> f64 {
+    return x * x;
+}
+fn is_positive(n: f64) -> bool {
+    return n > 0f64;
+}
+fn format_user(name: String, age: f64) -> String {
+    return format!("{} is {} years old", name, age);
+}
