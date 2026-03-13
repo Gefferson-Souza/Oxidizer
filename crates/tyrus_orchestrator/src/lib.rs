@@ -7,29 +7,30 @@ mod format;
 mod pipeline;
 mod scaffold;
 
-pub fn check(path: &FilePath) -> Result<(), TyrusError> {
+pub struct CheckResult {
+    pub errors: Vec<TyrusError>,
+    pub diagnostics: Vec<tyrus_analyzer::severity::Diagnostic>,
+    pub statement_count: usize,
+}
+
+pub fn check(path: &FilePath) -> Result<CheckResult, TyrusError> {
     let program = tyrus_parser::parse(path.as_ref())?;
 
-    // Read source code for error reporting
     let source_code = std::fs::read_to_string(path.as_ref()).map_err(TyrusError::IoError)?;
     let file_name = path.as_ref().to_string_lossy().to_string();
 
-    let analysis_result = tyrus_analyzer::Analyzer::analyze(&program, source_code, file_name);
-    let errors = analysis_result.errors;
+    let analysis = tyrus_analyzer::Analyzer::analyze(&program, source_code, file_name);
 
-    if !errors.is_empty() {
-        for error in errors {
-            println!("{:?}", miette::Report::new(error));
-        }
-        return Ok(()); // Or return Err if we want to stop execution
-    }
-
-    let count = match program {
+    let count = match &program {
         swc_ecma_ast::Program::Module(m) => m.body.len(),
         swc_ecma_ast::Program::Script(s) => s.body.len(),
     };
-    println!("✅ AST parsed successfully with {} statements", count);
-    Ok(())
+
+    Ok(CheckResult {
+        errors: analysis.errors,
+        diagnostics: analysis.diagnostics,
+        statement_count: count,
+    })
 }
 
 pub fn build(path: &FilePath) -> Result<String, TyrusError> {

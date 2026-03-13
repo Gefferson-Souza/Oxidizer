@@ -11,8 +11,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 135 (48 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped) |
-| Equivalence tests | 48 (proving TS↔Rust output identity) |
+| Tests passing | 146 (51 equivalence + 8 IR + 73 integration + 9 codegen + 4 common + 1 skipped) |
+| Equivalence tests | 51 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else |
 | String methods | 14 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice) |
@@ -20,7 +20,11 @@
 | Math functions | 16 (max, min, round, floor, ceil, abs, random, spread variants, pow, sqrt, log, trunc, sign, sin, cos, tan) |
 | Math constants | 2 (PI, E) |
 | Console methods | 5 (log, error, warn, info, debug) |
-| Blocked by analyzer | 2 constructs (for-in, try-catch) |
+| Blocked by analyzer | 5 constructs (for-in, try-catch, delete, with, labeled) |
+| CLI commands | 4 (check, build, compile, run) |
+| Analyzer lint rules | 8 (var, any, eval, for-in, try-catch, delete, with, labeled) |
+| Unsupported APIs detected | 10 (DOM, timers, require, etc.) |
+| IR types defined | 4 (TyrusType, TyrusExpr, TyrusStmt, TyrusDecl) |
 | Known bugs | 1 (optional chaining on Option fields creates double-Option — needs type inference) |
 
 ---
@@ -33,6 +37,7 @@ Phase 2 ✅ Quality         (Milestones 9-12)  — Strict rules, decomposition, 
 Phase 3 ✅ Equivalence     (Milestone 13A)    — Prove output identity for basics
 Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
 Phase 5 🔄 Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (HIGH priority done)
+Phase 5.5 ✅ Architecture  (CLI+IR+Analyzer)  — Branded CLI, typed IR, expanded analyzer
 Phase 6 📋 Advanced TS     (Milestone 15)     — Class inheritance, enums, advanced patterns
 Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
 ```
@@ -212,5 +217,6 @@ Each nano task follows this workflow:
 | Phase 3 | `docs/superpowers/plans/2026-03-13-milestone-13-semantic-equivalence.md` (COMPLETE) |
 | Phase 4 | `docs/superpowers/plans/2026-03-13-milestone-13B-control-flow.md` (TO CREATE) |
 | Phase 5 | `docs/superpowers/plans/milestone-14-stdlib-complete.md` (TO CREATE) |
+| Phase 5.5 | `docs/superpowers/plans/2026-03-13-cli-ir-analyzer-evolution.md` (COMPLETE) |
 | Phase 6 | `docs/superpowers/plans/milestone-15-advanced-ts.md` (TO CREATE) |
 | Phase 7 | `docs/superpowers/plans/milestone-16-academic.md` (TO CREATE) |

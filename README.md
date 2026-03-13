@@ -86,14 +86,26 @@ cd Tyrus
 cargo build --release
 ```
 
-### Compiling a Project
+### Using the Compiler
 
 ```bash
 # Analyze a TypeScript file for compatibility
 ./target/release/tyrus check ./src/index.ts
 
-# Transpile to a complete Rust project
+# Get JSON diagnostics (for tooling integration)
+./target/release/tyrus check --json ./src/index.ts
+
+# Transpile to Rust source code
 ./target/release/tyrus build ./src/index.ts
+
+# Transpile + compile to native binary
+./target/release/tyrus compile ./src/ --output ./output
+
+# Transpile + compile + execute
+./target/release/tyrus run ./src/ --output ./output
+
+# Suppress banner for scripting
+./target/release/tyrus --quiet check ./src/index.ts
 ```
 
 ---
@@ -112,14 +124,17 @@ cargo build --release
 | `cargo fmt -- --check` | Check formatting |
 | `cargo insta review` | Review snapshot changes |
 | `cargo run --bin tyrus -- check <file.ts>` | Analyze a TypeScript file for compatibility |
+| `cargo run --bin tyrus -- check --json <file.ts>` | JSON diagnostic output (for tooling) |
 | `cargo run --bin tyrus -- build <dir>/src --output <dir>/output` | Transpile to a complete Rust project |
+| `cargo run --bin tyrus -- compile <dir>/src --output <dir>/output` | Transpile + compile to native binary |
+| `cargo run --bin tyrus -- run <dir>/src --output <dir>/output` | Transpile + compile + execute |
 <!-- /AUTO-GENERATED -->
 
 ---
 
 ## 🧪 Test Suite
 
-138 tests across 4 test types and 4 feature tiers:
+146 tests across 5 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
@@ -127,8 +142,9 @@ cargo build --release
 | **Unit** | 27 | Fast, isolated codegen function tests |
 | **Snapshot** | 6 | Full transpilation output via `insta` |
 | **Compilation** | 54 | Generated Rust passes `cargo check` per tier |
+| **IR** | 8 | Typed intermediate representation lowering |
 
-Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`)
+Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`) · **IR** (type lowering)
 
 ---
 

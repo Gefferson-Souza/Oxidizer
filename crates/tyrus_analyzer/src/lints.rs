@@ -84,4 +84,33 @@ impl Visit for LintVisitor {
         });
         n.visit_children_with(self);
     }
+
+    fn visit_unary_expr(&mut self, n: &swc_ecma_ast::UnaryExpr) {
+        if n.op == swc_ecma_ast::UnaryOp::Delete {
+            self.errors.push(TyrusError::UnsupportedFeature {
+                feature: "delete operator".to_string(),
+                src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
+                span: self.create_span(n.span),
+            });
+        }
+        n.visit_children_with(self);
+    }
+
+    fn visit_with_stmt(&mut self, n: &swc_ecma_ast::WithStmt) {
+        self.errors.push(TyrusError::UnsupportedFeature {
+            feature: "with statement".to_string(),
+            src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
+            span: self.create_span(n.span),
+        });
+        n.visit_children_with(self);
+    }
+
+    fn visit_labeled_stmt(&mut self, n: &swc_ecma_ast::LabeledStmt) {
+        self.errors.push(TyrusError::UnsupportedFeature {
+            feature: "labeled statements".to_string(),
+            src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
+            span: self.create_span(n.span),
+        });
+        n.visit_children_with(self);
+    }
 }
