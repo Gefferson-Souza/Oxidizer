@@ -92,6 +92,40 @@ cargo build --release
 
 ---
 
+## 📋 Commands Reference
+
+<!-- AUTO-GENERATED from Cargo.toml and CI -->
+| Command | Description |
+|---------|-------------|
+| `cargo build --workspace` | Build all workspace crates |
+| `cargo build --release` | Production build with LTO |
+| `cargo nextest run --workspace` | Run all tests (parallel, preferred) |
+| `cargo test --workspace` | Run all tests (legacy runner) |
+| `cargo test -p integration_tests` | Integration tests only |
+| `cargo clippy --workspace` | Lint with strict rules (`-Dwarnings` enforced) |
+| `cargo fmt -- --check` | Check formatting |
+| `cargo insta review` | Review snapshot changes |
+| `cargo run --bin tyrus -- check <file.ts>` | Analyze a TypeScript file for compatibility |
+| `cargo run --bin tyrus -- build <dir>/src --output <dir>/output` | Transpile to a complete Rust project |
+<!-- /AUTO-GENERATED -->
+
+---
+
+## 🧪 Test Suite
+
+86 tests across 3 test types and 4 feature tiers:
+
+| Tier | Scope | Tests |
+|------|-------|-------|
+| **Tier 1** | Variables, math, strings, functions, control flow, console | 34 |
+| **Tier 2** | Interfaces, type aliases, arrays, classes, async/await | 12 |
+| **Tier 3** | Generics, optional chaining, destructuring, advanced methods | 18 |
+| **Tier 4** | NestJS `@Injectable`, `@Controller`, Axum routing, JSON | 7 |
+
+Test types: **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`)
+
+---
+
 ## 📖 Thesis & Architecture
 
 For a deep dive into the compiler's internals, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
