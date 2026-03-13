@@ -24,12 +24,17 @@ Decidimos utilizar a linguagem **Rust** para desenvolver o compilador, organizad
 - **Testes:** `insta` (Snapshot testing) e `trybuild` (Compilation testing).
 
 ### Estrutura de Módulos (Crates):
-O projeto será dividido em crates isoladas para garantir a separação de responsabilidades (SoC):
-- `ox_cli`: Interface de entrada.
-- `ox_parser`: Wrapper sobre o SWC.
-- `ox_analyzer`: Lógica de validação semântica e grafo de dependências.
-- `ox_codegen`: Transformação de AST para Tokens Rust.
-- `ox_core`: Orquestração do pipeline.
+O projeto é dividido em crates isoladas para garantir a separação de responsabilidades (SoC):
+- `tyrus_cli`: Interface de entrada (clap).
+- `tyrus_parser`: Wrapper sobre o SWC (`swc_ecma_parser`).
+- `tyrus_analyzer`: Validação semântica (`LintVisitor` + `DecoratorVisitor`).
+- `tyrus_codegen`: Transformação de AST para Tokens Rust (`quote!`).
+- `tyrus_orchestrator`: Orquestração do pipeline multi-arquivo.
+- `tyrus_di`: Motor de Injeção de Dependência (petgraph).
+- `tyrus_diagnostics`: Erros centralizados (`TyrusError` + miette).
+- `tyrus_common`: Tipos compartilhados (`FilePath`, utilitários).
+- `tyrus_ast`: Reservado para IR futuro (AST do SWC usado diretamente).
+- `tyrus_test_utils`: Helpers de teste (`assert_rust_compiles()`).
 
 ## Consequências
 
