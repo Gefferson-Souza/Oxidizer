@@ -158,18 +158,19 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Test Suite
 
-153 tests across 6 test types and 4 feature tiers:
+158 tests across 7 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **Equivalence** | 51 | Semantic proof: TS and Rust produce identical stdout |
+| **Equivalence** | 55 | Semantic proof: TS and Rust produce identical stdout |
 | **CLI** | 7 | Integration tests for all CLI commands and flags |
 | **Unit** | 27 | Fast, isolated codegen function tests |
 | **Snapshot** | 6 | Full transpilation output via `insta` |
 | **Compilation** | 54 | Generated Rust passes `cargo check` per tier |
 | **IR** | 8 | Typed intermediate representation lowering |
+| **Trybuild** | 1 | Compile-verification of generated Rust |
 
-Test types: **Equivalence** (TS↔Rust same output) · **CLI** (command integration) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`) · **IR** (type lowering)
+Test types: **Equivalence** (TS↔Rust same output) · **CLI** (command integration) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`) · **IR** (type lowering) · **Trybuild** (compile-verification)
 
 ---
 

@@ -11,8 +11,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 153 (51 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 skipped) |
-| Equivalence tests | 51 (proving TS↔Rust output identity) |
+| Tests passing | 158 (55 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
+| Equivalence tests | 55 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else |
 | String methods | 14 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice) |
@@ -38,6 +38,7 @@ Phase 3 ✅ Equivalence     (Milestone 13A)    — Prove output identity for bas
 Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
 Phase 5 ✅ Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (ALL methods done)
 Phase 5.5 ✅ Architecture  (CLI+IR+Analyzer)  — Branded CLI, typed IR, expanded analyzer
+Phase 6.0 ✅ Infrastructure (prettyplease, thiserror 2.0, trybuild) — See docs/superpowers/plans/2026-03-13-nestjs-full-transpilation-roadmap.md
 Phase 6 📋 Advanced TS     (Milestone 15)     — Class inheritance, enums, advanced patterns
 Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
 ```
