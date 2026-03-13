@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use tempfile::NamedTempFile;
 use tyrus_common::fs::FilePath;
 
@@ -22,10 +22,10 @@ fn ts_temp_file(source: &str) -> (NamedTempFile, FilePath) {
 }
 
 // ---------------------------------------------------------------------------
-// TypeScript source snippets
+// Tier 1: Basic TypeScript (primitives, functions, control flow)
 // ---------------------------------------------------------------------------
 
-const SIMPLE_FUNCTION_TS: &str = r#"
+const TIER1_FUNCTIONS: &str = r#"
 function square(x: number): number {
     return x * x;
 }
@@ -39,7 +39,41 @@ function formatUser(name: string, age: number): string {
 }
 "#;
 
-const INTERFACE_TS: &str = r#"
+const TIER1_CONTROL_FLOW: &str = r#"
+function max(a: number, b: number): number {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+function countdown(n: number): number {
+    let result: number = 0;
+    let i: number = n;
+    while (i > 0) {
+        result = result + i;
+        i = i - 1;
+    }
+    return result;
+}
+
+function classify(x: number): string {
+    if (x > 0) {
+        return "positive";
+    } else if (x < 0) {
+        return "negative";
+    } else {
+        return "zero";
+    }
+}
+"#;
+
+// ---------------------------------------------------------------------------
+// Tier 2: Intermediate (interfaces, classes, arrays)
+// ---------------------------------------------------------------------------
+
+const TIER2_INTERFACES: &str = r#"
 interface User {
     name: string;
     age: number;
@@ -61,7 +95,7 @@ interface ApiResponse {
 }
 "#;
 
-const CLASS_TS: &str = r#"
+const TIER2_CLASS: &str = r#"
 class Calculator {
     private result: number;
 
@@ -84,22 +118,128 @@ class Calculator {
 }
 "#;
 
-const COMBINED_TS: &str = r#"
-function max(a: number, b: number): number {
-    if (a > b) {
-        return a;
-    } else {
-        return b;
+const TIER2_ARRAYS: &str = r#"
+function doubleAll(nums: number[]): number[] {
+    return nums.map((n: number) => n * 2);
+}
+
+function evens(nums: number[]): number[] {
+    return nums.filter((n: number) => n % 2 === 0);
+}
+
+function sum(nums: number[]): number {
+    let total: number = 0;
+    nums.forEach((n: number) => {
+        total = total + n;
+    });
+    return total;
+}
+"#;
+
+// ---------------------------------------------------------------------------
+// Tier 3: Advanced (generics, stdlib, methods)
+// ---------------------------------------------------------------------------
+
+const TIER3_STDLIB: &str = r#"
+function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+}
+
+function roundToTwo(n: number): number {
+    return Math.round(n * 100) / 100;
+}
+
+function findFirst(nums: number[]): number {
+    const found: number = nums.find((n: number) => n > 10) ?? 0;
+    return found;
+}
+
+function hasLarge(nums: number[]): boolean {
+    return nums.some((n: number) => n > 100);
+}
+
+function allPositive(nums: number[]): boolean {
+    return nums.every((n: number) => n > 0);
+}
+"#;
+
+// ---------------------------------------------------------------------------
+// Tier 4: NestJS / Enterprise (decorators, DI, controllers)
+// ---------------------------------------------------------------------------
+
+const TIER4_NESTJS: &str = r#"
+import { Controller, Get, Post, Body } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+
+interface CreateUserDto {
+    name: string;
+    email: string;
+}
+
+interface User {
+    id: number;
+    name: string;
+    email: string;
+}
+
+@Injectable()
+class UsersService {
+    private users: User[];
+
+    constructor() {
+        this.users = [];
     }
+
+    findAll(): User[] {
+        return this.users;
+    }
+
+    create(dto: CreateUserDto): User {
+        const user: User = {
+            id: this.users.length + 1,
+            name: dto.name,
+            email: dto.email,
+        };
+        this.users.push(user);
+        return user;
+    }
+}
+
+@Controller("/users")
+class UsersController {
+    constructor(private usersService: UsersService) {}
+
+    @Get("/")
+    findAll(): User[] {
+        return this.usersService.findAll();
+    }
+
+    @Post("/")
+    create(@Body() dto: CreateUserDto): User {
+        return this.usersService.create(dto);
+    }
+}
+"#;
+
+// ---------------------------------------------------------------------------
+// Combined: all tiers in one file (scalability test)
+// ---------------------------------------------------------------------------
+
+const COMBINED_ALL_TIERS: &str = r#"
+function square(x: number): number { return x * x; }
+function isPositive(n: number): boolean { return n > 0; }
+function formatUser(name: string, age: number): string {
+    return `${name} is ${age} years old`;
+}
+
+function max(a: number, b: number): number {
+    if (a > b) { return a; } else { return b; }
 }
 
 function countdown(n: number): number {
     let result: number = 0;
     let i: number = n;
-    while (i > 0) {
-        result = result + i;
-        i = i - 1;
-    }
+    while (i > 0) { result = result + i; i = i - 1; }
     return result;
 }
 
@@ -109,74 +249,141 @@ interface Config {
     debug: boolean;
 }
 
+interface ApiResponse {
+    data: string[];
+    total: number;
+    success: boolean;
+}
+
 class Counter {
     private count: number;
+    constructor() { this.count = 0; }
+    increment(): number { this.count = this.count + 1; return this.count; }
+    getCount(): number { return this.count; }
+}
 
-    constructor() {
-        this.count = 0;
-    }
+function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+}
 
-    increment(): number {
-        this.count = this.count + 1;
-        return this.count;
-    }
-
-    getCount(): number {
-        return this.count;
-    }
+function roundToTwo(n: number): number {
+    return Math.round(n * 100) / 100;
 }
 "#;
 
 // ---------------------------------------------------------------------------
-// Benchmark functions
+// Benchmark Group 1: Full pipeline by tier (parse → analyze → codegen → format)
 // ---------------------------------------------------------------------------
 
-fn bench_simple_function(c: &mut Criterion) {
-    let (_tmp, path) = ts_temp_file(SIMPLE_FUNCTION_TS);
+fn bench_full_pipeline_by_tier(c: &mut Criterion) {
+    let mut group = c.benchmark_group("full_pipeline");
 
-    c.bench_function("transpile_simple_functions", |b| {
-        b.iter(|| {
-            let result = tyrus_orchestrator::build(black_box(&path));
-            assert!(result.is_ok());
-            result
+    let tiers: &[(&str, &str)] = &[
+        ("tier1_functions", TIER1_FUNCTIONS),
+        ("tier1_control_flow", TIER1_CONTROL_FLOW),
+        ("tier2_interfaces", TIER2_INTERFACES),
+        ("tier2_class", TIER2_CLASS),
+        ("tier2_arrays", TIER2_ARRAYS),
+        ("tier3_stdlib", TIER3_STDLIB),
+        ("tier4_nestjs", TIER4_NESTJS),
+        ("combined_all", COMBINED_ALL_TIERS),
+    ];
+
+    for (name, source) in tiers {
+        let (_tmp, path) = ts_temp_file(source);
+
+        group.bench_with_input(BenchmarkId::new("transpile", name), source, |b, _| {
+            b.iter(|| {
+                let result = tyrus_orchestrator::build(black_box(&path));
+                assert!(result.is_ok());
+                result
+            });
         });
-    });
+    }
+
+    group.finish();
 }
 
-fn bench_interface(c: &mut Criterion) {
-    let (_tmp, path) = ts_temp_file(INTERFACE_TS);
+// ---------------------------------------------------------------------------
+// Benchmark Group 2: Individual pipeline stages
+// ---------------------------------------------------------------------------
 
-    c.bench_function("transpile_interfaces", |b| {
+fn bench_pipeline_stages(c: &mut Criterion) {
+    let mut group = c.benchmark_group("pipeline_stages");
+
+    // Use combined input for stage-level benchmarks
+    let (_tmp, path) = ts_temp_file(COMBINED_ALL_TIERS);
+
+    // Stage 1: Parse only
+    group.bench_function("1_parse", |b| {
+        b.iter(|| {
+            let program = tyrus_parser::parse(black_box(path.as_ref()));
+            assert!(program.is_ok());
+            program
+        });
+    });
+
+    // Stage 2: Parse + Analyze
+    group.bench_function("2_parse_analyze", |b| {
+        b.iter(|| {
+            let program = tyrus_parser::parse(black_box(path.as_ref())).unwrap();
+            let source = std::fs::read_to_string(path.as_ref()).unwrap();
+            let file_name = path.as_ref().to_string_lossy().to_string();
+            tyrus_analyzer::Analyzer::analyze(&program, source, file_name)
+        });
+    });
+
+    // Stage 3: Parse + Codegen (skip analyzer for isolation)
+    group.bench_function("3_parse_codegen", |b| {
+        b.iter(|| {
+            let program = tyrus_parser::parse(black_box(path.as_ref())).unwrap();
+            tyrus_codegen::generate(&program, false)
+        });
+    });
+
+    // Stage 4: Full pipeline (parse + codegen + format)
+    group.bench_function("4_full_pipeline", |b| {
         b.iter(|| {
             let result = tyrus_orchestrator::build(black_box(&path));
             assert!(result.is_ok());
             result
         });
     });
+
+    group.finish();
 }
 
-fn bench_class(c: &mut Criterion) {
-    let (_tmp, path) = ts_temp_file(CLASS_TS);
+// ---------------------------------------------------------------------------
+// Benchmark Group 3: Scalability (increasing code size)
+// ---------------------------------------------------------------------------
 
-    c.bench_function("transpile_class_with_methods", |b| {
-        b.iter(|| {
-            let result = tyrus_orchestrator::build(black_box(&path));
-            assert!(result.is_ok());
-            result
+fn bench_scalability(c: &mut Criterion) {
+    let mut group = c.benchmark_group("scalability");
+
+    // Generate inputs of increasing size
+    let sizes: &[usize] = &[1, 5, 10, 20];
+
+    for &count in sizes {
+        let mut source = String::new();
+        for i in 0..count {
+            source.push_str(&format!(
+                "function func_{i}(x: number): number {{ return x * {i}; }}\n"
+            ));
+        }
+
+        let label = format!("{count}_functions");
+        let (_tmp, path) = ts_temp_file(&source);
+
+        group.bench_with_input(BenchmarkId::new("scale", &label), &count, |b, _| {
+            b.iter(|| {
+                let result = tyrus_orchestrator::build(black_box(&path));
+                assert!(result.is_ok());
+                result
+            });
         });
-    });
-}
+    }
 
-fn bench_combined(c: &mut Criterion) {
-    let (_tmp, path) = ts_temp_file(COMBINED_TS);
-
-    c.bench_function("transpile_combined_project", |b| {
-        b.iter(|| {
-            let result = tyrus_orchestrator::build(black_box(&path));
-            assert!(result.is_ok());
-            result
-        });
-    });
+    group.finish();
 }
 
 // ---------------------------------------------------------------------------
@@ -185,9 +392,8 @@ fn bench_combined(c: &mut Criterion) {
 
 criterion_group!(
     transpiler_benches,
-    bench_simple_function,
-    bench_interface,
-    bench_class,
-    bench_combined,
+    bench_full_pipeline_by_tier,
+    bench_pipeline_stages,
+    bench_scalability,
 );
 criterion_main!(transpiler_benches);

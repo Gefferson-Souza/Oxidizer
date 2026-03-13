@@ -179,9 +179,12 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 
 ## Phase 7: Academic (Milestone 16)
 
-### Micro 7.1: Benchmarks
-- Criterion.rs benchmark suite (transpilation speed)
-- Node.js vs Rust runtime comparison (execution speed, memory)
+### Micro 7.1: Benchmarks ✅ (Partial — speed benchmarks complete)
+- ✅ Criterion.rs benchmark suite (3 groups: full_pipeline by tier, pipeline_stages, scalability)
+- ✅ Node.js vs Rust runtime comparison (5 algorithms, avg 35x speedup, semantic equivalence proven)
+- ✅ CI integration (GitHub Actions job with artifact upload)
+- ✅ Documentation (`docs/BENCHMARKS.md`)
+- 📋 Memory profiling (future: valgrind/heaptrack integration)
 
 ### Micro 7.2: Formal Specification
 - Complete EBNF grammar for Oxidizable Standard
@@ -218,5 +221,4 @@ Each nano task follows this workflow:
 | Phase 4 | `docs/superpowers/plans/2026-03-13-milestone-13-bugfix-and-control-flow.md` (COMPLETE) |
 | Phase 5 | `docs/superpowers/plans/milestone-14-stdlib-complete.md` (TO CREATE) |
 | Phase 5.5 | `docs/superpowers/plans/2026-03-13-cli-ir-analyzer-evolution.md` (COMPLETE — all 20/20 tasks) |
-| Phase 6 | `docs/superpowers/plans/milestone-15-advanced-ts.md` (TO CREATE) |
-| Phase 7 | `docs/superpowers/plans/milestone-16-academic.md` (TO CREATE) |
+| Phase 6-10 | `docs/superpowers/plans/2026-03-13-nestjs-full-transpilation-roadmap.md` (IN PROGRESS) |

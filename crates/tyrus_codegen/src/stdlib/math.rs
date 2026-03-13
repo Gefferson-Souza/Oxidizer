@@ -5,7 +5,11 @@ use swc_ecma_ast::*;
 use super::super::convert::interface::RustGenerator;
 
 /// Handle Math.* calls
-pub(crate) fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Option<TokenStream> {
+pub(crate) fn handle(
+    gen: &RustGenerator,
+    method: &str,
+    args: &[ExprOrSpread],
+) -> Option<TokenStream> {
     match method {
         "max" => {
             if args.len() == 1 && args[0].spread.is_some() {
