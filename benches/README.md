@@ -1,30 +1,43 @@
-# Scientific Benchmarks
+# Transpiler Benchmarks
 
-This directory contains rigorous performance benchmarks to validate the efficiency of TypeRust-generated code compared to Node.js execution.
+This directory documents the performance benchmarking infrastructure for the Tyrus transpiler.
 
 ## Status
 
-Benchmarking infrastructure is planned (Phase 2 of the Standardization Plan). The compiler itself is now production-stable with a full test suite (unit/snapshot/compilation tiers). Benchmarks of the _generated_ Rust code will follow.
+Implemented. Criterion.rs benchmarks measure transpiler throughput (TypeScript to Rust conversion speed). Located in `crates/tyrus_orchestrator/benches/transpiler.rs`.
 
 ## Methodology
 
-We use [Criterion.rs](https://github.com/bheisler/criterion.rs) for statistically significant benchmarking.
+We use [Criterion.rs](https://github.com/bheisler/criterion.rs) for statistically significant benchmarking with automatic warm-up, outlier detection, and HTML report generation.
 
 ### Metrics
 
-1. **Execution Time:** Wall-clock time for specific algorithms.
-2. **Throughput:** Operations per second.
-3. **Memory Usage:** Peak RSS (Resident Set Size).
+1. **Execution Time:** Wall-clock time per transpilation invocation.
+2. **Throughput:** Iterations per second for each scenario.
+3. **Statistical Confidence:** Criterion computes confidence intervals and detects regressions automatically.
 
 ## Running Benchmarks
 
 ```bash
-cargo bench
+# Run all benchmarks
+cargo bench -p tyrus_orchestrator
+
+# Run a specific benchmark by name
+cargo bench -p tyrus_orchestrator -- transpile_simple_functions
+
+# Compile without running (CI validation)
+cargo bench -p tyrus_orchestrator --no-run
 ```
 
-## Scenarios (Planned)
+HTML reports are generated in `target/criterion/` after each run.
 
-- **Fibonacci (Recursive):** Stress tests function call overhead.
-- **JSON Serialization:** Stress tests struct/DTO mapping (interfaces → `#[derive(Serialize, Deserialize)]`).
-- **Http Requests:** Stress tests `reqwest` vs `axios` (requires local echo server).
-- **Array Operations:** Stress tests iterator chains (`.map`/`.filter`/`.find`) vs JS equivalents.
+## Scenarios
+
+| Benchmark | Description | Source Pattern |
+|-----------|-------------|----------------|
+| `transpile_simple_functions` | Three typed functions (arithmetic, boolean, template literal) | Tier 1 functions |
+| `transpile_interfaces` | Three interfaces including optional fields and nested types | Tier 2 interfaces |
+| `transpile_class_with_methods` | Class with private field, constructor, methods, and self-mutation | Tier 2 classes |
+| `transpile_combined_project` | Mixed file with functions, control flow, interface, and class | Multi-construct file |
+
+Each scenario writes TypeScript source to a temporary file and benchmarks the full `build()` pipeline: parsing, code generation, and formatting.
