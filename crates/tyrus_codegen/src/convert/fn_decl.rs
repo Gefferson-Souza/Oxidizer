@@ -12,20 +12,20 @@ use super::type_mapper::{map_ts_type, unwrap_promise_type};
 
 impl RustGenerator {
     /// Convert a TypeScript function declaration to a Rust function.
-    pub fn process_fn_decl(&mut self, n: &FnDecl) {
+    pub(crate) fn process_fn_decl(&mut self, n: &FnDecl) {
         let fn_name = to_snake_case(&n.ident.sym);
         let fn_ident = format_ident!("{}", fn_name);
 
         // Check if async
         let is_async = n.function.is_async;
 
-        // Extract parameters
+        // Extract parameters — mark all as `mut` since TS allows reassignment
         let mut params = Vec::new();
         for param in &n.function.params {
             if let Pat::Ident(ident_pat) = &param.pat {
                 let param_name = format_ident!("{}", ident_pat.sym.to_string());
                 let param_type = map_ts_type(ident_pat.type_ann.as_ref());
-                params.push(quote! { #param_name: #param_type });
+                params.push(quote! { mut #param_name: #param_type });
             }
         }
 

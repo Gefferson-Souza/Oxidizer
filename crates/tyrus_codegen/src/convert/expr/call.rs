@@ -198,12 +198,12 @@ impl RustGenerator {
                 if self.has_index_callback_arg(call) {
                     let closure = &args[0];
                     return Some(quote! {
-                        #obj.into_iter()
+                        #obj.iter().cloned()
                             .enumerate()
                             .for_each(|(i, v)| (#closure)(v, i as f64))
                     });
                 }
-                Some(quote! { #obj.into_iter().for_each(#(#args),*) })
+                Some(quote! { #obj.iter().cloned().for_each(#(#args),*) })
             }
             "some" => {
                 let obj = self.convert_expr(&member.obj);
@@ -212,7 +212,7 @@ impl RustGenerator {
                     .iter()
                     .map(|a| self.convert_expr(&a.expr))
                     .collect();
-                Some(quote! { #obj.into_iter().any(#(#args),*) })
+                Some(quote! { #obj.iter().cloned().any(#(#args),*) })
             }
             "every" => {
                 let obj = self.convert_expr(&member.obj);
@@ -221,7 +221,7 @@ impl RustGenerator {
                     .iter()
                     .map(|a| self.convert_expr(&a.expr))
                     .collect();
-                Some(quote! { #obj.into_iter().all(#(#args),*) })
+                Some(quote! { #obj.iter().cloned().all(#(#args),*) })
             }
             "find" => {
                 let obj = self.convert_expr(&member.obj);
@@ -230,7 +230,7 @@ impl RustGenerator {
                     .iter()
                     .map(|a| self.convert_expr(&a.expr))
                     .collect();
-                Some(quote! { #obj.into_iter().find(#(#args),*) })
+                Some(quote! { #obj.iter().cloned().find(#(#args),*) })
             }
             "reduce" => {
                 let obj = self.convert_expr(&member.obj);
@@ -243,9 +243,9 @@ impl RustGenerator {
                     });
                 if call.args.len() >= 2 {
                     let initial = self.convert_expr(&call.args[1].expr);
-                    Some(quote! { #obj.into_iter().fold(#initial, #closure) })
+                    Some(quote! { #obj.iter().cloned().fold(#initial, #closure) })
                 } else {
-                    Some(quote! { #obj.into_iter().reduce(#closure) })
+                    Some(quote! { #obj.iter().cloned().reduce(#closure) })
                 }
             }
             "push" => Some(self.convert_push_call(member, call)),

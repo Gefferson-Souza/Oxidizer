@@ -2,14 +2,14 @@
 source: tests/src/snapshot/tier1.rs
 expression: rust
 ---
-fn max(a: f64, b: f64) -> f64 {
+fn max(mut a: f64, mut b: f64) -> f64 {
     if a > b {
         return a;
     } else {
         return b;
     }
 }
-fn countdown(n: f64) -> f64 {
+fn countdown(mut n: f64) -> f64 {
     let mut result = 0f64;
     let mut i = n;
     while i > 0f64 {
@@ -18,7 +18,7 @@ fn countdown(n: f64) -> f64 {
     }
     return result;
 }
-fn classify(x: f64) -> String {
+fn classify(mut x: f64) -> String {
     if x > 0f64 {
         return String::from("positive");
     } else if x < 0f64 {

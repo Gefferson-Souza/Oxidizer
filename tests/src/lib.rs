@@ -6,8 +6,10 @@
     unused_imports
 )]
 
+mod cli;
 mod compilation;
 mod equivalence;
 mod helpers;
 mod snapshot;
+mod trybuild_tests;
 mod unit;

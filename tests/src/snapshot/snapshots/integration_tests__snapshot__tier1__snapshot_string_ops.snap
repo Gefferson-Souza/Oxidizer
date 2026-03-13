@@ -2,9 +2,9 @@
 source: tests/src/snapshot/tier1.rs
 expression: rust
 ---
-fn greet(name: String) -> String {
+fn greet(mut name: String) -> String {
     return format!("Hello, {}!", name);
 }
-fn full_name(first: String, last: String) -> String {
+fn full_name(mut first: String, mut last: String) -> String {
     return format!("{} {}", first, last);
 }

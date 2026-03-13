@@ -11,8 +11,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 135 (48 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped) |
-| Equivalence tests | 48 (proving TS↔Rust output identity) |
+| Tests passing | 158 (55 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
+| Equivalence tests | 55 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else |
 | String methods | 14 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice) |
@@ -20,7 +20,11 @@
 | Math functions | 16 (max, min, round, floor, ceil, abs, random, spread variants, pow, sqrt, log, trunc, sign, sin, cos, tan) |
 | Math constants | 2 (PI, E) |
 | Console methods | 5 (log, error, warn, info, debug) |
-| Blocked by analyzer | 2 constructs (for-in, try-catch) |
+| Blocked by analyzer | 5 constructs (for-in, try-catch, delete, with, labeled) |
+| CLI commands | 4 (check, build, compile, run) |
+| Analyzer lint rules | 8 (var, any, eval, for-in, try-catch, delete, with, labeled) |
+| Unsupported APIs detected | 11 (DOM, timers, require, XMLHttpRequest, etc.) |
+| IR types defined | 4 (TyrusType, TyrusExpr, TyrusStmt, TyrusDecl) |
 | Known bugs | 1 (optional chaining on Option fields creates double-Option — needs type inference) |
 
 ---
@@ -32,7 +36,9 @@ Phase 1 ✅ Foundation     (Milestones 1-8)   — Core transpilation, types, Nes
 Phase 2 ✅ Quality         (Milestones 9-12)  — Strict rules, decomposition, test suite
 Phase 3 ✅ Equivalence     (Milestone 13A)    — Prove output identity for basics
 Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
-Phase 5 🔄 Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (HIGH priority done)
+Phase 5 ✅ Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (ALL methods done)
+Phase 5.5 ✅ Architecture  (CLI+IR+Analyzer)  — Branded CLI, typed IR, expanded analyzer
+Phase 6.0 ✅ Infrastructure (prettyplease, thiserror 2.0, trybuild) — See docs/superpowers/plans/2026-03-13-nestjs-full-transpilation-roadmap.md
 Phase 6 📋 Advanced TS     (Milestone 15)     — Class inheritance, enums, advanced patterns
 Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
 ```
@@ -83,8 +89,8 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 | 5.1.2 | `charAt(i)` | `s.chars().nth(i)` | HIGH | ✅ |
 | 5.1.3 | `indexOf(substr)` | `s.find(substr)` | HIGH | ✅ |
 | 5.1.4 | `repeat(n)` | `s.repeat(n)` | MEDIUM | ✅ |
-| 5.1.5 | `padStart(len, fill)` | `format!("{:>width$}", s)` | LOW | 📋 |
-| 5.1.6 | `padEnd(len, fill)` | `format!("{:<width$}", s)` | LOW | 📋 |
+| 5.1.5 | `padStart(len, fill)` | `format!("{:>width$}", s)` | LOW | ✅ |
+| 5.1.6 | `padEnd(len, fill)` | `format!("{:<width$}", s)` | LOW | ✅ |
 | 5.1.7 | `slice(start, end)` | `s[start..end].to_string()` | MEDIUM | ✅ |
 
 ### Micro 5.2: Array Methods
@@ -94,11 +100,11 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 | 5.2.1 | `indexOf(item)` | `.iter().position(\|x\| x == &item)` | HIGH | ✅ |
 | 5.2.2 | `slice(start, end)` | `[start..end].to_vec()` | HIGH | ✅ |
 | 5.2.3 | `concat(other)` | `.iter().chain(other.iter()).cloned().collect()` | MEDIUM | ✅ |
-| 5.2.4 | `sort()` | `.sort_by(\|a,b\| a.partial_cmp(b).unwrap_or(Ordering::Equal))` | MEDIUM | 📋 |
+| 5.2.4 | `sort()` | `.sort_by(\|a,b\| a.partial_cmp(b).unwrap_or(Ordering::Equal))` | MEDIUM | ✅ |
 | 5.2.5 | `reverse()` | `.reverse()` | LOW | ✅ |
 | 5.2.6 | `pop()` | `.pop()` | LOW | ✅ |
-| 5.2.7 | `shift()` | `.remove(0)` | LOW | 📋 |
-| 5.2.8 | `flat()` / `flatMap()` | `.into_iter().flatten().collect()` | LOW | 📋 |
+| 5.2.7 | `shift()` | `.remove(0)` | LOW | ✅ |
+| 5.2.8 | `flat()` / `flatMap()` | `.into_iter().flatten().collect()` | LOW | ✅ |
 
 ### Micro 5.3: Math Functions
 
@@ -123,11 +129,11 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 
 ### Micro 5.4: Object Methods
 
-| Nano | Method | Rust Mapping | Priority |
-|------|--------|-------------|----------|
-| 5.4.1 | `Object.keys(obj)` | `obj.keys().cloned().collect::<Vec<_>>()` | HIGH |
-| 5.4.2 | `Object.values(obj)` | `obj.values().cloned().collect::<Vec<_>>()` | HIGH |
-| 5.4.3 | `Object.entries(obj)` | `obj.iter().collect::<Vec<_>>()` | MEDIUM |
+| Nano | Method | Rust Mapping | Priority | Status |
+|------|--------|-------------|----------|--------|
+| 5.4.1 | `Object.keys(obj)` | `obj.keys().cloned().collect::<Vec<_>>()` | HIGH | ✅ |
+| 5.4.2 | `Object.values(obj)` | `obj.values().cloned().collect::<Vec<_>>()` | HIGH | ✅ |
+| 5.4.3 | `Object.entries(obj)` | `obj.iter().collect::<Vec<_>>()` | MEDIUM | ✅ |
 
 ### Micro 5.5: Console Methods
 
@@ -174,9 +180,12 @@ Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, pap
 
 ## Phase 7: Academic (Milestone 16)
 
-### Micro 7.1: Benchmarks
-- Criterion.rs benchmark suite (transpilation speed)
-- Node.js vs Rust runtime comparison (execution speed, memory)
+### Micro 7.1: Benchmarks ✅ (Partial — speed benchmarks complete)
+- ✅ Criterion.rs benchmark suite (3 groups: full_pipeline by tier, pipeline_stages, scalability)
+- ✅ Node.js vs Rust runtime comparison (5 algorithms, avg 35x speedup, semantic equivalence proven)
+- ✅ CI integration (GitHub Actions job with artifact upload)
+- ✅ Documentation (`docs/BENCHMARKS.md`)
+- 📋 Memory profiling (future: valgrind/heaptrack integration)
 
 ### Micro 7.2: Formal Specification
 - Complete EBNF grammar for Oxidizable Standard
@@ -210,7 +219,7 @@ Each nano task follows this workflow:
 |-------|-----------|
 | Phase 1-2 | `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` (COMPLETE) |
 | Phase 3 | `docs/superpowers/plans/2026-03-13-milestone-13-semantic-equivalence.md` (COMPLETE) |
-| Phase 4 | `docs/superpowers/plans/2026-03-13-milestone-13B-control-flow.md` (TO CREATE) |
+| Phase 4 | `docs/superpowers/plans/2026-03-13-milestone-13-bugfix-and-control-flow.md` (COMPLETE) |
 | Phase 5 | `docs/superpowers/plans/milestone-14-stdlib-complete.md` (TO CREATE) |
-| Phase 6 | `docs/superpowers/plans/milestone-15-advanced-ts.md` (TO CREATE) |
-| Phase 7 | `docs/superpowers/plans/milestone-16-academic.md` (TO CREATE) |
+| Phase 5.5 | `docs/superpowers/plans/2026-03-13-cli-ir-analyzer-evolution.md` (COMPLETE — all 20/20 tasks) |
+| Phase 6-10 | `docs/superpowers/plans/2026-03-13-nestjs-full-transpilation-roadmap.md` (IN PROGRESS) |

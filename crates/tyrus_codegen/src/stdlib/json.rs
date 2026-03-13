@@ -5,7 +5,11 @@ use swc_ecma_ast::*;
 use super::super::convert::interface::RustGenerator;
 
 /// Handle JSON.* calls
-pub fn handle(gen: &RustGenerator, method: &str, args: &[ExprOrSpread]) -> Option<TokenStream> {
+pub(crate) fn handle(
+    gen: &RustGenerator,
+    method: &str,
+    args: &[ExprOrSpread],
+) -> Option<TokenStream> {
     match method {
         "stringify" => {
             if let Some(arg) = args.first() {

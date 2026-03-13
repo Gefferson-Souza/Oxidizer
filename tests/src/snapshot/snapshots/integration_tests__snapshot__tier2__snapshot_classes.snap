@@ -2,7 +2,7 @@
 source: tests/src/snapshot/tier2.rs
 expression: rust
 ---
-#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Calculator {
     pub result: f64,
@@ -12,9 +12,7 @@ impl Calculator {
         Self { result: 0f64 }
     }
     pub fn new_di() -> Self {
-        Self {
-            result: Default::default(),
-        }
+        Self { result: Default::default() }
     }
     pub fn add(&mut self, value: f64) -> f64 {
         self.result = self.result.clone() + value;
