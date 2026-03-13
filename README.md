@@ -124,21 +124,34 @@ tyrus --quiet check ./src/index.ts
 ## 📋 Commands Reference
 
 <!-- AUTO-GENERATED from Cargo.toml and CI -->
+
+**Development Commands:**
+
 | Command | Description |
 |---------|-------------|
 | `cargo build --workspace` | Build all workspace crates |
 | `cargo build --release` | Production build with LTO |
+| `cargo install --path crates/tyrus_cli` | Install `tyrus` CLI globally |
 | `cargo nextest run --workspace` | Run all tests (parallel, preferred) |
 | `cargo test --workspace` | Run all tests (legacy runner) |
 | `cargo test -p integration_tests` | Integration tests only |
 | `cargo clippy --workspace` | Lint with strict rules (`-Dwarnings` enforced) |
 | `cargo fmt -- --check` | Check formatting |
 | `cargo insta review` | Review snapshot changes |
-| `cargo run --bin tyrus -- check <file.ts>` | Analyze a TypeScript file for compatibility |
-| `cargo run --bin tyrus -- check --json <file.ts>` | JSON diagnostic output (for tooling) |
-| `cargo run --bin tyrus -- build <dir>/src --output <dir>/output` | Transpile to a complete Rust project |
-| `cargo run --bin tyrus -- compile <dir>/src --output <dir>/output` | Transpile + compile to native binary |
-| `cargo run --bin tyrus -- run <dir>/src --output <dir>/output` | Transpile + compile + execute |
+
+**Tyrus CLI Commands (after global install):**
+
+| Command | Description |
+|---------|-------------|
+| `tyrus check <file.ts>` | Analyze a TypeScript file for Oxidizable compatibility |
+| `tyrus check --json <file.ts>` | JSON diagnostic output (for tooling integration) |
+| `tyrus build <file.ts>` | Transpile to Rust (stdout) |
+| `tyrus build <file.ts> -o output.rs` | Transpile to Rust (file) |
+| `tyrus build <dir> -o <output_dir>` | Transpile directory to Cargo project |
+| `tyrus compile <file.ts> -o <output_dir>` | Transpile + compile to native binary |
+| `tyrus compile <file.ts> --release` | Transpile + compile with optimizations |
+| `tyrus run <file.ts>` | Transpile + compile + execute |
+| `tyrus --quiet <command>` | Suppress banner for scripting |
 <!-- /AUTO-GENERATED -->
 
 ---

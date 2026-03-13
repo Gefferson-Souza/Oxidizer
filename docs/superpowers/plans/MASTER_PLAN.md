@@ -11,7 +11,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 146 (51 equivalence + 8 IR + 73 integration + 9 codegen + 4 common + 1 skipped) |
+| Tests passing | 153 (51 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 skipped) |
 | Equivalence tests | 51 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else |
@@ -23,7 +23,7 @@
 | Blocked by analyzer | 5 constructs (for-in, try-catch, delete, with, labeled) |
 | CLI commands | 4 (check, build, compile, run) |
 | Analyzer lint rules | 8 (var, any, eval, for-in, try-catch, delete, with, labeled) |
-| Unsupported APIs detected | 10 (DOM, timers, require, etc.) |
+| Unsupported APIs detected | 11 (DOM, timers, require, XMLHttpRequest, etc.) |
 | IR types defined | 4 (TyrusType, TyrusExpr, TyrusStmt, TyrusDecl) |
 | Known bugs | 1 (optional chaining on Option fields creates double-Option — needs type inference) |
 
@@ -215,8 +215,8 @@ Each nano task follows this workflow:
 |-------|-----------|
 | Phase 1-2 | `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` (COMPLETE) |
 | Phase 3 | `docs/superpowers/plans/2026-03-13-milestone-13-semantic-equivalence.md` (COMPLETE) |
-| Phase 4 | `docs/superpowers/plans/2026-03-13-milestone-13B-control-flow.md` (TO CREATE) |
+| Phase 4 | `docs/superpowers/plans/2026-03-13-milestone-13-bugfix-and-control-flow.md` (COMPLETE) |
 | Phase 5 | `docs/superpowers/plans/milestone-14-stdlib-complete.md` (TO CREATE) |
-| Phase 5.5 | `docs/superpowers/plans/2026-03-13-cli-ir-analyzer-evolution.md` (COMPLETE) |
+| Phase 5.5 | `docs/superpowers/plans/2026-03-13-cli-ir-analyzer-evolution.md` (COMPLETE — all 20/20 tasks) |
 | Phase 6 | `docs/superpowers/plans/milestone-15-advanced-ts.md` (TO CREATE) |
 | Phase 7 | `docs/superpowers/plans/milestone-16-academic.md` (TO CREATE) |
