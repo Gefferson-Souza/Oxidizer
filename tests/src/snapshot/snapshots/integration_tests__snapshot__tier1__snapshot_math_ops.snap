@@ -2,21 +2,21 @@
 source: tests/src/snapshot/tier1.rs
 expression: rust
 ---
-fn add(a: f64, b: f64) -> f64 {
+fn add(mut a: f64, mut b: f64) -> f64 {
     return a + b;
 }
-fn subtract(a: f64, b: f64) -> f64 {
+fn subtract(mut a: f64, mut b: f64) -> f64 {
     return a - b;
 }
-fn multiply(a: f64, b: f64) -> f64 {
+fn multiply(mut a: f64, mut b: f64) -> f64 {
     return a * b;
 }
-fn divide(a: f64, b: f64) -> f64 {
+fn divide(mut a: f64, mut b: f64) -> f64 {
     return a / b;
 }
-fn modulo(a: f64, b: f64) -> f64 {
+fn modulo(mut a: f64, mut b: f64) -> f64 {
     return a % b;
 }
-fn complex(x: f64, y: f64, z: f64) -> f64 {
+fn complex(mut x: f64, mut y: f64, mut z: f64) -> f64 {
     return (x + y) * z - x / y;
 }

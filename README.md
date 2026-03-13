@@ -86,14 +86,37 @@ cd Tyrus
 cargo build --release
 ```
 
-### Compiling a Project
+### Install Globally
+
+```bash
+# Install tyrus as a global CLI command
+cargo install --path crates/tyrus_cli
+
+# Now use from anywhere
+tyrus --version
+```
+
+### Using the Compiler
 
 ```bash
 # Analyze a TypeScript file for compatibility
-./target/release/tyrus check ./src/index.ts
+tyrus check ./src/index.ts
 
-# Transpile to a complete Rust project
-./target/release/tyrus build ./src/index.ts
+# Get JSON diagnostics (for tooling integration)
+tyrus check --json ./src/index.ts
+
+# Transpile to Rust source code (stdout or file)
+tyrus build ./src/index.ts
+tyrus build ./src/index.ts -o output.rs
+
+# Transpile + compile to native binary
+tyrus compile ./src/index.ts --output ./output
+
+# Transpile + compile + execute
+tyrus run ./src/index.ts --output ./output
+
+# Suppress banner for scripting
+tyrus --quiet check ./src/index.ts
 ```
 
 ---
@@ -101,34 +124,53 @@ cargo build --release
 ## 📋 Commands Reference
 
 <!-- AUTO-GENERATED from Cargo.toml and CI -->
+
+**Development Commands:**
+
 | Command | Description |
 |---------|-------------|
 | `cargo build --workspace` | Build all workspace crates |
 | `cargo build --release` | Production build with LTO |
+| `cargo install --path crates/tyrus_cli` | Install `tyrus` CLI globally |
 | `cargo nextest run --workspace` | Run all tests (parallel, preferred) |
 | `cargo test --workspace` | Run all tests (legacy runner) |
 | `cargo test -p integration_tests` | Integration tests only |
 | `cargo clippy --workspace` | Lint with strict rules (`-Dwarnings` enforced) |
 | `cargo fmt -- --check` | Check formatting |
 | `cargo insta review` | Review snapshot changes |
-| `cargo run --bin tyrus -- check <file.ts>` | Analyze a TypeScript file for compatibility |
-| `cargo run --bin tyrus -- build <dir>/src --output <dir>/output` | Transpile to a complete Rust project |
+
+**Tyrus CLI Commands (after global install):**
+
+| Command | Description |
+|---------|-------------|
+| `tyrus check <file.ts>` | Analyze a TypeScript file for Oxidizable compatibility |
+| `tyrus check --json <file.ts>` | JSON diagnostic output (for tooling integration) |
+| `tyrus build <file.ts>` | Transpile to Rust (stdout) |
+| `tyrus build <file.ts> -o output.rs` | Transpile to Rust (file) |
+| `tyrus build <dir> -o <output_dir>` | Transpile directory to Cargo project |
+| `tyrus compile <file.ts> -o <output_dir>` | Transpile + compile to native binary |
+| `tyrus compile <file.ts> --release` | Transpile + compile with optimizations |
+| `tyrus run <file.ts>` | Transpile + compile + execute |
+| `tyrus --quiet <command>` | Suppress banner for scripting |
 <!-- /AUTO-GENERATED -->
 
 ---
 
 ## 🧪 Test Suite
 
-138 tests across 4 test types and 4 feature tiers:
+158 tests across 7 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **Equivalence** | 51 | Semantic proof: TS and Rust produce identical stdout |
+| **Equivalence** | 55 | Semantic proof: TS and Rust produce identical stdout |
+| **CLI** | 7 | Integration tests for all CLI commands and flags |
 | **Unit** | 27 | Fast, isolated codegen function tests |
 | **Snapshot** | 6 | Full transpilation output via `insta` |
 | **Compilation** | 54 | Generated Rust passes `cargo check` per tier |
+| **IR** | 8 | Typed intermediate representation lowering |
+| **Trybuild** | 1 | Compile-verification of generated Rust |
 
-Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`)
+Test types: **Equivalence** (TS↔Rust same output) · **CLI** (command integration) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`) · **IR** (type lowering) · **Trybuild** (compile-verification)
 
 ---
 

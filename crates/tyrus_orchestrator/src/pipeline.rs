@@ -105,11 +105,14 @@ pub(crate) fn build_project_impl(input_dir: &Path, output_dir: &Path) -> Result<
         let file_name = path.to_string_lossy().to_string();
 
         let analysis_result = tyrus_analyzer::Analyzer::analyze(program, source_code, file_name);
-        // We ignore errors here? Or should we report them?
-        // check() reported errors, build() might assume valid code or report again.
-        // Let's output errors if any.
         for error in analysis_result.errors {
             println!("Warning: {:?}", miette::Report::new(error));
+        }
+        if !analysis_result.diagnostics.is_empty() {
+            eprintln!(
+                "{}",
+                tyrus_analyzer::report::format_pretty(&analysis_result.diagnostics)
+            );
         }
 
         graph.merge(analysis_result.graph);

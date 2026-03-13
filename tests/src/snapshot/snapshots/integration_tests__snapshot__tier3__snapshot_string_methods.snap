@@ -2,15 +2,15 @@
 source: tests/src/snapshot/tier3.rs
 expression: rust
 ---
-fn process(input: String) -> String {
+fn process(mut input: String) -> String {
     let upper = input.to_uppercase();
     let trimmed = upper.trim().to_string();
     return trimmed;
 }
-fn contains(haystack: String, needle: String) -> bool {
+fn contains(mut haystack: String, mut needle: String) -> bool {
     return haystack.contains(&needle);
 }
-fn split_and_join(input: String) -> String {
+fn split_and_join(mut input: String) -> String {
     let parts = input.split(&String::from(",")).collect::<Vec<_>>();
     return parts.join(&String::from(" - "));
 }

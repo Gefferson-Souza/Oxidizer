@@ -2,12 +2,12 @@
 source: tests/src/snapshot/tier1.rs
 expression: rust
 ---
-fn square(x: f64) -> f64 {
+fn square(mut x: f64) -> f64 {
     return x * x;
 }
-fn is_positive(n: f64) -> bool {
+fn is_positive(mut n: f64) -> bool {
     return n > 0f64;
 }
-fn format_user(name: String, age: f64) -> String {
+fn format_user(mut name: String, mut age: f64) -> String {
     return format!("{} is {} years old", name, age);
 }

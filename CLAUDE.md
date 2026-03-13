@@ -39,8 +39,12 @@ cargo fmt -- --check
 cargo clippy --workspace               # -Dwarnings is in .cargo/config.toml
 
 # Run the compiler
-cargo run --bin tyrus -- check <file.ts>
-cargo run --bin tyrus -- build <dir>/src --output <dir>/output
+cargo run --bin tyrus -- check <file.ts>              # Analyze for compatibility
+cargo run --bin tyrus -- check --json <file.ts>       # JSON diagnostic output
+cargo run --bin tyrus -- build <dir>/src --output <dir>/output   # Transpile to Rust
+cargo run --bin tyrus -- compile <dir>/src --output <dir>/output # Transpile + cargo build
+cargo run --bin tyrus -- run <dir>/src --output <dir>/output     # Transpile + build + execute
+cargo run --bin tyrus -- --quiet <command>             # Suppress banner
 
 # Snapshots
 cargo insta review                     # Review snapshot changes
@@ -51,9 +55,10 @@ cargo insta review                     # Review snapshot changes
 ```
 .ts input
   → tyrus_parser       (SWC parsing → swc_ecma_ast::Program)
-  → tyrus_analyzer     (LintVisitor + DecoratorVisitor)
+  → tyrus_ast           (TyrusModule IR — typed intermediate representation)
+  → tyrus_analyzer     (LintVisitor + DecoratorVisitor + UnsupportedApiVisitor)
   → tyrus_di           (petgraph topological sort for DI)
-  → tyrus_orchestrator (multi-file coordination)
+  → tyrus_orchestrator (multi-file coordination, CheckResult)
   → tyrus_codegen      (quote! → proc_macro2::TokenStream)
   → formatted .rs output
 ```
@@ -62,10 +67,10 @@ cargo insta review                     # Review snapshot changes
 
 | Crate | Lines | Role |
 |-------|-------|------|
-| `tyrus_cli` | ~64 | CLI (clap). Binary crate. |
+| `tyrus_cli` | ~80 | CLI (clap). 4 commands: `check`/`build`/`compile`/`run`. Branded output. |
 | `tyrus_parser` | ~55 | Wraps SWC parser. `.ts` → `Program` |
-| `tyrus_ast` | ~9 | Reserved for future typed IR |
-| `tyrus_analyzer` | ~320 | `LintVisitor` + `DecoratorVisitor` |
+| `tyrus_ast` | ~400 | Typed IR: `TyrusModule`/`TyrusExpr`/`TyrusStmt`/`TyrusDecl`. SWC→IR lowering. |
+| `tyrus_analyzer` | ~450 | `LintVisitor` (8 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` + JSON reports |
 | `tyrus_codegen` | ~2540 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*`. |
 | `tyrus_di` | ~195 | DI graph (petgraph). Topological sort. |
 | `tyrus_orchestrator` | ~527 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
@@ -124,6 +129,7 @@ crates/tyrus_codegen/src/
 ```
 tests/
 ├── src/
+│   ├── cli.rs         # CLI integration: help, version, check, build, --json, --quiet
 │   ├── unit/          # FAST (<5s): Test codegen functions directly
 │   ├── snapshot/      # MEDIUM (<10s): Full transpilation → insta snapshots
 │   ├── compilation/   # SLOW (<60s): Batch cargo check per tier
@@ -152,6 +158,6 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunks 1-7 + Milestone 13A + 13B + Milestone 14 HIGH priority (stdlib)
-**Current:** Phase 5 — Remaining LOW priority stdlib methods + Phase 6 planning
-**Status:** 133 tests passing (46 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped)
+**Completed:** Chunks 1-7 + Milestones 13A/13B + Milestone 14 HIGH + CLI/IR/Analyzer evolution + Phase 6.0 Infrastructure
+**Current:** Phase 6.0 complete — prettyplease, thiserror 2.0, trybuild, AppError HTTP variants
+**Status:** 158 tests passing (55 equivalence + 8 IR + 7 CLI + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped)

@@ -5,7 +5,7 @@ use swc_ecma_ast::*;
 use super::super::convert::interface::RustGenerator;
 
 /// Handle string method calls
-pub fn handle(
+pub(crate) fn handle(
     gen: &RustGenerator,
     obj: &Expr,
     method: &str,
@@ -125,6 +125,75 @@ pub fn handle(
                 None
             }
         }
+        "padStart" => pad_tokens(&obj_tokens, args, gen, true),
+        "padEnd" => pad_tokens(&obj_tokens, args, gen, false),
         _ => None,
+    }
+}
+
+/// Generate padStart or padEnd tokens. Uses `chars().count()` for correct Unicode handling.
+fn pad_tokens(
+    obj_tokens: &TokenStream,
+    args: &[ExprOrSpread],
+    gen: &RustGenerator,
+    is_start: bool,
+) -> Option<TokenStream> {
+    if args.is_empty() {
+        return None;
+    }
+    let target_len = gen.convert_expr_or_spread(&args[0]);
+    if args.len() >= 2 {
+        let fill = gen.convert_expr_or_spread(&args[1]);
+        Some(if is_start {
+            quote! {{
+                let __s = #obj_tokens;
+                let __target = #target_len as usize;
+                let __fill: String = #fill.to_string();
+                let __char_count = __s.chars().count();
+                if __char_count >= __target {
+                    __s
+                } else {
+                    let __pad_len = __target - __char_count;
+                    let __pad: String = __fill.chars().cycle().take(__pad_len).collect();
+                    format!("{}{}", __pad, __s)
+                }
+            }}
+        } else {
+            quote! {{
+                let __s = #obj_tokens;
+                let __target = #target_len as usize;
+                let __fill: String = #fill.to_string();
+                let __char_count = __s.chars().count();
+                if __char_count >= __target {
+                    __s
+                } else {
+                    let __pad_len = __target - __char_count;
+                    let __pad: String = __fill.chars().cycle().take(__pad_len).collect();
+                    format!("{}{}", __s, __pad)
+                }
+            }}
+        })
+    } else {
+        Some(if is_start {
+            quote! {{
+                let __s = #obj_tokens;
+                let __target = #target_len as usize;
+                if __s.chars().count() >= __target {
+                    __s
+                } else {
+                    format!("{:>width$}", __s, width = __target)
+                }
+            }}
+        } else {
+            quote! {{
+                let __s = #obj_tokens;
+                let __target = #target_len as usize;
+                if __s.chars().count() >= __target {
+                    __s
+                } else {
+                    format!("{:<width$}", __s, width = __target)
+                }
+            }}
+        })
     }
 }

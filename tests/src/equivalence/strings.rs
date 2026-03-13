@@ -164,3 +164,35 @@ main();
 "#,
     );
 }
+
+#[test]
+fn test_equivalence_string_pad_start() {
+    assert_output_equivalent(
+        r#"
+function padStartTest(): string {
+    const s: string = "hello";
+    return s.padStart(10, "*");
+}
+function main(): void {
+    console.log(padStartTest());
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_string_pad_end() {
+    assert_output_equivalent(
+        r#"
+function padEndTest(): string {
+    const s: string = "hello";
+    return s.padEnd(10, "-");
+}
+function main(): void {
+    console.log(padEndTest());
+}
+main();
+"#,
+    );
+}

@@ -5,7 +5,7 @@ use swc_ecma_ast::*;
 use super::super::convert::interface::RustGenerator;
 
 /// Handle array method calls
-pub fn handle(
+pub(crate) fn handle(
     gen: &RustGenerator,
     obj: &Expr,
     method: &str,
@@ -13,21 +13,7 @@ pub fn handle(
 ) -> Option<TokenStream> {
     let obj_tokens = gen.convert_expr(obj);
     match method {
-        "push" => {
-            // Array push is tricky because we need the object.
-            // But here we are just returning tokens for the *callee*? No, the whole call?
-            // Actually try_handle_method_call in mod.rs doesn't seem to pass the object to us!
-            // Wait, try_handle_method_call takes (obj, method, args).
-            // But array::handle only accepts (method, args).
-            // This logic seems flawed in the original code too if it intended to operate on 'obj'.
-            // However, `func.rs` loop converts method calls like `arr.push(x)` -> `arr.push(x)`.
-            // If this logic returns None, it falls back to generic conversion.
-            // Rust Vec has .push().
-
-            // If we just return None, generic conversion `callee(args)` works: `arr.push(x)`.
-            // So maybe we don't need special handling for push unless we want to change it.
-            None
-        }
+        "push" => None, // Falls through to generic conversion: arr.push(x) works in Rust
         "map" => {
             // arr.map(x => x+1) -> arr.iter().map(|x| x+1).collect::<Vec<_>>()
             // This requires context of the closure.
@@ -103,6 +89,49 @@ pub fn handle(
         "pop" => {
             if args.is_empty() {
                 Some(quote! { #obj_tokens.pop() })
+            } else {
+                None
+            }
+        }
+        "sort" => {
+            if args.is_empty() {
+                Some(quote! {
+                    {
+                        #obj_tokens.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    }
+                })
+            } else {
+                None
+            }
+        }
+        "shift" => {
+            if args.is_empty() {
+                Some(quote! {
+                    if #obj_tokens.is_empty() {
+                        Default::default()
+                    } else {
+                        #obj_tokens.remove(0)
+                    }
+                })
+            } else {
+                None
+            }
+        }
+        "flat" => {
+            if args.is_empty() {
+                Some(quote! {
+                    #obj_tokens.iter().flatten().cloned().collect::<Vec<_>>()
+                })
+            } else {
+                None
+            }
+        }
+        "flatMap" => {
+            if args.len() == 1 {
+                let callback = gen.convert_expr_or_spread(&args[0]);
+                Some(quote! {
+                    #obj_tokens.iter().flat_map(|x| (#callback)(x.clone())).collect::<Vec<_>>()
+                })
             } else {
                 None
             }

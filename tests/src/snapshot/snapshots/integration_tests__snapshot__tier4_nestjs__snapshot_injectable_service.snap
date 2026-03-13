@@ -2,7 +2,7 @@
 source: tests/src/snapshot/tier4_nestjs.rs
 expression: rust
 ---
-#[derive(Default, Debug, Clone, PartialEq, serde :: Serialize, serde :: Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: f64,
@@ -39,20 +39,12 @@ impl UsersService {
     }
     pub fn create(&self, name: String, email: String) -> User {
         let user = User {
-            id: self
-                .users
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .clone()
-                .len() as f64
+            id: self.users.lock().unwrap_or_else(|e| e.into_inner()).clone().len() as f64
                 + 1f64,
-            name,
-            email,
+            name: name,
+            email: email,
         };
-        self.users
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .push(user.clone());
+        self.users.lock().unwrap_or_else(|e| e.into_inner()).push(user.clone());
         return user;
     }
 }

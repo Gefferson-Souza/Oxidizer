@@ -2,13 +2,9 @@
 source: tests/src/snapshot/tier3.rs
 expression: rust
 ---
-fn max_of(a: f64, b: f64) -> f64 {
+fn max_of(mut a: f64, mut b: f64) -> f64 {
     return if a > b { a } else { b };
 }
-fn label(active: bool) -> String {
-    return if active {
-        String::from("Active")
-    } else {
-        String::from("Inactive")
-    };
+fn label(mut active: bool) -> String {
+    return if active { String::from("Active") } else { String::from("Inactive") };
 }

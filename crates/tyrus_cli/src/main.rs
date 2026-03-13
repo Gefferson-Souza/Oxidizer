@@ -1,27 +1,61 @@
 use clap::{Parser, Subcommand};
 use miette::Result;
 use std::path::PathBuf;
-use tyrus_common::fs::FilePath;
+
+mod commands;
+mod ui;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    name = "tyrus",
+    author,
+    version,
+    about = "Tyrus — TypeScript to Rust Compiler",
+    long_about = "A source-to-source compiler that converts Oxidizable TypeScript into memory-safe Rust.\nSafe Transpilation · Zero Runtime · Semantic Preservation"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+
+    /// Suppress banner and decorations
+    #[arg(long, global = true)]
+    quiet: bool,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Check the input file for errors
+    /// Analyze TypeScript for Oxidizable compatibility
     Check {
         /// Input file path
         path: PathBuf,
+        /// Output diagnostics as JSON (for tooling integration)
+        #[arg(long)]
+        json: bool,
     },
-    /// Build the output Rust code
+    /// Transpile TypeScript to Rust source code
     Build {
         /// Input file or directory path
         path: PathBuf,
-        /// Output directory path (default: ./tyrus_output)
+        /// Output directory (default: ./tyrus_output)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+    /// Transpile and compile to native binary
+    Compile {
+        /// Input file or directory path
+        path: PathBuf,
+        /// Output directory (default: ./tyrus_output)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// Build in release mode with optimizations
+        #[arg(long)]
+        release: bool,
+    },
+    /// Transpile, compile, and execute
+    Run {
+        /// Input file or directory path
+        path: PathBuf,
+        /// Output directory (default: ./tyrus_output)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
@@ -29,36 +63,22 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize miette
     miette::set_panic_hook();
 
     let cli = Cli::parse();
 
-    match cli.command {
-        Commands::Check { path } => {
-            tyrus_orchestrator::check(&FilePath::from(path))?;
-        }
-        Commands::Build { path, output } => {
-            if path.is_dir() {
-                let output_dir = output.unwrap_or_else(|| PathBuf::from("./tyrus_output"));
-                tyrus_orchestrator::build_project(&path, &output_dir)?;
-                println!("✅ Project built successfully!");
-            } else {
-                let output_code = tyrus_orchestrator::build(&FilePath::from(path))?;
-                if let Some(output_path) = output {
-                    if let Some(parent) = output_path.parent() {
-                        std::fs::create_dir_all(parent)
-                            .map_err(|e| miette::miette!("Failed to create directory: {}", e))?;
-                    }
-                    std::fs::write(&output_path, output_code)
-                        .map_err(|e| miette::miette!("Failed to write output file: {}", e))?;
-                    eprintln!("✅ Built to {:?}", output_path);
-                } else {
-                    println!("{}", output_code);
-                }
-            }
-        }
+    if !cli.quiet {
+        ui::banner::print_banner();
     }
 
-    Ok(())
+    match cli.command {
+        Commands::Check { path, json } => commands::check::execute(&path, json),
+        Commands::Build { path, output } => commands::build::execute(&path, output),
+        Commands::Compile {
+            path,
+            output,
+            release,
+        } => commands::compile::execute(&path, output, release),
+        Commands::Run { path, output } => commands::run::execute(&path, output),
+    }
 }

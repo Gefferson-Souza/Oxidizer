@@ -16,16 +16,18 @@ The entry point uses the `swc_ecma_parser` to ingest TypeScript source files.
 
 This stage validates the AST against the **Oxidizable Standard**.
 
-- **Input:** AST.
-- **Rules:** Bans `any`, `eval`, and unassigned `var`.
-- **Visitors:** `LintVisitor` (enforces rules) + `DecoratorVisitor` (extracts NestJS metadata).
-- **Output:** Validated AST + Metadata.
+- **Input:** AST + source code + file name.
+- **Lint rules (8):** Bans `var`, `any`, `eval`, `for-in`, `try-catch`, `delete`, `with`, labeled statements.
+- **Unsupported API detection (11):** Blocks `document`, `window`, `navigator`, `localStorage`, `sessionStorage`, `XMLHttpRequest`, `require`, `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`.
+- **Visitors:** `LintVisitor` (8 rules) + `DecoratorVisitor` (NestJS metadata) + `UnsupportedApiVisitor` (blocked APIs).
+- **Output:** `AnalysisResult { errors, diagnostics, graph }` — errors are `TyrusError`, diagnostics are structured `Diagnostic` with severity/code/span/suggestion.
+- **Reports:** `format_pretty()` for colored terminal output, `format_json()` for tooling integration.
 
 ### 3. Orchestration (`tyrus_orchestrator`)
 
 The coordinator of the full pipeline, decomposed into focused modules:
 
-- **`lib.rs`** — Public API: `check()`, `build()`, `build_project()`
+- **`lib.rs`** — Public API: `check()`, `build()`, `build_project()`, `build_simple_project()`
 - **`pipeline.rs`** — Core multi-file build orchestration (walk/parse, analyze, DI graph, transpile, mod.rs)
 - **`scaffold.rs`** — Project scaffolding: `generate_main_rs()`, `generate_cargo_toml()`, `generate_mod_rs()`
 - **`format.rs`** — Code formatting and `AppError` code generation
@@ -54,10 +56,10 @@ A dedicated crate for handling the application's dependency graph.
 
 | Crate               | Responsibility                                                        |
 | :------------------ | :-------------------------------------------------------------------- |
-| `tyrus_cli`         | CLI entry point (clap). Binary crate.                                 |
+| `tyrus_cli`         | CLI (clap). 4 commands: `check`/`build`/`compile`/`run`. Branded banner, progress pipeline, `--quiet`/`--json` flags. Installable globally via `cargo install --path crates/tyrus_cli`. |
 | `tyrus_parser`      | Wraps SWC parser. Input: `.ts` file. Output: `swc_ecma_ast::Program`. |
-| `tyrus_ast`         | Reserved for future typed IR. SWC AST is used directly for now.       |
-| `tyrus_analyzer`    | `LintVisitor` + `DecoratorVisitor`. Enforces the Oxidizable Standard. |
+| `tyrus_ast`         | Typed IR: `TyrusModule`, `TyrusExpr`, `TyrusStmt`, `TyrusDecl`, `TyrusType`. SWC→IR type lowering (`lower_type.rs`). |
+| `tyrus_analyzer`    | `LintVisitor` (8 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` (11 APIs). Structured `Diagnostic` output with JSON/pretty formatters. |
 | `tyrus_codegen`     | Core transpilation. `RustGenerator` visitor converts TS AST to Rust.  |
 | `tyrus_di`          | NestJS-style DI engine. Uses `petgraph::DiGraph` for topo sort.       |
 | `tyrus_orchestrator`| Coordinates the full pipeline: parse → analyze → codegen.            |
@@ -111,11 +113,12 @@ convert/
 
 ## Visitor Pattern
 
-Three visitors traverse the SWC AST via `swc_ecma_visit::Visit`:
+Four visitors traverse the SWC AST via `swc_ecma_visit::Visit`:
 
-1. `LintVisitor` — rejects `var`, `any`, `eval` (in `tyrus_analyzer`)
+1. `LintVisitor` — rejects `var`, `any`, `eval`, `for-in`, `try-catch`, `delete`, `with`, labeled (in `tyrus_analyzer`)
 2. `DecoratorVisitor` — extracts `@Module`, `@Injectable`, `@Controller` metadata (in `tyrus_analyzer`)
-3. `RustGenerator` — produces Rust token streams (entry point: `interface.rs`)
+3. `UnsupportedApiVisitor` — detects DOM, browser, timer, CommonJS APIs (in `tyrus_analyzer`)
+4. `RustGenerator` — produces Rust token streams (entry point: `interface.rs`)
 
 ---
 
@@ -126,9 +129,11 @@ Tests live in the `tests/` crate, organized by tier:
 ```
 tests/
 ├── src/
+│   ├── cli.rs         — CLI integration tests (help, version, check, build, flags)
 │   ├── unit/          — unit tests for isolated functions
 │   ├── snapshot/      — insta snapshot tests for codegen output
-│   └── compilation/   — compilation tests: generate Rust, run rustc
+│   ├── compilation/   — compilation tests: generate Rust, run rustc
+│   └── equivalence/   — semantic equivalence: TS and Rust produce identical output
 └── fixtures/
     ├── tier1/         — core language features
     ├── tier2/         — advanced type system
@@ -136,7 +141,7 @@ tests/
     └── tier4/         — framework integration (NestJS → Axum)
 ```
 
-Each fixture contains an `input.ts` verified against insta `.snap` files or compiled with `assert_rust_compiles()`.
+153 tests across 6 categories: CLI integration (7), equivalence (51), unit (27), snapshot (6), compilation (54), IR lowering (8).
 
 ---
 

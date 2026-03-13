@@ -62,6 +62,37 @@ jobs:
           ./target/debug/tyrus build examples/real_world_demo/src --output examples/real_world_demo/output
           cd examples/real_world_demo/output && cargo check
 
+  # Benchmarks — run after tests pass, upload criterion HTML reports
+  bench:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Setup Node.js 22 (for runtime comparison)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run transpilation benchmarks
+        run: cargo bench --bench transpiler
+
+      - name: Run runtime comparison
+        run: BENCH_ITERATIONS=3 cargo bench --bench runtime_comparison
+        env:
+          BENCH_CSV: 1
+
+      - name: Upload criterion reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-reports
+          path: target/criterion/
+          retention-days: 30
+
   release:
     name: Release
     runs-on: ubuntu-latest

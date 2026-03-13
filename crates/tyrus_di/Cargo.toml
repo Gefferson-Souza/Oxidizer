@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 tyrus_common = { path = "../tyrus_common" }
 petgraph = "0.6"
-thiserror = "1.0"
+thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
