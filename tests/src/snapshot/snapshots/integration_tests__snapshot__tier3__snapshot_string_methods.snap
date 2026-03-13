@@ -3,14 +3,14 @@ source: tests/src/snapshot/tier3.rs
 expression: rust
 ---
 fn process(input: String) -> String {
-    let mut upper = input.to_uppercase();
-    let mut trimmed = upper.trim();
+    let upper = input.to_uppercase();
+    let trimmed = upper.trim().to_string();
     return trimmed;
 }
 fn contains(haystack: String, needle: String) -> bool {
     return haystack.contains(&needle as &str);
 }
 fn split_and_join(input: String) -> String {
-    let mut parts = input.split(&String::from(",")).collect::<Vec<_>>();
+    let parts = input.split(&String::from(",")).collect::<Vec<_>>();
     return parts.join(&String::from(" - "));
 }
