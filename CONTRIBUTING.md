@@ -96,9 +96,15 @@ When working on code generation, the relevant files are under `crates/tyrus_code
 | `helpers.rs` | `to_snake_case`, `to_pascal_case`, `is_string_expr` |
 | `stmt.rs` | Statement conversion |
 | `fn_decl.rs` | Function declaration processing |
-| `class.rs` | Class → struct+impl, `Arc<Mutex<T>>`, NestJS patterns |
 | `module.rs` | Module/import handling |
-| `type_mapper.rs` | TypeScript → Rust type mapping |
+| `type_mapper.rs` | TypeScript → Rust type mapping (`map_type_core`) |
+| **`class/`** | **Class → struct+impl (decomposed from monolithic `class.rs`)** |
+| `class/mod.rs` | Class dispatcher + property conversion |
+| `class/constructor.rs` | Constructor transpilation + DI detection |
+| `class/method.rs` | Method transpilation + decorator parsing |
+| `class/routing.rs` | Axum router generation + `FromRequestParts` |
+| `class/mutation.rs` | Static self-mutation analysis |
+| **`expr/`** | **Expression conversion (decomposed from monolithic `func.rs`)** |
 | `expr/mod.rs` | Expression dispatcher |
 | `expr/call.rs` | Function/method calls, array methods |
 | `expr/member.rs` | Property access, mutex state |
@@ -106,3 +112,14 @@ When working on code generation, the relevant files are under `crates/tyrus_code
 | `expr/arrow.rs` | Arrow functions → closures |
 | `expr/literal.rs` | Literals, objects, arrays, template literals |
 | `expr/misc.rs` | Assignments, updates, optional chaining |
+
+### Orchestrator Module Map
+
+The orchestrator (`crates/tyrus_orchestrator/src/`) coordinates multi-file builds:
+
+| Module | Responsibility |
+|---|---|
+| `lib.rs` | Slim public API (`build()` entry point) |
+| `pipeline.rs` | Core multi-file build orchestration |
+| `scaffold.rs` | Project scaffolding (`main.rs`, `Cargo.toml`, `mod.rs`) |
+| `format.rs` | Code formatting + `AppError` generation |
