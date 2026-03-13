@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use miette::Result;
+use tyrus_common::fs::FilePath;
 
 use crate::ui::{colors, progress::Pipeline};
 
@@ -18,8 +19,7 @@ pub(crate) fn execute(path: &Path, output: Option<PathBuf>, release: bool) -> Re
     if path.is_dir() {
         tyrus_orchestrator::build_project(path, &output_dir)?;
     } else {
-        let src_dir = path.parent().unwrap_or(path);
-        tyrus_orchestrator::build_project(src_dir, &output_dir)?;
+        tyrus_orchestrator::build_simple_project(&FilePath::from(path.to_path_buf()), &output_dir)?;
     }
 
     pipeline.start_step("Running cargo build on generated Rust");

@@ -57,3 +57,30 @@ pub fn build(path: &FilePath) -> Result<String, TyrusError> {
 pub fn build_project(input_dir: &Path, output_dir: &Path) -> Result<(), TyrusError> {
     pipeline::build_project_impl(input_dir, output_dir)
 }
+
+/// Build a single file into a standalone Cargo project (no NestJS/axum scaffolding).
+pub fn build_simple_project(path: &FilePath, output_dir: &Path) -> Result<(), TyrusError> {
+    let code = build(path)?;
+
+    let src_dir = output_dir.join("src");
+    std::fs::create_dir_all(&src_dir).map_err(TyrusError::IoError)?;
+
+    let main_rs = src_dir.join("main.rs");
+    std::fs::write(main_rs, code).map_err(TyrusError::IoError)?;
+
+    let cargo_toml = output_dir.join("Cargo.toml");
+    let cargo_content = r#"[package]
+name = "tyrus_app"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[[bin]]
+name = "tyrus_app"
+path = "src/main.rs"
+"#;
+    std::fs::write(cargo_toml, cargo_content).map_err(TyrusError::IoError)?;
+
+    Ok(())
+}
