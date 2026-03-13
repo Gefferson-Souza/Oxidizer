@@ -152,6 +152,6 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunks 1-7 (clean slate + strict rules + module decomposition + tier 1-4 tests)
-**Current:** Milestone 13A — Semantic Equivalence (23 equivalence tests verifying TS↔Rust output identity)
-**Status:** 109 tests passing (94 integration + 2 tier4 + 9 codegen + 4 common)
+**Completed:** Chunks 1-7 + Milestone 13A (semantic equivalence) + Milestone 13B (control flow expansion)
+**Current:** Phase 5 — Stdlib Complete (full JS/TS method coverage)
+**Status:** 115 tests passing (28 equivalence + 73 integration + 9 codegen + 4 common + 1 skipped)

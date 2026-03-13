@@ -268,6 +268,102 @@ impl RustGenerator {
                     for #var_ident in #right #body_block
                 }
             }
+            Stmt::ForIn(for_in) => {
+                let body = self.convert_stmt(&for_in.body);
+                let right = self.convert_expr(&for_in.right);
+                let body_block = if matches!(*for_in.body, Stmt::Block(_)) {
+                    quote! { #body }
+                } else {
+                    quote! { { #body } }
+                };
+
+                let var_ident = match &for_in.left {
+                    swc_ecma_ast::ForHead::VarDecl(var_decl) => {
+                        if let Some(decl) = var_decl.decls.first() {
+                            if let Pat::Ident(ident) = &decl.name {
+                                format_ident!("{}", to_snake_case(&ident.id.sym))
+                            } else {
+                                format_ident!("_key")
+                            }
+                        } else {
+                            format_ident!("_key")
+                        }
+                    }
+                    swc_ecma_ast::ForHead::Pat(pat) => {
+                        if let Pat::Ident(ident) = pat.as_ref() {
+                            format_ident!("{}", to_snake_case(&ident.id.sym))
+                        } else {
+                            format_ident!("_key")
+                        }
+                    }
+                    _ => format_ident!("_key"),
+                };
+
+                quote! {
+                    for #var_ident in #right.keys() #body_block
+                }
+            }
+            Stmt::For(for_stmt) => {
+                let init = match &for_stmt.init {
+                    Some(swc_ecma_ast::VarDeclOrExpr::VarDecl(var_decl)) => {
+                        self.convert_stmt(&Stmt::Decl(Decl::Var(var_decl.clone())))
+                    }
+                    Some(swc_ecma_ast::VarDeclOrExpr::Expr(expr)) => {
+                        let e = self.convert_expr(expr);
+                        quote! { #e; }
+                    }
+                    None => quote! {},
+                };
+                let test = for_stmt
+                    .test
+                    .as_ref()
+                    .map(|t| self.convert_expr(t))
+                    .unwrap_or_else(|| quote! { true });
+                let update = for_stmt
+                    .update
+                    .as_ref()
+                    .map(|u| {
+                        let expr = self.convert_expr(u);
+                        quote! { #expr; }
+                    })
+                    .unwrap_or_default();
+                let body = self.convert_stmt(&for_stmt.body);
+                let body_block = if matches!(*for_stmt.body, Stmt::Block(_)) {
+                    body
+                } else {
+                    quote! { { #body } }
+                };
+
+                // for(init; test; update) { body }
+                // → { init; while test { body; update; } }
+                quote! {
+                    {
+                        #init
+                        while #test {
+                            #body_block
+                            #update
+                        }
+                    }
+                }
+            }
+            Stmt::DoWhile(do_while) => {
+                let test = self.convert_expr(&do_while.test);
+                let body = self.convert_stmt(&do_while.body);
+                let body_block = if matches!(*do_while.body, Stmt::Block(_)) {
+                    body
+                } else {
+                    quote! { { #body } }
+                };
+
+                // do { body } while (cond) → loop { body; if !cond { break; } }
+                quote! {
+                    loop {
+                        #body_block
+                        if !(#test) { break; }
+                    }
+                }
+            }
+            Stmt::Switch(switch_stmt) => self.convert_switch_stmt(switch_stmt),
             Stmt::Throw(throw_stmt) => {
                 let arg = self.convert_expr(&throw_stmt.arg);
                 quote! {
@@ -278,43 +374,44 @@ impl RustGenerator {
         }
     }
 
-    /// Try to convert an object literal with a known type annotation into a struct constructor.
-    /// e.g., `const x: User = { id: 1, name: "foo" }` → `User { id: 1f64, name: String::from("foo") }`
-    /// Returns None if type annotation can't be extracted (falls back to serde_json::json!).
-    pub(crate) fn try_convert_typed_object_lit(
-        &self,
-        ts_type: &swc_ecma_ast::TsType,
-        obj: &swc_ecma_ast::ObjectLit,
-    ) -> Option<TokenStream> {
-        // Extract the type name from a TsTypeRef
-        let type_name = if let swc_ecma_ast::TsType::TsTypeRef(type_ref) = ts_type {
-            if let Some(ident) = type_ref.type_name.as_ident() {
-                ident.sym.to_string()
-            } else {
-                return None;
+    /// Convert a switch statement to a Rust match expression.
+    /// Each case with a body becomes a match arm. Cases with only `return`
+    /// are straightforward; fall-through is not supported.
+    fn convert_switch_stmt(&self, switch: &swc_ecma_ast::SwitchStmt) -> TokenStream {
+        let discriminant = self.convert_expr(&switch.discriminant);
+        let mut arms = Vec::new();
+
+        for case in &switch.cases {
+            let body: Vec<_> = case
+                .cons
+                .iter()
+                .filter(|s| !matches!(s, Stmt::Break(_)))
+                .map(|s| self.convert_stmt(s))
+                .collect();
+
+            if body.is_empty() {
+                continue;
             }
-        } else {
-            return None;
-        };
 
-        let type_ident = format_ident!("{}", type_name);
-        let mut fields = Vec::new();
-
-        for prop in &obj.props {
-            if let swc_ecma_ast::PropOrSpread::Prop(p) = prop {
-                if let swc_ecma_ast::Prop::KeyValue(kv) = &**p {
-                    if let swc_ecma_ast::PropName::Ident(key_ident) = &kv.key {
-                        let field_name = format_ident!("{}", to_snake_case(key_ident.sym.as_ref()));
-                        let val = self.convert_expr(&kv.value);
-                        fields.push(quote! { #field_name: #val });
-                    }
-                } else if let swc_ecma_ast::Prop::Shorthand(shorthand) = &**p {
-                    let field_name = format_ident!("{}", to_snake_case(shorthand.sym.as_ref()));
-                    fields.push(quote! { #field_name: #field_name.clone() });
-                }
+            if let Some(test) = &case.test {
+                let test_expr = self.convert_expr(test);
+                arms.push(quote! { __v if __v == #test_expr => { #(#body)* } });
+            } else {
+                // default case
+                arms.push(quote! { _ => { #(#body)* } });
             }
         }
 
-        Some(quote! { #type_ident { #(#fields),* } })
+        // Ensure there's always a default arm
+        let has_default = switch.cases.iter().any(|c| c.test.is_none());
+        if !has_default {
+            arms.push(quote! { _ => {} });
+        }
+
+        quote! {
+            match #discriminant {
+                #(#arms)*
+            }
+        }
     }
 }

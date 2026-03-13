@@ -149,3 +149,17 @@ main();
 "#,
     );
 }
+
+#[test]
+fn test_equivalence_parenthesized_precedence() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    console.log((2 + 3) * 4);
+    console.log(2 + 3 * 4);
+    console.log((10 - 2) / 4);
+}
+main();
+"#,
+    );
+}

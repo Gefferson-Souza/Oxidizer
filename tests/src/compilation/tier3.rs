@@ -8,7 +8,7 @@ fn test_tier3_generics_compiles() {
 }
 
 #[test]
-#[ignore = "transpiler bug: and_then closure missing Some() wrapper for non-optional fields"]
+#[ignore = "optional chaining on Option<T> fields creates double-Option — needs type inference (Phase 6)"]
 fn test_tier3_optional_chaining_compiles() {
     let rust = transpile_fixture("tier3/optional_chaining");
     assert_rust_compiles(&rust);
@@ -21,7 +21,6 @@ fn test_tier3_destructuring_compiles() {
 }
 
 #[test]
-#[ignore = "transpiler bug: .find() closure comparison produces &&f64 vs f64 mismatch"]
 fn test_tier3_advanced_methods_compiles() {
     let rust = transpile_fixture("tier3/advanced_methods");
     assert_rust_compiles(&rust);
