@@ -8,7 +8,7 @@ fn process(input: String) -> String {
     return trimmed;
 }
 fn contains(haystack: String, needle: String) -> bool {
-    return haystack.contains(&needle as &str);
+    return haystack.contains(&needle);
 }
 fn split_and_join(input: String) -> String {
     let parts = input.split(&String::from(",")).collect::<Vec<_>>();
