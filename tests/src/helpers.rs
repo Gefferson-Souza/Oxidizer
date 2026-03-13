@@ -12,6 +12,45 @@ pub fn transpile(ts_code: &str) -> String {
         .unwrap_or_else(|e| panic!("Transpilation failed: {e}"))
 }
 
+/// Asserts that transpiled Rust produces identical stdout to the original TypeScript.
+///
+/// The TypeScript code MUST:
+/// - Contain function declarations (not top-level statements)
+/// - Have a `main()` function that calls other functions
+/// - Use `console.log()` for observable output
+pub fn assert_output_equivalent(ts_code: &str) {
+    // 1. Run TypeScript with Node.js
+    let ts_output = tyrus_test_utils::run_node(ts_code);
+
+    // 2. Transpile TS → Rust
+    let rust_code = transpile(ts_code);
+
+    // 3. Ensure there's an entry point
+    let rust_binary = if rust_code.contains("fn main()") {
+        rust_code.clone()
+    } else {
+        format!("{}\nfn main() {{}}", rust_code)
+    };
+
+    // 4. Compile + run Rust
+    let rust_output = tyrus_test_utils::compile_and_run_rust(&rust_binary);
+
+    // 5. Compare outputs
+    assert_eq!(
+        ts_output.trim(),
+        rust_output.trim(),
+        "\n╔══════════════════════════════════════════╗\n\
+         ║  SEMANTIC EQUIVALENCE FAILURE             ║\n\
+         ╚══════════════════════════════════════════╝\n\n\
+         TypeScript output: {:?}\n\
+         Rust output:       {:?}\n\n\
+         Generated Rust code:\n{}\n",
+        ts_output.trim(),
+        rust_output.trim(),
+        rust_code
+    );
+}
+
 /// Transpile a fixture file by name (e.g., "tier1/variables").
 pub fn transpile_fixture(fixture: &str) -> String {
     let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))

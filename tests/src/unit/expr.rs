@@ -6,8 +6,8 @@ use crate::helpers::transpile;
 fn test_const_string_declaration() {
     let rust = transpile(r#"function f(): void { const name: string = "Alice"; }"#);
     assert!(
-        rust.contains("let mut name"),
-        "Expected 'let mut name' in: {rust}"
+        rust.contains("let name") && !rust.contains("let mut name"),
+        "Expected immutable 'let name' (not 'let mut') in: {rust}"
     );
     assert!(
         rust.contains("String::from"),
@@ -19,8 +19,8 @@ fn test_const_string_declaration() {
 fn test_const_number_declaration() {
     let rust = transpile("function f(): void { const x: number = 42; }");
     assert!(
-        rust.contains("let mut x"),
-        "Expected 'let mut x' in: {rust}"
+        rust.contains("let x") && !rust.contains("let mut x"),
+        "Expected immutable 'let x' (not 'let mut') in: {rust}"
     );
     assert!(rust.contains("42f64"), "Expected '42f64' in: {rust}");
 }
@@ -29,8 +29,8 @@ fn test_const_number_declaration() {
 fn test_const_boolean_declaration() {
     let rust = transpile("function f(): void { const flag: boolean = true; }");
     assert!(
-        rust.contains("let mut flag"),
-        "Expected 'let mut flag' in: {rust}"
+        rust.contains("let flag") && !rust.contains("let mut flag"),
+        "Expected immutable 'let flag' (not 'let mut') in: {rust}"
     );
     assert!(rust.contains("true"), "Expected 'true' in: {rust}");
 }
