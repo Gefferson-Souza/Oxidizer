@@ -86,26 +86,37 @@ cd Tyrus
 cargo build --release
 ```
 
+### Install Globally
+
+```bash
+# Install tyrus as a global CLI command
+cargo install --path crates/tyrus_cli
+
+# Now use from anywhere
+tyrus --version
+```
+
 ### Using the Compiler
 
 ```bash
 # Analyze a TypeScript file for compatibility
-./target/release/tyrus check ./src/index.ts
+tyrus check ./src/index.ts
 
 # Get JSON diagnostics (for tooling integration)
-./target/release/tyrus check --json ./src/index.ts
+tyrus check --json ./src/index.ts
 
-# Transpile to Rust source code
-./target/release/tyrus build ./src/index.ts
+# Transpile to Rust source code (stdout or file)
+tyrus build ./src/index.ts
+tyrus build ./src/index.ts -o output.rs
 
 # Transpile + compile to native binary
-./target/release/tyrus compile ./src/ --output ./output
+tyrus compile ./src/index.ts --output ./output
 
 # Transpile + compile + execute
-./target/release/tyrus run ./src/ --output ./output
+tyrus run ./src/index.ts --output ./output
 
 # Suppress banner for scripting
-./target/release/tyrus --quiet check ./src/index.ts
+tyrus --quiet check ./src/index.ts
 ```
 
 ---
@@ -134,17 +145,18 @@ cargo build --release
 
 ## 🧪 Test Suite
 
-146 tests across 5 test types and 4 feature tiers:
+153 tests across 6 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
 | **Equivalence** | 51 | Semantic proof: TS and Rust produce identical stdout |
+| **CLI** | 7 | Integration tests for all CLI commands and flags |
 | **Unit** | 27 | Fast, isolated codegen function tests |
 | **Snapshot** | 6 | Full transpilation output via `insta` |
 | **Compilation** | 54 | Generated Rust passes `cargo check` per tier |
 | **IR** | 8 | Typed intermediate representation lowering |
 
-Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`) · **IR** (type lowering)
+Test types: **Equivalence** (TS↔Rust same output) · **CLI** (command integration) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`) · **IR** (type lowering)
 
 ---
 

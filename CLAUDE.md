@@ -129,6 +129,7 @@ crates/tyrus_codegen/src/
 ```
 tests/
 ├── src/
+│   ├── cli.rs         # CLI integration: help, version, check, build, --json, --quiet
 │   ├── unit/          # FAST (<5s): Test codegen functions directly
 │   ├── snapshot/      # MEDIUM (<10s): Full transpilation → insta snapshots
 │   ├── compilation/   # SLOW (<60s): Batch cargo check per tier
@@ -159,4 +160,4 @@ See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the comp
 
 **Completed:** Chunks 1-7 + Milestones 13A/13B + Milestone 14 HIGH + CLI/IR/Analyzer evolution
 **Current:** Phase 5.5 complete — CLI branded (4 commands), IR defined (TyrusModule), Analyzer expanded (8 rules + unsupported API + JSON)
-**Status:** 146 tests passing (51 equivalence + 8 IR + 73 integration + 9 codegen + 4 common + 1 skipped)
+**Status:** 153 tests passing (51 equivalence + 8 IR + 7 CLI + 73 integration + 9 codegen + 4 common + 1 skipped)
