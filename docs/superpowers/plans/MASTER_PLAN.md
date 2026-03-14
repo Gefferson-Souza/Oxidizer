@@ -11,8 +11,9 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 165 (62 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
-| Equivalence tests | 62 (proving TS↔Rust output identity) |
+| Tests passing | 168 (65 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
+| Equivalence tests | 65 (proving TS↔Rust output identity) |
+| Array spread | `[...a, ...b]` → `a.iter().cloned().chain(b.iter().cloned()).collect()` |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else, try-catch |
 | Top-level statements | const, let, expressions, console.log — auto-wrapped in fn main() |

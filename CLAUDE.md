@@ -169,6 +169,6 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunks 1-7 + Milestones 13A/13B + Milestone 14 HIGH + CLI/IR/Analyzer evolution + Phase 6.0-6.2
-**Current:** Phase 6.2 complete — try-catch → Result matching, top-level statements → fn main()
-**Status:** 165 tests passing (62 equivalence + 8 IR + 7 CLI + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped)
+**Completed:** Chunks 1-7 + Milestones 13A/13B + Milestone 14 HIGH + CLI/IR/Analyzer evolution + Phase 6.0-6.3
+**Current:** Phase 6.3 complete — array spread, rest parameter declaration, try-catch, top-level stmts
+**Status:** 168 tests passing (65 equivalence + 8 IR + 7 CLI + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped)

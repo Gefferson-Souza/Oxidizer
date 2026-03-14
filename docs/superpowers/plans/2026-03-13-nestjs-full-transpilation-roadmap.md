@@ -14,7 +14,7 @@
 
 | Aspect | Status | Details |
 |--------|--------|---------|
-| Tests | 165 pass, 1 skip | 62 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
+| Tests | 168 pass, 1 skip | 65 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
 | CLI | 4 commands | check, build, compile, run (branded, --quiet, --json) |
 | Analyzer | 8 lint + 11 API blocks | var, any, eval, for-in, try-catch, delete, with, labeled |
 | Codegen | ~4190 lines, 20 modules | Expressions, statements, classes, stdlib |
@@ -468,7 +468,7 @@ fn log(args: Vec<String>) { }
 
 #### Tasks
 
-- [ ] **Task 6.3.1: Write failing test for array spread**
+- [x] **Task 6.3.1: Write failing test for array spread** ✓
 
   ```rust
   #[test]
@@ -482,7 +482,7 @@ fn log(args: Vec<String>) { }
   }
   ```
 
-- [ ] **Task 6.3.2: Implement array spread in literal.rs**
+- [x] **Task 6.3.2: Implement array spread in literal.rs** ✓
 
   In `convert_array_lit()`, detect `ExprOrSpread` with spread=true:
   - Single array: `arr.clone()`
@@ -538,7 +538,7 @@ fn log(args: Vec<String>) { }
   }
   ```
 
-- [ ] **Task 6.3.6: Implement rest parameters in fn_decl.rs**
+- [x] **Task 6.3.6: Implement rest parameters in fn_decl.rs** ✓ (declaration side)
 
   Detect `Pat::Rest(rest_pat)` in function parameters:
   - Last parameter with `...` → `Vec<T>` parameter
