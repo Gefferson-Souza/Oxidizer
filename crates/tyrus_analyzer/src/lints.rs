@@ -64,21 +64,12 @@ impl Visit for LintVisitor {
         n.visit_children_with(self);
     }
 
-    // Supported: while, do-while, for, for-of, switch
-    // Blocked: for-in, try-catch (codegen not yet implemented)
+    // Supported: while, do-while, for, for-of, switch, try-catch
+    // Blocked: for-in (codegen not yet implemented)
 
     fn visit_for_in_stmt(&mut self, n: &swc_ecma_ast::ForInStmt) {
         self.errors.push(TyrusError::UnsupportedFeature {
             feature: "for-in loops".to_string(),
-            src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-            span: self.create_span(n.span),
-        });
-        n.visit_children_with(self);
-    }
-
-    fn visit_try_stmt(&mut self, n: &swc_ecma_ast::TryStmt) {
-        self.errors.push(TyrusError::UnsupportedFeature {
-            feature: "try-catch blocks".to_string(),
             src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
             span: self.create_span(n.span),
         });

@@ -5,6 +5,7 @@
 
 mod loops;
 mod switch;
+mod try_catch;
 mod var_decl;
 
 use proc_macro2::TokenStream;
@@ -106,6 +107,7 @@ impl RustGenerator {
             Stmt::For(for_stmt) => self.convert_for_stmt(for_stmt),
             Stmt::DoWhile(do_while) => self.convert_do_while_stmt(do_while),
             Stmt::Switch(switch_stmt) => self.convert_switch_stmt(switch_stmt),
+            Stmt::Try(try_stmt) => self.convert_try_stmt(try_stmt),
             Stmt::Throw(throw_stmt) => {
                 let arg = self.convert_expr(&throw_stmt.arg);
                 quote! { return Err(#arg.into()); }
