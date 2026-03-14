@@ -18,9 +18,10 @@ impl RustGenerator {
         };
         let method_name = format_ident!("{}", to_snake_case(&method_name_str));
 
-        // Check for NestJS decorators (@Get, @Post, etc.)
+        // Check for NestJS decorators (@Get, @Post, @HttpCode, etc.)
         let mut http_method = None;
         let mut route_path = String::new();
+        let mut http_code: Option<u16> = None;
 
         for decorator in &method.function.decorators {
             if let Expr::Call(call) = &*decorator.expr {
@@ -29,10 +30,15 @@ impl RustGenerator {
                         let name = ident.sym.as_str();
                         if matches!(name, "Get" | "Post" | "Put" | "Delete" | "Patch") {
                             http_method = Some(name.to_string());
-                            // Extract route path if present
                             if let Some(arg) = call.args.first() {
                                 if let Expr::Lit(Lit::Str(s)) = &*arg.expr {
                                     route_path = s.value.as_str().unwrap_or_default().to_string();
+                                }
+                            }
+                        } else if name == "HttpCode" {
+                            if let Some(arg) = call.args.first() {
+                                if let Expr::Lit(Lit::Num(num)) = &*arg.expr {
+                                    http_code = Some(num.value as u16);
                                 }
                             }
                         }
@@ -128,8 +134,7 @@ impl RustGenerator {
             map_ts_type(method.function.return_type.as_ref())
         };
 
-        // If it's a handler, wrap return type in Json unless it's String
-        // Wrap handler return type in Result
+        // If it's a handler, wrap return type in Json and Result
         if is_handler {
             let return_type_str = return_type.to_string();
             let inner_type = if return_type_str != "String" {
@@ -137,7 +142,14 @@ impl RustGenerator {
             } else {
                 quote! { String }
             };
-            return_type = quote! { Result<#inner_type, crate::AppError> };
+
+            // @HttpCode wraps in (StatusCode, inner_type) tuple
+            if http_code.is_some() {
+                return_type =
+                    quote! { Result<(axum::http::StatusCode, #inner_type), crate::AppError> };
+            } else {
+                return_type = quote! { Result<#inner_type, crate::AppError> };
+            }
         }
 
         // Check if this method returns Option<T> (from T | null union)
@@ -152,11 +164,25 @@ impl RustGenerator {
                     let expr = self.convert_expr(arg);
 
                     if is_handler {
-                        // Check if we wrapped the return type in Json (inside Result)
                         let ret_str = return_type.to_string();
                         let uses_json = ret_str.contains("axum :: Json");
 
-                        if uses_json {
+                        if let Some(code) = http_code {
+                            let status = match code {
+                                200 => quote! { axum::http::StatusCode::OK },
+                                201 => quote! { axum::http::StatusCode::CREATED },
+                                204 => quote! { axum::http::StatusCode::NO_CONTENT },
+                                _ => {
+                                    let c = code;
+                                    quote! { axum::http::StatusCode::from_u16(#c).unwrap_or(axum::http::StatusCode::OK) }
+                                }
+                            };
+                            if uses_json {
+                                quote! { return Ok((#status, axum::Json(#expr.into()))); }
+                            } else {
+                                quote! { return Ok((#status, #expr.into())); }
+                            }
+                        } else if uses_json {
                             quote! { return Ok(axum::Json(#expr.into())); }
                         } else {
                             quote! { return Ok(#expr.into()); }
