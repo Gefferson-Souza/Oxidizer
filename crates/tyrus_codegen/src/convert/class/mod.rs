@@ -29,11 +29,34 @@ impl RustGenerator {
             }
         }
 
+        // Detect inheritance: class Dog extends Animal
+        let parent_class_name = n.class.super_class.as_ref().and_then(|expr| {
+            if let swc_ecma_ast::Expr::Ident(ident) = &**expr {
+                Some(ident.sym.to_string())
+            } else {
+                None
+            }
+        });
+
         // 1. Generate Struct (Properties)
         let mut fields = Vec::new();
         let mut methods = Vec::new();
         let mut constructor: Option<&Constructor> = None;
         let mut class_fields_meta = Vec::new();
+        let mut own_field_names: Vec<(String, proc_macro2::TokenStream, bool)> = Vec::new();
+
+        // If extending a parent, include parent fields first
+        if let Some(ref parent) = parent_class_name {
+            if let Some(parent_fields) = self.class_fields.get(parent) {
+                for (field_name, field_type, is_opt) in parent_fields {
+                    let fname = format_ident!("{}", to_snake_case(field_name));
+                    let ftype = field_type.clone();
+                    fields.push(quote! { pub #fname: #ftype });
+                    class_fields_meta.push((field_name.clone(), *is_opt));
+                    own_field_names.push((field_name.clone(), ftype, *is_opt));
+                }
+            }
+        }
 
         let mut dependency_fields = std::collections::HashSet::new();
         self.current_class_state_fields.clear();
@@ -46,6 +69,9 @@ impl RustGenerator {
                 {
                     fields.push(field_tokens);
                     class_fields_meta.push((name.clone(), is_opt));
+                    // Store raw type as TokenStream for inheritance
+                    let raw_type_tokens = map_ts_type(prop.type_ann.as_ref());
+                    own_field_names.push((name.clone(), raw_type_tokens, is_opt));
                     if is_dep {
                         dependency_fields.insert(name);
                     } else if is_service_or_controller {
@@ -207,6 +233,10 @@ impl RustGenerator {
 
         self.code.push_str(&struct_def.to_string());
         self.code.push('\n');
+
+        // Store field map for potential child classes
+        self.class_fields
+            .insert(class_name.clone(), own_field_names);
 
         // 2. Generate Impl (Methods)
         let mut impl_items = Vec::new();

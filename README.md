@@ -66,6 +66,7 @@ Adhering to strict "Safe Transpilation" principles:
 - **Control Flow**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternary, `try/catch`
 - **Top-Level Statements**: `const`, `let`, expressions auto-wrapped in `fn main()`
 - **Spread Operator**: `[...arr1, ...arr2]` → iterator chain
+- **Class Inheritance**: `extends`, `super()`, method override via field flattening
 - **Operators**: Arithmetic, comparison, logical, `**` (exponentiation), `%` (modulo)
 - **Class State**: Automatic `Arc<Mutex<T>>` wrapping for services/controllers
 - **Interfaces**: `interface` -> `#[derive(Serialize, Deserialize)] struct`
@@ -160,11 +161,11 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Test Suite
 
-168 tests across 7 test types and 4 feature tiers:
+170 tests across 7 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **Equivalence** | 65 | Semantic proof: TS and Rust produce identical stdout |
+| **Equivalence** | 67 | Semantic proof: TS and Rust produce identical stdout |
 | **CLI** | 7 | Integration tests for all CLI commands and flags |
 | **Unit** | 27 | Fast, isolated codegen function tests |
 | **Snapshot** | 6 | Full transpilation output via `insta` |
