@@ -50,13 +50,16 @@ pub(crate) fn build_project_impl(input_dir: &Path, output_dir: &Path) -> Result<
                     }
                 }
             }
-            module_parts.push(sanitized_stem);
+            // index.ts → lib.rs (crate root), don't add "index" to module path
+            if sanitized_stem != "index" {
+                module_parts.push(sanitized_stem);
+            }
             let module_path = module_parts.join("::");
 
             // Extract classes to map them
-            // We use a simple visitor or just iterate top level statements
             if let swc_ecma_ast::Program::Module(m) = &program {
                 for item in &m.body {
+                    // Exported class declarations
                     if let swc_ecma_ast::ModuleItem::ModuleDecl(
                         swc_ecma_ast::ModuleDecl::ExportDecl(export),
                     ) = item
@@ -69,6 +72,22 @@ pub(crate) fn build_project_impl(input_dir: &Path, output_dir: &Path) -> Result<
                                 if !type_params.params.is_empty() {
                                     generic_classes.insert(class_name);
                                 }
+                            }
+                        }
+                    }
+                    // Non-exported class declarations (common in NestJS single-file)
+                    if let swc_ecma_ast::ModuleItem::Stmt(swc_ecma_ast::Stmt::Decl(
+                        swc_ecma_ast::Decl::Class(class_decl),
+                    )) = item
+                    {
+                        let class_name = class_decl.ident.sym.to_string();
+                        class_module_map
+                            .entry(class_name.clone())
+                            .or_insert_with(|| module_path.clone());
+
+                        if let Some(type_params) = &class_decl.class.type_params {
+                            if !type_params.params.is_empty() {
+                                generic_classes.insert(class_name);
                             }
                         }
                     }

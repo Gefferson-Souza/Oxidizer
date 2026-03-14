@@ -10,7 +10,7 @@ pub struct User {
     pub email: String,
 }
 #[derive(Default, Debug, Clone)]
-struct UsersService {
+pub struct UsersService {
     pub users: std::sync::Arc<std::sync::Mutex<Vec<User>>>,
 }
 impl UsersService {
