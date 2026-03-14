@@ -21,6 +21,8 @@ pub struct RustGenerator {
         std::collections::HashMap<String, Vec<(String, proc_macro2::TokenStream, bool)>>,
     /// Track static methods per class (ClassName → [method_names])
     pub(crate) static_methods: std::collections::HashMap<String, std::collections::HashSet<String>>,
+    /// When true, Expr::This generates `state` instead of `self` (for Axum State handlers)
+    pub(crate) use_state_for_this: std::cell::Cell<bool>,
     /// Variables declared with `: string` type annotation (used for stdlib disambiguation)
     pub(crate) string_vars: std::cell::RefCell<std::collections::HashSet<String>>,
 }
@@ -38,6 +40,7 @@ impl RustGenerator {
             current_class_state_fields: std::collections::HashMap::new(),
             class_fields: std::collections::HashMap::new(),
             static_methods: std::collections::HashMap::new(),
+            use_state_for_this: std::cell::Cell::new(false),
             string_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
         }
     }

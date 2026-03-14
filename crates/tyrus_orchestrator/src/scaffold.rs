@@ -96,9 +96,10 @@ pub(crate) fn generate_main_rs(
     // Register controllers
     for controller in controllers {
         if let Some(module_path) = class_module_map.get(controller) {
+            let var_name = tyrus_common::util::to_snake_case(controller);
             main_content.push_str(&format!(
-                "\n        .merge({}::{}::router())",
-                module_path, controller
+                "\n        .merge({}::{}::router({}.clone()))",
+                module_path, controller, var_name
             ));
         }
     }
