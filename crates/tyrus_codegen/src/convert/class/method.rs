@@ -230,27 +230,7 @@ fn wrap_handler_return_type(
     }
 }
 
-/// Maps an HTTP status code to its axum StatusCode constant.
-fn map_status_code(code: u16) -> proc_macro2::TokenStream {
-    match code {
-        200 => quote! { axum::http::StatusCode::OK },
-        201 => quote! { axum::http::StatusCode::CREATED },
-        204 => quote! { axum::http::StatusCode::NO_CONTENT },
-        301 => quote! { axum::http::StatusCode::MOVED_PERMANENTLY },
-        400 => quote! { axum::http::StatusCode::BAD_REQUEST },
-        401 => quote! { axum::http::StatusCode::UNAUTHORIZED },
-        403 => quote! { axum::http::StatusCode::FORBIDDEN },
-        404 => quote! { axum::http::StatusCode::NOT_FOUND },
-        409 => quote! { axum::http::StatusCode::CONFLICT },
-        500 => quote! { axum::http::StatusCode::INTERNAL_SERVER_ERROR },
-        100..=999 => {
-            quote! { axum::http::StatusCode::from_u16(#code).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR) }
-        }
-        _ => {
-            quote! { compile_error!("Tyrus: @HttpCode value is not a valid HTTP status code (100-999)") }
-        }
-    }
-}
+use super::routing::{build_doc_comment, map_status_code};
 
 /// Builds a handler return expression with Json wrapping and optional StatusCode.
 fn build_handler_return(
@@ -354,24 +334,6 @@ fn build_return_stmt(
     }
 
     quote! { return #expr; }
-}
-
-/// Builds the doc comment for a handler method.
-fn build_doc_comment(http_method: &Option<String>, route_path: &str) -> proc_macro2::TokenStream {
-    let Some(m) = http_method.as_ref() else {
-        return quote! {};
-    };
-
-    let method_str = m.to_uppercase();
-    let route = if route_path.is_empty() {
-        "/".to_string()
-    } else {
-        route_path.to_string()
-    };
-
-    quote! {
-        #[doc = concat!("Route: ", #method_str, " ", #route)]
-    }
 }
 
 impl RustGenerator {

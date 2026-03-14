@@ -120,8 +120,7 @@ fn test_tier4_full_build() {
 
     // Check for Router Merge
     assert!(
-        main_content.contains("CatsController::router(cats_controller.clone())")
-            || main_content.contains("CatsController::router()"),
+        main_content.contains("CatsController::router(cats_controller.clone())"),
         "Router merge missing: {main_content}"
     );
 
