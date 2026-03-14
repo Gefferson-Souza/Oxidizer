@@ -1,0 +1,17 @@
+#!/bin/sh
+# Pre-commit hook for Tyrus
+# Install: ./scripts/setup-hooks.sh
+
+echo "=== Pre-commit: cargo fmt ==="
+if ! cargo fmt -- --check; then
+    echo "ERROR: cargo fmt failed. Run 'cargo fmt' to fix."
+    exit 1
+fi
+
+echo "=== Pre-commit: cargo clippy ==="
+if ! cargo clippy --workspace -- -D warnings; then
+    echo "ERROR: cargo clippy found warnings. Fix them before committing."
+    exit 1
+fi
+
+echo "=== Pre-commit: OK ==="
