@@ -14,7 +14,7 @@
 
 | Aspect | Status | Details |
 |--------|--------|---------|
-| Tests | 158 pass, 1 skip | 55 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
+| Tests | 165 pass, 1 skip | 62 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
 | CLI | 4 commands | check, build, compile, run (branded, --quiet, --json) |
 | Analyzer | 8 lint + 11 API blocks | var, any, eval, for-in, try-catch, delete, with, labeled |
 | Codegen | ~4190 lines, 20 modules | Expressions, statements, classes, stdlib |
@@ -160,7 +160,7 @@ match (|| -> Result<_, AppError> {
 
 #### Tasks
 
-- [ ] **Task 6.1.1: Remove try-catch from analyzer block list**
+- [x] **Task 6.1.1: Remove try-catch from analyzer block list** ✓
 
   Modify `crates/tyrus_analyzer/src/lints.rs`:
   - Remove the entire `fn visit_try_stmt(&mut self, n: &swc_ecma_ast::TryStmt)` method from the `Visit` impl for `LintVisitor` (lines 79-86)
@@ -180,7 +180,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo clippy --workspace`
 
-- [ ] **Task 6.1.2: Write failing equivalence test for basic try-catch**
+- [x] **Task 6.1.2: Write failing equivalence test for basic try-catch** ✓
 
   Create `tests/src/equivalence/error_handling.rs`:
 
@@ -211,7 +211,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test -p integration_tests test_equivalence_try_catch_basic` — Expected: FAIL
 
-- [ ] **Task 6.1.2b: Refactor stmt.rs before adding try-catch**
+- [x] **Task 6.1.2b: Refactor stmt.rs** ✓ (PR #31)
 
   `stmt.rs` is already at 427 lines (near the 400-line project limit). Before adding try-catch logic, extract existing switch/for-of/do-while conversion into a sub-module to make room.
 
@@ -221,7 +221,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test --workspace` — all 157 tests must still pass.
 
-- [ ] **Task 6.1.3: Implement try-catch in stmt.rs**
+- [x] **Task 6.1.3: Implement try-catch in stmt/try_catch.rs** ✓
 
   Modify `crates/tyrus_codegen/src/convert/stmt.rs` (or `stmt/mod.rs` after refactor):
   - Add `Stmt::Try(try_stmt)` arm to `convert_stmt()`
@@ -234,7 +234,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test -p integration_tests test_equivalence_try_catch_basic` — Expected: PASS
 
-- [ ] **Task 6.1.4: Write equivalence test for try-catch with throw**
+- [x] **Task 6.1.4: Write equivalence test for try-catch with throw** ✓
 
   Add to `error_handling.rs`:
 
@@ -264,7 +264,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test -p integration_tests test_equivalence_try_catch` — Expected: PASS
 
-- [ ] **Task 6.1.5: Write equivalence test for nested try-catch**
+- [x] **Task 6.1.5: Write equivalence test for nested try-catch** ✓
 
   ```rust
   #[test]
@@ -349,7 +349,7 @@ fn main() {
 
 #### Tasks
 
-- [ ] **Task 6.2.1: Write failing test for top-level variable declarations**
+- [x] **Task 6.2.1: Write failing test for top-level variable declarations** ✓
 
   Create `tests/src/equivalence/top_level.rs`:
   ```rust
@@ -368,7 +368,7 @@ fn main() {
 
   Run: Expected FAIL (currently produces empty output).
 
-- [ ] **Task 6.2.2: Fix build() to emit top-level statements**
+- [x] **Task 6.2.2: Fix generate() to emit top-level statements** ✓
 
   **Fix 1:** `crates/tyrus_orchestrator/src/lib.rs:39` — Change `generate(&program, false)` to `generate(&program, true)` for single-file builds (the `build()` function).
 
@@ -376,13 +376,13 @@ fn main() {
 
   Run: `cargo test -p integration_tests test_equivalence_top_level_const` — Expected: PASS
 
-- [ ] **Task 6.2.3: Update assert_output_equivalent docstring**
+- [x] **Task 6.2.3: Update assert_output_equivalent docstring** ✓
 
   Modify `tests/src/helpers.rs`:
   - Remove the restriction "The TypeScript code MUST: Contain function declarations (not top-level statements)"
   - Update to reflect that both top-level statements and function declarations are now supported
 
-- [ ] **Task 6.2.4: Write test for top-level let (mutable)**
+- [x] **Task 6.2.4: Write test for top-level let (mutable)** ✓
 
   ```rust
   #[test]
@@ -396,7 +396,7 @@ fn main() {
   }
   ```
 
-- [ ] **Task 6.2.5: Write test for top-level with functions**
+- [x] **Task 6.2.5: Write test for top-level with functions** ✓
 
   ```rust
   #[test]
