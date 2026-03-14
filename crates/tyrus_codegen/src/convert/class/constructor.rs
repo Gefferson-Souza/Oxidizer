@@ -18,7 +18,7 @@ pub(crate) struct ConstructorCtx<'a> {
 }
 
 /// Check whether a type annotation refers to a dependency (non-primitive TypeRef).
-fn is_dependency_type(
+pub(crate) fn is_dependency_type(
     type_ann: Option<&swc_ecma_ast::TsTypeAnn>,
     generic_params: &HashSet<String>,
 ) -> bool {

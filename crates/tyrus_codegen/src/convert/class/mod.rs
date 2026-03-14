@@ -323,28 +323,8 @@ impl RustGenerator {
         // Capture the raw inner type string before wrapping in Option/Arc
         let raw_type_str = field_type.to_string();
 
-        // Check dependency
-        let is_dependency = if let Some(ann) = prop.type_ann.as_ref() {
-            if let Some(type_ref) = ann.type_ann.as_ts_type_ref() {
-                if let Some(ident) = type_ref.type_name.as_ident() {
-                    let name = ident.sym.as_str();
-                    if generic_params.contains(name) {
-                        false
-                    } else {
-                        !matches!(
-                            name,
-                            "String" | "f64" | "bool" | "i32" | "Vec" | "Option" | "Array"
-                        )
-                    }
-                } else {
-                    true
-                }
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let is_dependency =
+            super::class::constructor::is_dependency_type(prop.type_ann.as_deref(), generic_params);
 
         if is_dependency {
             field_type = quote! { std::sync::Arc<#field_type> };
