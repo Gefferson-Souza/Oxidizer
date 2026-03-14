@@ -1,0 +1,7 @@
+program,binary_size_bytes,compile_time_ms
+test1_data_pipeline,403256,2411
+test2_statistics,408424,2421
+test3_text_processing,433528,2558
+test4_sorting,413296,2437
+test5_matrix_compute,403088,2437
+test6_accumulation,408432,2444

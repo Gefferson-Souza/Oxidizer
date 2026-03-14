@@ -1,0 +1,13 @@
+[package]
+name = "test1_data_pipeline"
+version = "0.1.0"
+edition = "2021"
+[workspace]
+[[bin]]
+name = "test1_data_pipeline"
+path = "src/main.rs"
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+[profile.release]
+lto = true
