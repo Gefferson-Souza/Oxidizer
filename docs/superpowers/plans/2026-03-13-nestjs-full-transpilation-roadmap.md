@@ -612,7 +612,7 @@ enum AnyAnimal { Animal(Animal), Dog(Dog) }
 
 #### Tasks
 
-- [ ] **Task 6.4.1: Write failing test for basic inheritance**
+- [x] **Task 6.4.1: Write failing test for basic inheritance** ✓
 
   ```rust
   #[test]
@@ -644,20 +644,20 @@ enum AnyAnimal { Animal(Animal), Dog(Dog) }
   }
   ```
 
-- [ ] **Task 6.4.2: Implement extends detection in class/mod.rs**
+- [x] **Task 6.4.2: Implement extends detection in class/mod.rs** ✓
 
   In `process_class_decl()`:
   - Detect `class.super_class` (optional Expr)
   - If present, add `base: ParentType` field to struct
   - Flatten parent fields for direct access (or use delegation)
 
-- [ ] **Task 6.4.3: Implement super() in constructor.rs**
+- [x] **Task 6.4.3: Implement super() in constructor.rs** ✓
 
   In `convert_constructor()`:
   - Detect `super(args)` calls in constructor body
   - Convert to `base: ParentType::new(args)` field initialization
 
-- [ ] **Task 6.4.4: Write test for method override**
+- [x] **Task 6.4.4: Write test for method override** ✓
 
   ```rust
   #[test]
