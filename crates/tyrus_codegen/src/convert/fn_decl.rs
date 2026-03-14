@@ -36,7 +36,9 @@ impl RustGenerator {
                     // ...args: T[] → args: Vec<T>
                     if let Pat::Ident(ident) = &*rest_pat.arg {
                         let param_name = format_ident!("{}", ident.sym.to_string());
-                        let param_type = map_ts_type(ident.type_ann.as_ref());
+                        // RestPat carries the type annotation, not the inner ident
+                        let param_type =
+                            map_ts_type(rest_pat.type_ann.as_ref().or(ident.type_ann.as_ref()));
                         params.push(quote! { mut #param_name: #param_type });
                     }
                 }

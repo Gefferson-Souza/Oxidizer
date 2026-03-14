@@ -77,9 +77,8 @@ impl RustGenerator {
             if elem.spread.is_some() {
                 // Flush pending non-spread items first
                 if !pending_items.is_empty() {
-                    let items = pending_items.clone();
+                    let items = std::mem::take(&mut pending_items);
                     chains.push(quote! { vec![#(#items),*].into_iter() });
-                    pending_items.clear();
                 }
                 let spread_expr = self.convert_expr(&elem.expr);
                 chains.push(quote! { #spread_expr.iter().cloned() });
