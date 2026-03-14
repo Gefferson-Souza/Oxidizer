@@ -4,5 +4,6 @@ mod console;
 mod control_flow;
 mod error_handling;
 mod math;
+mod spread;
 mod strings;
 mod top_level;
