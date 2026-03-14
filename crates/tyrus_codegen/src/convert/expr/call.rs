@@ -156,7 +156,7 @@ impl RustGenerator {
                     let closure = &args[0];
                     if method_name == "filter" {
                         return Some(quote! {
-                            #obj.clone().into_iter()
+                            #obj.iter().cloned()
                                 .enumerate()
                                 .filter(|(i, v)| (#closure)(v.clone(), *i as f64))
                                 .map(|(_, v)| v)
@@ -164,7 +164,7 @@ impl RustGenerator {
                         });
                     } else {
                         return Some(quote! {
-                            #obj.clone().into_iter()
+                            #obj.iter().cloned()
                                 .enumerate()
                                 .map(|(i, v)| (#closure)(v, i as f64))
                                 .collect::<Vec<_>>()
@@ -178,14 +178,12 @@ impl RustGenerator {
                     }
                     let closure = &args[0];
                     return Some(quote! {
-                        #obj.clone().into_iter()
+                        #obj.iter().cloned()
                             .filter(|__v| (#closure)(__v.clone()))
                             .collect::<Vec<_>>()
                     });
                 }
-                Some(
-                    quote! { #obj.clone().into_iter().#rust_method(#(#args),*).collect::<Vec<_>>() },
-                )
+                Some(quote! { #obj.iter().cloned().#rust_method(#(#args),*).collect::<Vec<_>>() })
             }
             "forEach" => {
                 let obj = self.convert_expr(&member.obj);
