@@ -35,7 +35,13 @@ impl RustGenerator {
     pub fn convert_expr(&self, expr: &Expr) -> TokenStream {
         match expr {
             Expr::Bin(bin) => self.convert_bin_expr(bin),
-            Expr::This(_) => quote! { self },
+            Expr::This(_) => {
+                if self.use_state_for_this.get() {
+                    quote! { state }
+                } else {
+                    quote! { self }
+                }
+            }
             Expr::Ident(ident) => convert_ident(ident),
             Expr::Lit(lit) => self.convert_lit(lit),
             Expr::Member(member) => self.convert_member_expr(member),

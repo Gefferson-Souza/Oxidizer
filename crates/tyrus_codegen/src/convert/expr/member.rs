@@ -31,8 +31,15 @@ impl RustGenerator {
         let prop_name = to_snake_case(prop_ident.sym.as_ref());
         let field_ident = format_ident!("{}", prop_name);
 
+        // Use `state` for handler bodies (State<Arc<Self>> pattern)
+        let receiver = if self.use_state_for_this.get() {
+            quote! { state }
+        } else {
+            quote! { self }
+        };
+
         let Some(type_str) = self.current_class_state_fields.get(prop_ident.sym.as_ref()) else {
-            return quote! { self.#field_ident.clone() };
+            return quote! { #receiver.#field_ident.clone() };
         };
 
         let needs_deref = matches!(
@@ -41,10 +48,9 @@ impl RustGenerator {
         );
 
         if needs_deref {
-            quote! { *self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()) }
+            quote! { *#receiver.#field_ident.lock().unwrap_or_else(|e| e.into_inner()) }
         } else {
-            // String and collection/complex types: clone to release MutexGuard
-            quote! { self.#field_ident.lock().unwrap_or_else(|e| e.into_inner()).clone() }
+            quote! { #receiver.#field_ident.lock().unwrap_or_else(|e| e.into_inner()).clone() }
         }
     }
 
