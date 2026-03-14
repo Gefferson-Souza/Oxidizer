@@ -21,13 +21,26 @@ impl RustGenerator {
                             let prop_name = to_snake_case(prop_ident.sym.as_ref());
                             let field = format_ident!("{}", prop_name);
 
+                            let receiver = if self.use_state_for_this.get() {
+                                quote! { state }
+                            } else {
+                                quote! { self }
+                            };
+
                             if self
                                 .current_class_state_fields
                                 .contains_key(prop_ident.sym.as_ref())
                             {
-                                quote! { *self.#field.lock().unwrap_or_else(|e| e.into_inner()) }
+                                // Avoid deadlock: read value first, then write
+                                // This prevents double-locking the same Mutex
+                                return quote! {
+                                    {
+                                        let __new_val = #right;
+                                        *#receiver.#field.lock().unwrap_or_else(|e| e.into_inner()) = __new_val;
+                                    }
+                                };
                             } else {
-                                quote! { self.#field }
+                                quote! { #receiver.#field }
                             }
                         } else {
                             quote! { compile_error!("Tyrus: unsupported self member assignment") }
