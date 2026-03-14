@@ -67,6 +67,32 @@ class UsersController {
 }
 
 #[test]
+fn test_httpcode_decorator_generates_status_code() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Controller, Post, HttpCode, Body } from "@nestjs/common";
+interface Item { name: string; }
+@Controller("/items")
+class ItemsController {
+    @Post("/")
+    @HttpCode(201)
+    create(@Body() item: Item): Item {
+        return item;
+    }
+}
+"#,
+    );
+    assert!(
+        rust.contains("StatusCode"),
+        "Expected StatusCode in: {rust}"
+    );
+    assert!(
+        rust.contains("CREATED") || rust.contains("201"),
+        "Expected CREATED or 201 in: {rust}"
+    );
+}
+
+#[test]
 fn test_query_decorator_generates_query_extractor() {
     let rust = crate::helpers::transpile(
         r#"
