@@ -63,7 +63,9 @@ Adhering to strict "Safe Transpilation" principles:
 - **Math Functions** (15): `max`, `min`, `round`, `floor`, `ceil`, `abs`, `random`, `pow`, `sqrt`, `log`, `trunc`, `sign`, `sin`, `cos`, `tan`
 - **Math Constants** (2): `Math.PI`, `Math.E`
 - **Console** (5): `log`, `error`, `warn`, `info`, `debug`
-- **Control Flow**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternary
+- **Control Flow**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternary, `try/catch`
+- **Top-Level Statements**: `const`, `let`, expressions auto-wrapped in `fn main()`
+- **Spread Operator**: `[...arr1, ...arr2]` → iterator chain
 - **Operators**: Arithmetic, comparison, logical, `**` (exponentiation), `%` (modulo)
 - **Class State**: Automatic `Arc<Mutex<T>>` wrapping for services/controllers
 - **Interfaces**: `interface` -> `#[derive(Serialize, Deserialize)] struct`
@@ -158,11 +160,11 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Test Suite
 
-158 tests across 7 test types and 4 feature tiers:
+168 tests across 7 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **Equivalence** | 55 | Semantic proof: TS and Rust produce identical stdout |
+| **Equivalence** | 65 | Semantic proof: TS and Rust produce identical stdout |
 | **CLI** | 7 | Integration tests for all CLI commands and flags |
 | **Unit** | 27 | Fast, isolated codegen function tests |
 | **Snapshot** | 6 | Full transpilation output via `insta` |
