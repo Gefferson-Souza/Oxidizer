@@ -252,15 +252,15 @@ impl RustGenerator {
 
         // Constructor
         if let Some(cons) = constructor {
-            let constructor_tokens = self.convert_constructor(
-                &struct_name,
-                cons,
-                &class_fields_meta,
-                n.class.type_params.is_some(),
-                &generic_params,
-                &dependency_fields,
+            let ctx = constructor::ConstructorCtx {
+                constructor: cons,
+                class_fields: &class_fields_meta,
+                has_generics: n.class.type_params.is_some(),
+                generic_params: &generic_params,
+                dependency_fields: &dependency_fields,
                 is_service_or_controller,
-            );
+            };
+            let constructor_tokens = self.convert_constructor(&struct_name, &ctx);
             impl_items.push(constructor_tokens);
         } else {
             // Default constructor if none exists
