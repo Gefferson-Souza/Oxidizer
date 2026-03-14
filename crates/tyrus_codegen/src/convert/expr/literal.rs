@@ -59,13 +59,49 @@ impl RustGenerator {
     }
 
     pub(crate) fn convert_array_lit(&self, arr: &swc_ecma_ast::ArrayLit) -> TokenStream {
-        let elems: Vec<_> = arr
-            .elems
-            .iter()
-            .flatten()
-            .map(|elem| self.convert_expr_or_spread(elem))
-            .collect();
-        quote! { vec![#(#elems),*] }
+        let elems: Vec<_> = arr.elems.iter().flatten().collect::<Vec<_>>();
+
+        // Check if any element uses spread syntax
+        let has_spread = elems.iter().any(|e| e.spread.is_some());
+
+        if !has_spread {
+            let items: Vec<_> = elems.iter().map(|e| self.convert_expr(&e.expr)).collect();
+            return quote! { vec![#(#items),*] };
+        }
+
+        // Build chain of iterators for spread elements
+        let mut chains: Vec<TokenStream> = Vec::new();
+        let mut pending_items: Vec<TokenStream> = Vec::new();
+
+        for elem in &elems {
+            if elem.spread.is_some() {
+                // Flush pending non-spread items first
+                if !pending_items.is_empty() {
+                    let items = std::mem::take(&mut pending_items);
+                    chains.push(quote! { vec![#(#items),*].into_iter() });
+                }
+                let spread_expr = self.convert_expr(&elem.expr);
+                chains.push(quote! { #spread_expr.iter().cloned() });
+            } else {
+                pending_items.push(self.convert_expr(&elem.expr));
+            }
+        }
+
+        // Flush remaining non-spread items
+        if !pending_items.is_empty() {
+            let items = pending_items;
+            chains.push(quote! { vec![#(#items),*].into_iter() });
+        }
+
+        // Chain all iterators together
+        if chains.len() == 1 {
+            let first = &chains[0];
+            quote! { #first.collect::<Vec<_>>() }
+        } else {
+            let first = &chains[0];
+            let rest = &chains[1..];
+            quote! { #first #(.chain(#rest))* .collect::<Vec<_>>() }
+        }
     }
 
     pub(crate) fn convert_tpl(&self, tpl: &swc_ecma_ast::Tpl) -> TokenStream {
