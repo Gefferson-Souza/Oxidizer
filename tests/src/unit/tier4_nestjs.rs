@@ -85,3 +85,35 @@ class ItemsController {
         "Expected Query extractor in: {rust}"
     );
 }
+
+#[test]
+fn test_nestjs_not_found_exception_maps_to_app_error() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { NotFoundException } from "@nestjs/common";
+function findUser(id: string): string {
+    throw new NotFoundException("User not found");
+}
+"#,
+    );
+    assert!(
+        rust.contains("AppError") && rust.contains("NotFound"),
+        "Expected AppError::NotFound in: {rust}"
+    );
+}
+
+#[test]
+fn test_nestjs_bad_request_exception_maps_to_app_error() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { BadRequestException } from "@nestjs/common";
+function validate(input: string): string {
+    throw new BadRequestException("Invalid input");
+}
+"#,
+    );
+    assert!(
+        rust.contains("AppError") && rust.contains("BadRequest"),
+        "Expected AppError::BadRequest in: {rust}"
+    );
+}
