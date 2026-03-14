@@ -189,7 +189,11 @@ convert/
 ├── mod.rs          — module declarations and re-exports
 ├── interface.rs    — RustGenerator struct definition + Visit impl (entry point)
 ├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
-├── stmt.rs         — statement conversion (convert_stmt, convert_stmt_recursive)
+├── stmt/           — statement conversion (split into sub-modules)
+│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
+│   ├── var_decl.rs     — variable declarations (ident, object/array destructuring)
+│   ├── loops.rs        — while, for-of, for-in, for, do-while
+│   └── switch.rs       — switch → match
 ├── fn_decl.rs      — function declaration processing (process_fn_decl)
 ├── module.rs       — module/import handling
 ├── type_mapper.rs  — TypeScript → Rust type mapping (deduplicated map_type_core)

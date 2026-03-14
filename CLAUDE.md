@@ -94,7 +94,11 @@ crates/tyrus_codegen/src/
 │   ├── interface.rs      # RustGenerator visitor, interfaces → structs
 │   ├── helpers.rs        # to_snake_case, to_pascal_case, is_string_expr, is_primitive_type
 │   ├── fn_decl.rs        # Function declaration transpilation
-│   ├── stmt.rs           # Statement conversion
+│   ├── stmt/             # Statement conversion (split from 427-line monolith)
+│   │   ├── mod.rs         # Dispatcher + convert_stmt, convert_stmt_recursive
+│   │   ├── var_decl.rs    # Variable declarations (ident, object/array destructuring)
+│   │   ├── loops.rs       # while, for-of, for-in, for, do-while
+│   │   └── switch.rs      # switch → match
 │   ├── type_mapper.rs    # TS→Rust type mapping
 │   └── expr/             # Expression conversion
 │       ├── mod.rs         # Expression dispatcher
