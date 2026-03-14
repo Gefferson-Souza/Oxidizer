@@ -11,9 +11,12 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 168 (65 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
-| Equivalence tests | 65 (proving TS↔Rust output identity) |
+| Tests passing | 174 (71 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
+| Equivalence tests | 71 (proving TS↔Rust output identity) |
 | Array spread | `[...a, ...b]` → `a.iter().cloned().chain(b.iter().cloned()).collect()` |
+| Static methods | `Class.method()` → `Class::method()` (associated functions) |
+| Type assertions | `as Type` → no-op (4 SWC variants handled) |
+| Numeric enums | `enum Dir { Up = 0 }` → `#[repr(i32)] enum` with Display |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else, try-catch |
 | Top-level statements | const, let, expressions, console.log — auto-wrapped in fn main() |
@@ -41,7 +44,7 @@ Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + b
 Phase 5 ✅ Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (ALL methods done)
 Phase 5.5 ✅ Architecture  (CLI+IR+Analyzer)  — Branded CLI, typed IR, expanded analyzer
 Phase 6.0 ✅ Infrastructure (prettyplease, thiserror 2.0, trybuild) — See docs/superpowers/plans/2026-03-13-nestjs-full-transpilation-roadmap.md
-Phase 6 📋 Advanced TS     (Milestone 15)     — Class inheritance, enums, advanced patterns
+Phase 6 ✅ Advanced TS     (Milestone 15)     — Class inheritance, static, enums, type assertions, spread
 Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
 ```
 

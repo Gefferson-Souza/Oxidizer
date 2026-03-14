@@ -718,7 +718,7 @@ impl Config {
 
 #### Tasks
 
-- [ ] **Task 6.5.1: Write failing test for static methods**
+- [x] **Task 6.5.1: Write failing test for static methods** ✓
 
   ```rust
   #[test]
@@ -738,14 +738,14 @@ impl Config {
   }
   ```
 
-- [ ] **Task 6.5.2: Implement static method detection**
+- [x] **Task 6.5.2: Implement static method detection** ✓
 
   In `class/method.rs`:
   - Check `method.is_static` flag
   - Static methods: no `&self` parameter, called as `Type::method()`
   - Static properties: `const` associated items in impl block
 
-- [ ] **Task 6.5.2b: Implement static call-site transformation**
+- [x] **Task 6.5.2b: Implement static call-site transformation** ✓
 
   In `crates/tyrus_codegen/src/convert/expr/member.rs`:
   - Detect `ClassName.staticField` → `ClassName::STATIC_FIELD`
@@ -797,7 +797,7 @@ impl Config {
 
 #### Tasks
 
-- [ ] **Task 6.6.1: Write test for type assertion**
+- [x] **Task 6.6.1: Write test for type assertion** ✓
 
   ```rust
   #[test]
@@ -814,7 +814,7 @@ impl Config {
   }
   ```
 
-- [ ] **Task 6.6.2: Implement as Type assertion**
+- [x] **Task 6.6.2: Implement as Type assertion** ✓
 
   `expr as Type` → In most cases, this is a no-op in Rust (types are already known). For `value as string`, generate `.to_string()`. For struct casts, generate type annotation.
 
