@@ -8,3 +8,6 @@ fn greet(mut name: String) -> String {
 fn full_name(mut first: String, mut last: String) -> String {
     return format!("{} {}", first, last);
 }
+fn main() {
+    let message = String::from("Hello, World!");
+}

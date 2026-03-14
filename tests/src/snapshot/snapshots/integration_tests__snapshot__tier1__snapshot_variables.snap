@@ -2,4 +2,11 @@
 source: tests/src/snapshot/tier1.rs
 expression: rust
 ---
-
+fn main() {
+    let name = String::from("Alice");
+    let age = 30f64;
+    let active = true;
+    let pi = 3.14159f64;
+    let mut count = 0f64;
+    let greeting = String::from("Hello, World!");
+}

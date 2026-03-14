@@ -2,4 +2,8 @@
 source: tests/src/snapshot/tier1.rs
 expression: rust
 ---
-
+fn main() {
+    let x = 42f64;
+    println!("{}", x);
+    eprintln!("{}", String::from("something went wrong"));
+}

@@ -20,8 +20,11 @@ pub fn generate(program: &Program, is_index: bool) -> GeneratedCode {
     let mut generator = RustGenerator::new(is_index);
     program.visit_with(&mut generator);
 
-    if !generator.main_body.is_empty() && is_index {
-        generator.code.push_str("\npub fn main() {\n");
+    let has_main_fn = generator.code.contains("fn main(") || generator.code.contains("fn main (");
+    if !generator.main_body.is_empty() && !has_main_fn {
+        // Wrap top-level statements in fn main() only if no main function already declared.
+        // When a declared fn main() exists, it serves as Rust's entry point automatically.
+        generator.code.push_str("\nfn main() {\n");
         generator.code.push_str(&generator.main_body);
         generator.code.push_str("}\n");
     }
