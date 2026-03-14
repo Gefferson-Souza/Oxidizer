@@ -172,9 +172,18 @@ impl RustGenerator {
                                 200 => quote! { axum::http::StatusCode::OK },
                                 201 => quote! { axum::http::StatusCode::CREATED },
                                 204 => quote! { axum::http::StatusCode::NO_CONTENT },
+                                301 => quote! { axum::http::StatusCode::MOVED_PERMANENTLY },
+                                400 => quote! { axum::http::StatusCode::BAD_REQUEST },
+                                401 => quote! { axum::http::StatusCode::UNAUTHORIZED },
+                                403 => quote! { axum::http::StatusCode::FORBIDDEN },
+                                404 => quote! { axum::http::StatusCode::NOT_FOUND },
+                                409 => quote! { axum::http::StatusCode::CONFLICT },
+                                500 => quote! { axum::http::StatusCode::INTERNAL_SERVER_ERROR },
+                                100..=999 => {
+                                    quote! { axum::http::StatusCode::from_u16(#code).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR) }
+                                }
                                 _ => {
-                                    let c = code;
-                                    quote! { axum::http::StatusCode::from_u16(#c).unwrap_or(axum::http::StatusCode::OK) }
+                                    quote! { compile_error!("Tyrus: @HttpCode value is not a valid HTTP status code (100-999)") }
                                 }
                             };
                             if uses_json {
