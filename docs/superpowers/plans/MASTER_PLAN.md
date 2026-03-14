@@ -11,7 +11,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 174 (71 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
+| Tests passing | 179 (71 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
 | Equivalence tests | 71 (proving TS↔Rust output identity) |
 | Array spread | `[...a, ...b]` → `a.iter().cloned().chain(b.iter().cloned()).collect()` |
 | Static methods | `Class.method()` → `Class::method()` (associated functions) |

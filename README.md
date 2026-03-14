@@ -164,7 +164,7 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Test Suite
 
-174 tests across 7 test types and 4 feature tiers:
+179 tests across 7 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|

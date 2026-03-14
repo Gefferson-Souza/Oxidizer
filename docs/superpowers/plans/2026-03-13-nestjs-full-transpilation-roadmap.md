@@ -892,7 +892,7 @@ async fn create(
 
 #### Tasks
 
-- [ ] **Task 7.1.1: Write failing test for @Param decorator**
+- [x] **Task 7.1.1: Write failing test for @Param decorator** ✓
 
   ```rust
   #[test]
@@ -911,7 +911,7 @@ async fn create(
   }
   ```
 
-- [ ] **Task 7.1.2: Implement @Param → Path extractor**
+- [x] **Task 7.1.2: Implement @Param → Path extractor** ✓
 
   In `class/method.rs`, detect `@Param('name')` decorator on parameters:
   - Single param: `Path(name): Path<String>`
@@ -936,7 +936,7 @@ async fn create(
   }
   ```
 
-- [ ] **Task 7.1.4: Implement @Query → Query extractor**
+- [x] **Task 7.1.4: Implement @Query → Query extractor** ✓
 
   - Single query param: `Query(name): Query<String>`
   - Multiple query params: Generate query struct with optional fields
@@ -997,7 +997,7 @@ If the handler uses try-catch (Phase 6.1), it needs `Result` for error propagati
 
 #### Tasks
 
-- [ ] **Task 7.2.1: Write test for @HttpCode**
+- [x] **Task 7.2.1: Write test for @HttpCode** ✓
 
   ```rust
   #[test]
@@ -1019,7 +1019,7 @@ If the handler uses try-catch (Phase 6.1), it needs `Result` for error propagati
   }
   ```
 
-- [ ] **Task 7.2.2: Implement @HttpCode → StatusCode tuple return**
+- [x] **Task 7.2.2: Implement @HttpCode → StatusCode tuple return** ✓
 
   Detect `@HttpCode(code)` decorator:
   - Return type becomes `Result<(StatusCode, Json<T>), AppError>` (wraps StatusCode in Result for error propagation compatibility)
@@ -1076,7 +1076,7 @@ return Err(AppError::Conflict("Email already exists".into()));
   }
   ```
 
-- [ ] **Task 7.3.2: Map NestJS exceptions to AppError variants**
+- [x] **Task 7.3.2: Map NestJS exceptions to AppError variants** ✓
 
   In `expr/call.rs`, detect `new NotFoundException(msg)`:
   - Map to `AppError::NotFound(msg.into())`
