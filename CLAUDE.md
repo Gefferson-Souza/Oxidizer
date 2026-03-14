@@ -67,16 +67,16 @@ cargo insta review                     # Review snapshot changes
 
 | Crate | Lines | Role |
 |-------|-------|------|
-| `tyrus_cli` | ~80 | CLI (clap). 4 commands: `check`/`build`/`compile`/`run`. Branded output. |
+| `tyrus_cli` | ~430 | CLI (clap). 4 commands: `check`/`build`/`compile`/`run`. Branded output, progress pipeline. |
 | `tyrus_parser` | ~55 | Wraps SWC parser. `.ts` → `Program` |
-| `tyrus_ast` | ~400 | Typed IR: `TyrusModule`/`TyrusExpr`/`TyrusStmt`/`TyrusDecl`. SWC→IR lowering. |
-| `tyrus_analyzer` | ~450 | `LintVisitor` (8 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` + JSON reports |
-| `tyrus_codegen` | ~2540 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*`. |
-| `tyrus_di` | ~195 | DI graph (petgraph). Topological sort. |
-| `tyrus_orchestrator` | ~527 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
+| `tyrus_ast` | ~730 | Typed IR: `TyrusModule`/`TyrusExpr`/`TyrusStmt`/`TyrusDecl`. SWC→IR lowering. |
+| `tyrus_analyzer` | ~580 | `LintVisitor` (8 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` + JSON reports |
+| `tyrus_codegen` | ~4190 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*`. |
+| `tyrus_di` | ~200 | DI graph (petgraph). Topological sort. |
+| `tyrus_orchestrator` | ~590 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
 | `tyrus_diagnostics` | ~69 | `TyrusError` + miette |
 | `tyrus_common` | ~70 | `FilePath`, `to_snake_case()`, config |
-| `tyrus_test_utils` | ~86 | `assert_rust_compiles()` (allows unwrap in tests) |
+| `tyrus_test_utils` | ~195 | `assert_rust_compiles()`, `compile_and_run_rust()`, `run_node()` |
 
 ### Codegen Module Structure (Current)
 
