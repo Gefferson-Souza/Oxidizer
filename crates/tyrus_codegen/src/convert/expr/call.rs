@@ -1,8 +1,8 @@
 //! Call expression code generation.
 //!
-//! Handles: stdlib calls, axios/fetch → reqwest, array methods
+//! Handles: stdlib calls, axios/fetch -> reqwest, array methods
 //! (map, filter, forEach, find, some, every, reduce, push),
-//! and string methods (replace → replacen).
+//! and string methods (replace -> replacen).
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -20,44 +20,9 @@ impl RustGenerator {
             return stdlib_code;
         }
 
-        // Check for axios and stdlib method calls
-        if let Callee::Expr(expr) = &call.callee {
-            if let Expr::Member(member) = &**expr {
-                // Check for static method call: ClassName.method(args) → ClassName::method(args)
-                if let Expr::Ident(obj_ident) = &*member.obj {
-                    let class_name = obj_ident.sym.as_ref();
-                    if let Some(static_set) = self.static_methods.get(class_name) {
-                        if let Some(method_ident) = member.prop.as_ident() {
-                            let method_str = method_ident.sym.as_ref();
-                            if static_set.contains(method_str) {
-                                let cls = format_ident!("{}", class_name);
-                                let meth = format_ident!("{}", to_snake_case(method_str));
-                                let args: Vec<_> = call
-                                    .args
-                                    .iter()
-                                    .map(|a| self.convert_expr(&a.expr))
-                                    .collect();
-                                return quote! { #cls::#meth(#(#args),*) };
-                            }
-                        }
-                    }
-                }
-
-                if let Some(tokens) = self.try_convert_axios_call(member, call) {
-                    return tokens;
-                }
-                if let Some(method_ident) = member.prop.as_ident() {
-                    let method_name = method_ident.sym.as_ref();
-                    if let Some(stdlib_code) = crate::stdlib::try_handle_method_call(
-                        self,
-                        &member.obj,
-                        method_name,
-                        &call.args,
-                    ) {
-                        return stdlib_code;
-                    }
-                }
-            }
+        // Check for member-expression patterns (axios, static, stdlib methods)
+        if let Some(tokens) = self.try_convert_member_call(call) {
+            return tokens;
         }
 
         // Handle fetch()
@@ -66,6 +31,64 @@ impl RustGenerator {
         }
 
         // Handle array/string method calls and general calls
+        self.convert_general_call(call)
+    }
+
+    /// Handles member-expression calls: static methods, axios, and stdlib methods.
+    fn try_convert_member_call(&self, call: &CallExpr) -> Option<TokenStream> {
+        let expr = match &call.callee {
+            Callee::Expr(expr) => expr,
+            _ => return None,
+        };
+        let member = match &**expr {
+            Expr::Member(m) => m,
+            _ => return None,
+        };
+
+        if let Some(tokens) = self.try_convert_static_call(member, call) {
+            return Some(tokens);
+        }
+        if let Some(tokens) = self.try_convert_axios_call(member, call) {
+            return Some(tokens);
+        }
+        if let Some(method_ident) = member.prop.as_ident() {
+            let method_name = method_ident.sym.as_ref();
+            if let Some(stdlib_code) =
+                crate::stdlib::try_handle_method_call(self, &member.obj, method_name, &call.args)
+            {
+                return Some(stdlib_code);
+            }
+        }
+        None
+    }
+
+    /// Converts `ClassName.method(args)` to `ClassName::method(args)`.
+    fn try_convert_static_call(&self, member: &MemberExpr, call: &CallExpr) -> Option<TokenStream> {
+        let obj_ident = match &*member.obj {
+            Expr::Ident(id) => id,
+            _ => return None,
+        };
+        let class_name = obj_ident.sym.as_ref();
+        let static_set = self.static_methods.get(class_name)?;
+        let method_ident = member.prop.as_ident()?;
+        let method_str = method_ident.sym.as_ref();
+
+        if !static_set.contains(method_str) {
+            return None;
+        }
+
+        let cls = format_ident!("{}", class_name);
+        let meth = format_ident!("{}", to_snake_case(method_str));
+        let args: Vec<_> = call
+            .args
+            .iter()
+            .map(|a| self.convert_expr(&a.expr))
+            .collect();
+        Some(quote! { #cls::#meth(#(#args),*) })
+    }
+
+    /// Fallback: array/string method check, then plain callee + args.
+    fn convert_general_call(&self, call: &CallExpr) -> TokenStream {
         let callee = match &call.callee {
             Callee::Expr(expr) => {
                 if let Expr::Member(member) = &**expr {
@@ -151,7 +174,7 @@ impl RustGenerator {
         None
     }
 
-    #[allow(clippy::too_many_lines)]
+    /// Dispatches array/string method calls to specialized handlers.
     fn try_convert_array_method(
         &self,
         member: &MemberExpr,
@@ -159,117 +182,118 @@ impl RustGenerator {
     ) -> Option<TokenStream> {
         let method_ident = member.prop.as_ident()?;
         let method_name = method_ident.sym.as_ref();
+        let obj = self.convert_expr(&member.obj);
 
         match method_name {
-            "map" | "filter" => {
-                let obj = self.convert_expr(&member.obj);
-                let rust_method = format_ident!("{}", to_snake_case(method_name));
-                let args: Vec<_> = call
-                    .args
-                    .iter()
-                    .map(|a| self.convert_expr(&a.expr))
-                    .collect();
-
-                let has_index_arg = self.has_index_callback_arg(call);
-
-                if has_index_arg {
-                    let closure = &args[0];
-                    if method_name == "filter" {
-                        return Some(quote! {
-                            #obj.iter().cloned()
-                                .enumerate()
-                                .filter(|(i, v)| (#closure)(v.clone(), *i as f64))
-                                .map(|(_, v)| v)
-                                .collect::<Vec<_>>()
-                        });
-                    } else {
-                        return Some(quote! {
-                            #obj.iter().cloned()
-                                .enumerate()
-                                .map(|(i, v)| (#closure)(v, i as f64))
-                                .collect::<Vec<_>>()
-                        });
-                    }
-                }
-
-                if method_name == "filter" {
-                    if let Some(tokens) = self.try_inline_filter(&obj, call) {
-                        return Some(tokens);
-                    }
-                    let closure = &args[0];
-                    return Some(quote! {
-                        #obj.iter().cloned()
-                            .filter(|__v| (#closure)(__v.clone()))
-                            .collect::<Vec<_>>()
-                    });
-                }
-                Some(quote! { #obj.iter().cloned().#rust_method(#(#args),*).collect::<Vec<_>>() })
-            }
-            "forEach" => {
-                let obj = self.convert_expr(&member.obj);
-                let args: Vec<_> = call
-                    .args
-                    .iter()
-                    .map(|a| self.convert_expr(&a.expr))
-                    .collect();
-
-                if self.has_index_callback_arg(call) {
-                    let closure = &args[0];
-                    return Some(quote! {
-                        #obj.iter().cloned()
-                            .enumerate()
-                            .for_each(|(i, v)| (#closure)(v, i as f64))
-                    });
-                }
-                Some(quote! { #obj.iter().cloned().for_each(#(#args),*) })
-            }
-            "some" => {
-                let obj = self.convert_expr(&member.obj);
-                let args: Vec<_> = call
-                    .args
-                    .iter()
-                    .map(|a| self.convert_expr(&a.expr))
-                    .collect();
-                Some(quote! { #obj.iter().cloned().any(#(#args),*) })
-            }
-            "every" => {
-                let obj = self.convert_expr(&member.obj);
-                let args: Vec<_> = call
-                    .args
-                    .iter()
-                    .map(|a| self.convert_expr(&a.expr))
-                    .collect();
-                Some(quote! { #obj.iter().cloned().all(#(#args),*) })
-            }
-            "find" => {
-                let obj = self.convert_expr(&member.obj);
-                let args: Vec<_> = call
-                    .args
-                    .iter()
-                    .map(|a| self.convert_expr(&a.expr))
-                    .collect();
-                Some(quote! { #obj.iter().cloned().find(#(#args),*) })
-            }
-            "reduce" => {
-                let obj = self.convert_expr(&member.obj);
-                let closure = call
-                    .args
-                    .first()
-                    .map(|a| self.convert_expr(&a.expr))
-                    .unwrap_or_else(|| {
-                        quote! { compile_error!("Tyrus: reduce requires a callback") }
-                    });
-                if call.args.len() >= 2 {
-                    let initial = self.convert_expr(&call.args[1].expr);
-                    Some(quote! { #obj.iter().cloned().fold(#initial, #closure) })
-                } else {
-                    Some(quote! { #obj.iter().cloned().reduce(#closure) })
-                }
-            }
+            "map" => self.convert_map_call(&obj, call),
+            "filter" => self.convert_filter_call(&obj, call),
+            "forEach" => self.convert_for_each_call(&obj, call),
+            "some" => Some(self.convert_iter_adaptor_call(&obj, call, "any")),
+            "every" => Some(self.convert_iter_adaptor_call(&obj, call, "all")),
+            "find" => Some(self.convert_iter_adaptor_call(&obj, call, "find")),
+            "reduce" => self.convert_reduce_call(&obj, call),
             "push" => Some(self.convert_push_call(member, call)),
             "replace" => Some(self.convert_replace_call(member, call)),
             _ => None,
         }
+    }
+
+    /// `arr.map(callback)` -- with optional index parameter support.
+    fn convert_map_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
+        let args = self.convert_call_args(call);
+
+        if self.has_index_callback_arg(call) {
+            let closure = &args[0];
+            return Some(quote! {
+                #obj.iter().cloned()
+                    .enumerate()
+                    .map(|(i, v)| (#closure)(v, i as f64))
+                    .collect::<Vec<_>>()
+            });
+        }
+
+        Some(quote! { #obj.iter().cloned().map(#(#args),*).collect::<Vec<_>>() })
+    }
+
+    /// `arr.filter(callback)` -- inline arrow or closure wrapper.
+    fn convert_filter_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
+        let args = self.convert_call_args(call);
+
+        if self.has_index_callback_arg(call) {
+            let closure = &args[0];
+            return Some(quote! {
+                #obj.iter().cloned()
+                    .enumerate()
+                    .filter(|(i, v)| (#closure)(v.clone(), *i as f64))
+                    .map(|(_, v)| v)
+                    .collect::<Vec<_>>()
+            });
+        }
+
+        if let Some(tokens) = self.try_inline_filter(obj, call) {
+            return Some(tokens);
+        }
+
+        let closure = &args[0];
+        Some(quote! {
+            #obj.iter().cloned()
+                .filter(|__v| (#closure)(__v.clone()))
+                .collect::<Vec<_>>()
+        })
+    }
+
+    /// `arr.forEach(callback)` -- with optional index parameter support.
+    fn convert_for_each_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
+        let args = self.convert_call_args(call);
+
+        if self.has_index_callback_arg(call) {
+            let closure = &args[0];
+            return Some(quote! {
+                #obj.iter().cloned()
+                    .enumerate()
+                    .for_each(|(i, v)| (#closure)(v, i as f64))
+            });
+        }
+
+        Some(quote! { #obj.iter().cloned().for_each(#(#args),*) })
+    }
+
+    /// Shared handler for `some` -> `any`, `every` -> `all`, `find` -> `find`.
+    fn convert_iter_adaptor_call(
+        &self,
+        obj: &TokenStream,
+        call: &CallExpr,
+        rust_method: &str,
+    ) -> TokenStream {
+        let args = self.convert_call_args(call);
+        let method = format_ident!("{}", rust_method);
+        quote! { #obj.iter().cloned().#method(#(#args),*) }
+    }
+
+    /// `arr.reduce(callback, initial?)` -> `fold` or `reduce`.
+    fn convert_reduce_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
+        let closure = call
+            .args
+            .first()
+            .map(|a| self.convert_expr(&a.expr))
+            .unwrap_or_else(|| {
+                quote! { compile_error!("Tyrus: reduce requires a callback") }
+            });
+
+        if call.args.len() >= 2 {
+            let initial = self.convert_expr(&call.args[1].expr);
+            Some(quote! { #obj.iter().cloned().fold(#initial, #closure) })
+        } else {
+            Some(quote! { #obj.iter().cloned().reduce(#closure) })
+        }
+    }
+
+    /// Converts all call arguments to `TokenStream` values.
+    fn convert_call_args(&self, call: &CallExpr) -> Vec<TokenStream> {
+        call.args
+            .iter()
+            .map(|a| self.convert_expr(&a.expr))
+            .collect()
     }
 
     fn has_index_callback_arg(&self, call: &CallExpr) -> bool {

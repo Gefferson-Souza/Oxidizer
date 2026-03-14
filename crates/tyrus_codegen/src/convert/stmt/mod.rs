@@ -92,29 +92,7 @@ impl RustGenerator {
                 let stmts: Vec<_> = block.stmts.iter().map(|s| self.convert_stmt(s)).collect();
                 quote! { { #(#stmts)* } }
             }
-            Stmt::If(if_stmt) => {
-                let test = self.convert_expr(&if_stmt.test);
-                let cons = self.convert_stmt(&if_stmt.cons);
-                let cons_block = if matches!(*if_stmt.cons, Stmt::Block(_)) {
-                    quote! { #cons }
-                } else {
-                    quote! { { #cons } }
-                };
-
-                let alt = if let Some(alt) = &if_stmt.alt {
-                    let alt_stmt = self.convert_stmt(alt);
-                    let alt_block = if matches!(&**alt, Stmt::Block(_) | Stmt::If(_)) {
-                        quote! { #alt_stmt }
-                    } else {
-                        quote! { { #alt_stmt } }
-                    };
-                    quote! { else #alt_block }
-                } else {
-                    quote! {}
-                };
-
-                quote! { if #test #cons_block #alt }
-            }
+            Stmt::If(if_stmt) => self.convert_if_stmt(if_stmt),
             Stmt::While(while_stmt) => self.convert_while_stmt(while_stmt),
             Stmt::ForOf(for_of) => self.convert_for_of_stmt(for_of),
             Stmt::ForIn(for_in) => self.convert_for_in_stmt(for_in),
@@ -125,6 +103,30 @@ impl RustGenerator {
             Stmt::Throw(throw_stmt) => self.convert_throw(&throw_stmt.arg),
             _ => quote! { /* other stmts todo */ },
         }
+    }
+
+    fn convert_if_stmt(&self, if_stmt: &IfStmt) -> TokenStream {
+        let test = self.convert_expr(&if_stmt.test);
+        let cons = self.convert_stmt(&if_stmt.cons);
+        let cons_block = if matches!(*if_stmt.cons, Stmt::Block(_)) {
+            quote! { #cons }
+        } else {
+            quote! { { #cons } }
+        };
+
+        let alt = if let Some(alt) = &if_stmt.alt {
+            let alt_stmt = self.convert_stmt(alt);
+            let alt_block = if matches!(&**alt, Stmt::Block(_) | Stmt::If(_)) {
+                quote! { #alt_stmt }
+            } else {
+                quote! { { #alt_stmt } }
+            };
+            quote! { else #alt_block }
+        } else {
+            quote! {}
+        };
+
+        quote! { if #test #cons_block #alt }
     }
 
     /// Convert a throw statement, mapping NestJS exceptions to AppError variants.
