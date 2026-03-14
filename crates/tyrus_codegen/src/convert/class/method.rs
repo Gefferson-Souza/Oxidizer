@@ -85,7 +85,10 @@ fn build_self_param(
     }
 
     if ctx.is_handler {
-        return Some(quote! { self });
+        // Use State extractor — clones the Arc, doesn't consume self
+        return Some(
+            quote! { axum::extract::State(state): axum::extract::State<std::sync::Arc<Self>> },
+        );
     }
 
     if is_service_or_controller {
@@ -296,6 +299,11 @@ fn build_method_body(
         return body_stmts;
     };
 
+    // For handlers, use `state` instead of `self` in body (State<Arc<Self>> pattern)
+    if ctx.is_handler {
+        generator.use_state_for_this.set(true);
+    }
+
     let needs_custom_return = ctx.is_handler || ctx.is_async || ctx.returns_option;
 
     if needs_custom_return {
@@ -310,6 +318,9 @@ fn build_method_body(
             body_stmts.push(generator.convert_stmt(stmt));
         }
     }
+
+    // Reset the flag
+    generator.use_state_for_this.set(false);
 
     body_stmts
 }

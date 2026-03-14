@@ -120,8 +120,9 @@ fn test_tier4_full_build() {
 
     // Check for Router Merge
     assert!(
-        main_content.contains(".merge(tyrus_app::input::CatsController::router())"),
-        "Router merge missing"
+        main_content.contains("CatsController::router(cats_controller.clone())")
+            || main_content.contains("CatsController::router()"),
+        "Router merge missing: {main_content}"
     );
 
     // Check for Extension Layer

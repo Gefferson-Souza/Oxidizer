@@ -78,20 +78,23 @@ impl UsersController {
         }
     }
     #[doc = concat!("Route: ", "GET", " ", "/")]
-    pub async fn find_all(self) -> Result<axum::Json<Vec<User>>, AppError> {
-        return Ok(axum::Json(self.users_service.clone().find_all().into()));
+    pub async fn find_all(
+        axum::extract::State(state): axum::extract::State<std::sync::Arc<Self>>,
+    ) -> Result<axum::Json<Vec<User>>, AppError> {
+        return Ok(axum::Json(state.users_service.clone().find_all().into()));
     }
     #[doc = concat!("Route: ", "POST", " ", "/")]
     pub async fn create(
-        self,
+        axum::extract::State(state): axum::extract::State<std::sync::Arc<Self>>,
         axum::Json(dto): axum::Json<CreateUserDto>,
     ) -> Result<axum::Json<User>, AppError> {
-        return Ok(axum::Json(self.users_service.clone().create(dto).into()));
+        return Ok(axum::Json(state.users_service.clone().create(dto).into()));
     }
-    pub fn router() -> axum::Router {
+    pub fn router(state: std::sync::Arc<Self>) -> axum::Router {
         axum::Router::new()
             .route("/users", axum::routing::get(Self::find_all))
             .route("/users", axum::routing::post(Self::create))
+            .with_state(state)
     }
 }
 #[derive(Debug)]

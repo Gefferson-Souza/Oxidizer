@@ -104,9 +104,10 @@ pub(crate) fn generate_router_method(
     }
 
     quote! {
-        pub fn router() -> axum::Router {
+        pub fn router(state: std::sync::Arc<Self>) -> axum::Router {
             axum::Router::new()
                 #(#route_calls)*
+                .with_state(state)
         }
     }
 }
