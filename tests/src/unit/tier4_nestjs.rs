@@ -48,3 +48,40 @@ fn test_controller_handler_uses_json() {
         "Expected 'Json' extractor in: {rust}"
     );
 }
+
+#[test]
+fn test_param_decorator_generates_path_extractor() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Controller, Get, Param } from "@nestjs/common";
+@Controller("/users")
+class UsersController {
+    @Get(":id")
+    findOne(@Param("id") id: string): string {
+        return id;
+    }
+}
+"#,
+    );
+    assert!(rust.contains("Path("), "Expected Path extractor in: {rust}");
+}
+
+#[test]
+fn test_query_decorator_generates_query_extractor() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Controller, Get, Query } from "@nestjs/common";
+@Controller("/items")
+class ItemsController {
+    @Get("/")
+    search(@Query("q") q: string): string {
+        return q;
+    }
+}
+"#,
+    );
+    assert!(
+        rust.contains("Query("),
+        "Expected Query extractor in: {rust}"
+    );
+}
