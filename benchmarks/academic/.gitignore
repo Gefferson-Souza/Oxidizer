@@ -1,3 +1,5 @@
-rust_build/target/
-rust_build/*/Cargo.lock
-results/raw/
+# Generated build artifacts (created by run_all.sh)
+rust_build/
+tyrus_output/
+results/
+rust_handwritten/bin/
