@@ -121,6 +121,30 @@ impl RustGenerator {
         if let Some(body) = &constructor.body {
             for stmt in &body.stmts {
                 if let Stmt::Expr(ExprStmt { expr, .. }) = stmt {
+                    // Handle super(args) — map args to parent field initializations
+                    if let Expr::Call(call) = &**expr {
+                        if let swc_ecma_ast::Callee::Super(_) = &call.callee {
+                            // Map super() arguments to parent fields by position
+                            let parent_fields: Vec<(String, String)> = class_fields
+                                .iter()
+                                .filter(|(name, _)| !initialized_fields.contains(name.as_str()))
+                                .map(|(n, _)| (n.clone(), String::new()))
+                                .collect();
+
+                            for (idx, arg) in call.args.iter().enumerate() {
+                                if idx < parent_fields.len() {
+                                    let field_name_str = &parent_fields[idx].0;
+                                    let field_name =
+                                        format_ident!("{}", to_snake_case(field_name_str));
+                                    let value = self.convert_expr(&arg.expr);
+                                    field_inits.push(quote! { #field_name: #value });
+                                    initialized_fields.insert(field_name_str.clone());
+                                }
+                            }
+                            continue;
+                        }
+                    }
+
                     if let Expr::Assign(assign) = &**expr {
                         // Check if left side is this.field
                         if let AssignTarget::Simple(simple) = &assign.left {

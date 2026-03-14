@@ -16,6 +16,8 @@ pub struct RustGenerator {
     pub main_body: String,
     pub has_declared_main: bool,
     pub current_class_state_fields: std::collections::HashMap<String, String>,
+    /// Track class field names for inheritance (parent fields flattened into child)
+    pub(crate) class_fields: std::collections::HashMap<String, Vec<(String, String)>>,
     /// Variables declared with `: string` type annotation (used for stdlib disambiguation)
     pub(crate) string_vars: std::cell::RefCell<std::collections::HashSet<String>>,
 }
@@ -31,6 +33,7 @@ impl RustGenerator {
             main_body: String::new(),
             has_declared_main: false,
             current_class_state_fields: std::collections::HashMap::new(),
+            class_fields: std::collections::HashMap::new(),
             string_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
         }
     }
