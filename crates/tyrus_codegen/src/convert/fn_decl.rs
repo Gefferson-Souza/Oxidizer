@@ -26,10 +26,23 @@ impl RustGenerator {
         // Extract parameters — mark all as `mut` since TS allows reassignment
         let mut params = Vec::new();
         for param in &n.function.params {
-            if let Pat::Ident(ident_pat) = &param.pat {
-                let param_name = format_ident!("{}", ident_pat.sym.to_string());
-                let param_type = map_ts_type(ident_pat.type_ann.as_ref());
-                params.push(quote! { mut #param_name: #param_type });
+            match &param.pat {
+                Pat::Ident(ident_pat) => {
+                    let param_name = format_ident!("{}", ident_pat.sym.to_string());
+                    let param_type = map_ts_type(ident_pat.type_ann.as_ref());
+                    params.push(quote! { mut #param_name: #param_type });
+                }
+                Pat::Rest(rest_pat) => {
+                    // ...args: T[] → args: Vec<T>
+                    if let Pat::Ident(ident) = &*rest_pat.arg {
+                        let param_name = format_ident!("{}", ident.sym.to_string());
+                        // RestPat carries the type annotation, not the inner ident
+                        let param_type =
+                            map_ts_type(rest_pat.type_ann.as_ref().or(ident.type_ann.as_ref()));
+                        params.push(quote! { mut #param_name: #param_type });
+                    }
+                }
+                _ => {}
             }
         }
 
