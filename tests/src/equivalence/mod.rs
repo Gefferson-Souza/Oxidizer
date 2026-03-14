@@ -6,5 +6,6 @@ mod error_handling;
 mod inheritance;
 mod math;
 mod spread;
+mod static_members;
 mod strings;
 mod top_level;
