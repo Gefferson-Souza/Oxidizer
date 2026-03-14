@@ -156,11 +156,8 @@ impl RustGenerator {
             }
         }
 
-        let vis = if self.is_exporting {
-            quote! { pub }
-        } else {
-            quote! {}
-        };
+        // All structs are pub — needed for main.rs to reference controllers/services
+        let vis = quote! { pub };
 
         let (generics_struct_decl, generics_impl_decl, generics_use) = if let Some(type_params) =
             &n.class.type_params

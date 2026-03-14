@@ -16,7 +16,7 @@ pub struct User {
     pub email: String,
 }
 #[derive(Default, Debug, Clone)]
-struct UsersService {
+pub struct UsersService {
     pub users: std::sync::Arc<std::sync::Mutex<Vec<User>>>,
 }
 impl UsersService {
@@ -45,7 +45,7 @@ impl UsersService {
     }
 }
 #[derive(Default, Debug, Clone)]
-struct UsersController {
+pub struct UsersController {
     pub users_service: std::sync::Arc<UsersService>,
 }
 #[axum::async_trait]
