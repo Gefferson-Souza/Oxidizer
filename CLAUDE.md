@@ -48,6 +48,13 @@ cargo run --bin tyrus -- --quiet <command>             # Suppress banner
 
 # Snapshots
 cargo insta review                     # Review snapshot changes
+
+# Benchmarks
+cargo bench --bench transpiler         # Transpilation speed (criterion)
+cargo bench --bench runtime_comparison # Node.js vs Rust runtime comparison
+
+# Git hooks (run once after cloning)
+./scripts/setup-hooks.sh               # Install pre-commit (fmt + clippy)
 ```
 
 ## Architecture
