@@ -97,7 +97,7 @@ pub(crate) fn handle(
             if args.is_empty() {
                 Some(quote! {
                     {
-                        #obj_tokens.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                        #obj_tokens.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                     }
                 })
             } else {
