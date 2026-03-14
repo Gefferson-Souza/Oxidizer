@@ -158,7 +158,7 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Suite de Testes
 
-174 testes distribuídos em 7 tipos de teste e 4 camadas de funcionalidades:
+179 testes distribuídos em 7 tipos de teste e 4 camadas de funcionalidades:
 
 | Tipo | Quantidade | Descrição |
 |------|-----------|-----------|
