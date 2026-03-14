@@ -1,29 +1,33 @@
-// Test 4: Sorting — Sort 100K numbers (leaderboard simulation)
-// Real-world analog: Database result ordering, ranking algorithms
+// Test 4: Sorting — Large dataset ordering
+// Real-world analog: Leaderboard computation, price ranking
+// Data: Simulated transaction amounts
 
 function sortBenchmark(size: number): string {
     let data: number[] = [];
     let i: number = 0;
     while (i < size) {
-        data.push(Math.floor(Math.sin(i * 1.0) * 1000000));
+        const base: number = Math.abs(Math.sin(i * 0.317)) * 100;
+        const spike: number = Math.abs(Math.cos(i * 0.0013)) * Math.abs(Math.sin(i * 0.0007)) * 10000;
+        data.push(Math.floor(base + spike));
         i = i + 1;
     }
 
     data.sort();
 
-    let first: number = 0;
-    let last: number = 0;
+    // Count values in ranges (histogram) — avoids index access
+    let below_100: number = 0;
+    let mid_range: number = 0;
+    let above_5000: number = 0;
     data.forEach((v: number) => {
-        if (first === 0) {
-            first = v;
-        }
-        last = v;
+        if (v < 100) { below_100 = below_100 + 1; }
+        if (v >= 100) { if (v < 5000) { mid_range = mid_range + 1; } }
+        if (v >= 5000) { above_5000 = above_5000 + 1; }
     });
 
-    return first.toString() + "," + last.toString();
+    return below_100.toString() + "," + mid_range.toString() + "," + above_5000.toString();
 }
 
 function main(): void {
-    console.log(sortBenchmark(100000));
+    console.log(sortBenchmark(500000));
 }
 main();

@@ -1,7 +1,7 @@
 program,node_wall_mean,node_wall_std,rust_wall_mean,rust_wall_std,speedup,node_rss_mean,rust_rss_mean,mem_ratio,node_user_mean,rust_user_mean,node_sys_mean,rust_sys_mean
-test1_data_pipeline,0,0,0,0,N/A,74946,3902,19.2,48,0,12,0
-test2_statistics,0,0,0,0,N/A,123554,10026,12.3,80,10,30,0
-test3_text_processing,0,0,0,0,N/A,71520,1782,40.1,44,10,12,0
-test4_sorting,0,0,0,0,N/A,71303,3869,18.4,58,0,10,0
-test5_matrix_compute,0,0,0,0,N/A,68250,1737,39.2,50,20,12,0
-test6_accumulation,0,0,0,0,N/A,87348,6142,14.2,76,4,24,0
+test1_data_pipeline,0,0,0,0,N/A,107410,12583,8.5,100,10,26,0
+test2_statistics,0,0,0,0,N/A,145254,17930,8.1,272,46,38,0
+test3_text_processing,0,0,0,0,N/A,68832,1818,37.8,88,152,12,0
+test4_sorting,0,0,0,0,N/A,86838,9972,8.7,160,18,16,0
+test5_matrix_compute,0,0,0,0,N/A,68278,2349,29.0,164,114,12,0
+test6_accumulation,0,0,0,0,N/A,147102,17706,8.3,184,30,38,0
