@@ -82,6 +82,7 @@ impl RustGenerator {
                                 let dec_name = dec_ident.sym.as_ref();
                                 if matches!(dec_name, "Body" | "Param" | "Query") {
                                     param_decorator = Some(dec_name.to_string());
+                                    break;
                                 }
                             }
                         }
