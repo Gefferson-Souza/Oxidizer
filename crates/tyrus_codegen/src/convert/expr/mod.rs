@@ -9,11 +9,25 @@ mod literal;
 mod member;
 mod misc;
 
+fn convert_ident(ident: &swc_ecma_ast::Ident) -> TokenStream {
+    let name = ident.sym.as_str();
+    if name == "undefined" {
+        return quote! { None };
+    }
+    if name.chars().next().is_some_and(char::is_uppercase) {
+        let ident_token = format_ident!("{}", name);
+        quote! { #ident_token }
+    } else {
+        let ident_name = super::helpers::to_snake_case(name);
+        let ident_token = format_ident!("{}", ident_name);
+        quote! { #ident_token }
+    }
+}
+
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use swc_ecma_ast::*;
 
-use super::helpers::to_snake_case;
 use super::interface::RustGenerator;
 
 impl RustGenerator {
@@ -22,20 +36,7 @@ impl RustGenerator {
         match expr {
             Expr::Bin(bin) => self.convert_bin_expr(bin),
             Expr::This(_) => quote! { self },
-            Expr::Ident(ident) => {
-                let name = ident.sym.as_str();
-                if name == "undefined" {
-                    return quote! { None };
-                }
-                if name.chars().next().is_some_and(char::is_uppercase) {
-                    let ident_token = format_ident!("{}", name);
-                    quote! { #ident_token }
-                } else {
-                    let ident_name = to_snake_case(name);
-                    let ident_token = format_ident!("{}", ident_name);
-                    quote! { #ident_token }
-                }
-            }
+            Expr::Ident(ident) => convert_ident(ident),
             Expr::Lit(lit) => self.convert_lit(lit),
             Expr::Member(member) => self.convert_member_expr(member),
             Expr::Call(call) => self.convert_call_expr(call),
@@ -54,12 +55,7 @@ impl RustGenerator {
             Expr::Arrow(arrow) => self.convert_arrow_expr(arrow),
             Expr::Array(arr) => self.convert_array_lit(arr),
             Expr::Tpl(tpl) => self.convert_tpl(tpl),
-            Expr::Cond(cond) => {
-                let test = self.convert_expr(&cond.test);
-                let cons = self.convert_expr(&cond.cons);
-                let alt = self.convert_expr(&cond.alt);
-                quote! { if #test { #cons } else { #alt } }
-            }
+            Expr::Cond(cond) => self.convert_cond_expr(cond),
             Expr::OptChain(opt_chain) => self.convert_opt_chain(opt_chain),
             Expr::Unary(unary) => self.convert_unary_expr(unary),
             // Type assertions: mostly no-ops (types known at compile time)
@@ -73,6 +69,13 @@ impl RustGenerator {
 
     pub fn convert_expr_or_spread(&self, arg: &ExprOrSpread) -> TokenStream {
         self.convert_expr(&arg.expr)
+    }
+
+    fn convert_cond_expr(&self, cond: &swc_ecma_ast::CondExpr) -> TokenStream {
+        let test = self.convert_expr(&cond.test);
+        let cons = self.convert_expr(&cond.cons);
+        let alt = self.convert_expr(&cond.alt);
+        quote! { if #test { #cons } else { #alt } }
     }
 
     fn convert_new_expr(&self, new_expr: &NewExpr) -> TokenStream {

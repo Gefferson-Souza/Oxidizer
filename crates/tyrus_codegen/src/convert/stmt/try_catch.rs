@@ -85,29 +85,7 @@ impl RustGenerator {
                     quote! { return Ok(()); }
                 }
             }
-            Stmt::If(if_stmt) => {
-                let test = self.convert_expr(&if_stmt.test);
-                let cons = self.convert_try_inner_stmt(&if_stmt.cons);
-                let cons_block = if matches!(*if_stmt.cons, Stmt::Block(_)) {
-                    cons
-                } else {
-                    quote! { { #cons } }
-                };
-
-                let alt = if let Some(alt) = &if_stmt.alt {
-                    let alt_stmt = self.convert_try_inner_stmt(alt);
-                    let alt_block = if matches!(&**alt, Stmt::Block(_) | Stmt::If(_)) {
-                        alt_stmt
-                    } else {
-                        quote! { { #alt_stmt } }
-                    };
-                    quote! { else #alt_block }
-                } else {
-                    quote! {}
-                };
-
-                quote! { if #test #cons_block #alt }
-            }
+            Stmt::If(if_stmt) => self.convert_try_if_stmt(if_stmt),
             Stmt::Block(block) => {
                 let inner: Vec<_> = block
                     .stmts
@@ -134,6 +112,30 @@ impl RustGenerator {
             }
             _ => self.convert_stmt(stmt),
         }
+    }
+
+    fn convert_try_if_stmt(&self, if_stmt: &IfStmt) -> TokenStream {
+        let test = self.convert_expr(&if_stmt.test);
+        let cons = self.convert_try_inner_stmt(&if_stmt.cons);
+        let cons_block = if matches!(*if_stmt.cons, Stmt::Block(_)) {
+            cons
+        } else {
+            quote! { { #cons } }
+        };
+
+        let alt = if let Some(alt) = &if_stmt.alt {
+            let alt_stmt = self.convert_try_inner_stmt(alt);
+            let alt_block = if matches!(&**alt, Stmt::Block(_) | Stmt::If(_)) {
+                alt_stmt
+            } else {
+                quote! { { #alt_stmt } }
+            };
+            quote! { else #alt_block }
+        } else {
+            quote! {}
+        };
+
+        quote! { if #test #cons_block #alt }
     }
 
     /// Convert a throw expression inside a try block.
