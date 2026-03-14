@@ -1,7 +1,0 @@
-program,transpile_time_ms,generated_lines,source_lines
-test1_data_pipeline,3,31,30
-test2_statistics,3,59,55
-test3_text_processing,4,58,52
-test4_sorting,4,41,33
-test5_matrix_compute,3,26,42
-test6_accumulation,3,56,52
