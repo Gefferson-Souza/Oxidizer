@@ -24,6 +24,10 @@ impl RustGenerator {
             })
             .collect();
 
+        // Save and reset state flag — closures don't capture `state` from handler scope
+        let saved_flag = self.use_state_for_this.get();
+        self.use_state_for_this.set(false);
+
         let body = match &*arrow.body {
             BlockStmtOrExpr::BlockStmt(block) => {
                 let stmts: Vec<_> = block.stmts.iter().map(|s| self.convert_stmt(s)).collect();
@@ -31,6 +35,8 @@ impl RustGenerator {
             }
             BlockStmtOrExpr::Expr(expr) => self.convert_expr(expr),
         };
+
+        self.use_state_for_this.set(saved_flag);
 
         quote! {
             |#(#params),*| #body
