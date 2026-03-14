@@ -56,14 +56,18 @@ Aderindo aos princípios estritos de "Transpilação Segura":
 - Serialização/Desserialização JSON (via `serde`)
 - Cliente HTTP e padrões REST (via `axum` & `reqwest`)
 
-### 📦 Padrões Suportados (Verificados)
+### 📦 Padrões Suportados (Verificados com Testes de Equivalência Semântica)
 
-- **Array Literals**: `[1, 2, 3]` -> `vec![1, 2, 3]`
-- **Propriedades Computadas**: `obj["key"]` -> `obj["key"]` (via serde_json)
-- **Estado de Classe**: Encapsulamento automático com `Arc<Mutex<T>>` para services/controllers.
-- **DTOs**: Structs puros para objetos de transferência de dados.
-- **Biblioteca Padrão**: `map`, `filter`, `find`, `push` mapeados para equivalentes Rust.
-- **String Replace**: `str.replace(a, b)` -> `str.replacen(a, b, 1)` (Semântica exata do JS).
+- **Métodos de String** (16): `includes`, `replace`, `split`, `toUpperCase`, `toLowerCase`, `trim`, `startsWith`, `endsWith`, `toString`, `substring`, `charAt`, `indexOf`, `repeat`, `slice`, `padStart`, `padEnd`
+- **Métodos de Array** (15): `map`, `filter`, `forEach`, `find`, `some`, `every`, `reduce`/`fold`, `join`, `includes`, `push`, `indexOf`, `slice`, `concat`, `reverse`, `pop`, `sort`, `shift`, `flat`, `flatMap`
+- **Funções Math** (15): `max`, `min`, `round`, `floor`, `ceil`, `abs`, `random`, `pow`, `sqrt`, `log`, `trunc`, `sign`, `sin`, `cos`, `tan`
+- **Constantes Math** (2): `Math.PI`, `Math.E`
+- **Console** (5): `log`, `error`, `warn`, `info`, `debug`
+- **Fluxo de Controle**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternário
+- **Operadores**: Aritméticos, comparação, lógicos, `**` (exponenciação), `%` (módulo)
+- **Estado de Classe**: Encapsulamento automático com `Arc<Mutex<T>>` para services/controllers
+- **Interfaces**: `interface` -> `#[derive(Serialize, Deserialize)] struct`
+- **Unions de String**: `type Status = "a" | "b"` -> `enum` com `Display` e `PartialEq`
 
 ---
 
@@ -82,49 +86,85 @@ cd Tyrus
 cargo build --release
 ```
 
-### Compilando um Projeto
+### Instalar Globalmente
+
+```bash
+cargo install --path crates/tyrus_cli
+tyrus --version
+```
+
+### Usando o Compilador
 
 ```bash
 # Analisar um arquivo TypeScript para compatibilidade
-./target/release/tyrus check ./src/index.ts
+tyrus check ./src/index.ts
 
-# Transpilar para um projeto Rust completo
-./target/release/tyrus build ./src/index.ts
+# Diagnósticos JSON (para integração com ferramentas)
+tyrus check --json ./src/index.ts
+
+# Transpilar para código Rust (stdout ou arquivo)
+tyrus build ./src/index.ts
+tyrus build ./src/index.ts -o output.rs
+
+# Transpilar + compilar para binário nativo
+tyrus compile ./src/index.ts --output ./output
+
+# Transpilar + compilar + executar
+tyrus run ./src/index.ts --output ./output
+
+# Suprimir banner para scripting
+tyrus --quiet check ./src/index.ts
 ```
 
 ---
 
 ## 📋 Referência de Comandos
 
+**Comandos de Desenvolvimento:**
+
 <!-- AUTO-GENERATED from Cargo.toml and CI -->
 | Comando | Descrição |
 |---------|-----------|
 | `cargo build --workspace` | Compilar todas as crates do workspace |
 | `cargo build --release` | Build de produção com LTO |
+| `cargo install --path crates/tyrus_cli` | Instalar CLI `tyrus` globalmente |
 | `cargo nextest run --workspace` | Executar todos os testes (paralelo, recomendado) |
 | `cargo test --workspace` | Executar todos os testes (runner legado) |
 | `cargo test -p integration_tests` | Apenas testes de integração |
 | `cargo clippy --workspace` | Lint com regras estritas (`-Dwarnings` aplicado) |
 | `cargo fmt -- --check` | Verificar formatação |
 | `cargo insta review` | Revisar mudanças em snapshots |
-| `cargo run --bin tyrus -- check <file.ts>` | Analisar um arquivo TypeScript para compatibilidade |
-| `cargo run --bin tyrus -- build <dir>/src --output <dir>/output` | Transpilar para um projeto Rust completo |
+
+**Comandos CLI do Tyrus (após instalação global):**
+
+| Comando | Descrição |
+|---------|-----------|
+| `tyrus check <file.ts>` | Analisar compatibilidade Oxidizável |
+| `tyrus check --json <file.ts>` | Diagnósticos em JSON |
+| `tyrus build <file.ts>` | Transpilar para Rust (stdout) |
+| `tyrus build <file.ts> -o output.rs` | Transpilar para Rust (arquivo) |
+| `tyrus compile <file.ts> -o <dir>` | Transpilar + compilar para binário nativo |
+| `tyrus run <file.ts>` | Transpilar + compilar + executar |
+| `tyrus --quiet <command>` | Suprimir banner para scripting |
 <!-- /AUTO-GENERATED -->
 
 ---
 
 ## 🧪 Suite de Testes
 
-86 testes distribuídos em 3 tipos de teste e 4 camadas de funcionalidades:
+158 testes distribuídos em 7 tipos de teste e 4 camadas de funcionalidades:
 
-| Camada | Escopo | Testes |
-|--------|--------|--------|
-| **Camada 1** | Variáveis, matemática, strings, funções, fluxo de controle, console | 34 |
-| **Camada 2** | Interfaces, type aliases, arrays, classes, async/await | 12 |
-| **Camada 3** | Generics, optional chaining, destructuring, métodos avançados | 18 |
-| **Camada 4** | NestJS `@Injectable`, `@Controller`, roteamento Axum, JSON | 7 |
+| Tipo | Quantidade | Descrição |
+|------|-----------|-----------|
+| **Equivalência** | 55 | Prova semântica: TS e Rust produzem stdout idêntico |
+| **CLI** | 7 | Testes de integração para todos os comandos e flags |
+| **Unitário** | 27 | Rápido, funções isoladas de codegen |
+| **Snapshot** | 6 | Saída completa de transpilação via `insta` |
+| **Compilação** | 54 | Rust gerado passa no `cargo check` por camada |
+| **IR** | 8 | Lowering de representação intermediária tipada |
+| **Trybuild** | 1 | Verificação de compilação do Rust gerado |
 
-Tipos de teste: **Unitário** (rápido, funções isoladas) · **Snapshot** (insta, saída do codegen) · **Compilação** (Rust gerado passa no `cargo check`)
+Tipos de teste: **Equivalência** (TS↔Rust mesma saída) · **CLI** (integração de comandos) · **Unitário** (funções rápidas e isoladas) · **Snapshot** (insta, saída do codegen) · **Compilação** (Rust gerado passa no `cargo check`) · **IR** (type lowering) · **Trybuild** (verificação de compilação)
 
 ---
 

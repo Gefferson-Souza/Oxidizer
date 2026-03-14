@@ -14,11 +14,11 @@
 
 | Aspect | Status | Details |
 |--------|--------|---------|
-| Tests | 157 pass, 1 skip | 55 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common |
+| Tests | 158 pass, 1 skip | 55 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
 | CLI | 4 commands | check, build, compile, run (branded, --quiet, --json) |
 | Analyzer | 8 lint + 11 API blocks | var, any, eval, for-in, try-catch, delete, with, labeled |
-| Codegen | ~2540 lines, 20 modules | Expressions, statements, classes, stdlib |
-| Stdlib | 49 methods | 14 string + 14 array + 16 math + 5 console |
+| Codegen | ~4190 lines, 20 modules | Expressions, statements, classes, stdlib |
+| Stdlib | 51 methods | 16 string + 15 array + 15 math + 5 console |
 | NestJS | Basic | @Injectable, @Controller, @Get/@Post, constructor DI, Arc\<Mutex\<T\>\> |
 | IR | Foundation | TyrusType/Expr/Stmt/Decl defined, SWC→IR lowering started |
 

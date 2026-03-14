@@ -15,9 +15,9 @@
 | Equivalence tests | 55 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
 | Control flow | while, for, for-of, do-while, switch, if/else |
-| String methods | 14 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice) |
-| Array methods | 14 (map, filter, forEach, find, some, every, reduce, join, includes, push, indexOf, slice, concat, reverse, pop) |
-| Math functions | 16 (max, min, round, floor, ceil, abs, random, spread variants, pow, sqrt, log, trunc, sign, sin, cos, tan) |
+| String methods | 16 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice, padStart, padEnd) |
+| Array methods | 15 (map, filter, forEach, find, some, every, reduce, join, includes, push, indexOf, slice, concat, reverse, pop, sort, shift, flat, flatMap) |
+| Math functions | 15 (max, min, round, floor, ceil, abs, random, pow, sqrt, log, trunc, sign, sin, cos, tan) |
 | Math constants | 2 (PI, E) |
 | Console methods | 5 (log, error, warn, info, debug) |
 | Blocked by analyzer | 5 constructs (for-in, try-catch, delete, with, labeled) |

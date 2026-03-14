@@ -58,11 +58,11 @@ Adhering to strict "Safe Transpilation" principles:
 
 ### 📦 Supported Patterns (Verified with Semantic Equivalence Tests)
 
-- **String Methods** (14): `includes`, `replace`, `split`, `toUpperCase`, `toLowerCase`, `trim`, `startsWith`, `endsWith`, `toString`, `substring`, `charAt`, `indexOf`, `repeat`, `slice`
-- **Array Methods** (14): `map`, `filter`, `forEach`, `find`, `some`, `every`, `reduce`/`fold`, `join`, `includes`, `push`, `indexOf`, `slice`, `concat`, `reverse`, `pop`
-- **Math Functions** (16): `max`, `min`, `round`, `floor`, `ceil`, `abs`, `random`, `pow`, `sqrt`, `log`, `trunc`, `sign`, `sin`, `cos`, `tan`, spread variants
-- **Math Constants**: `Math.PI`, `Math.E`
-- **Console**: `log`, `error`, `warn`, `info`, `debug`
+- **String Methods** (16): `includes`, `replace`, `split`, `toUpperCase`, `toLowerCase`, `trim`, `startsWith`, `endsWith`, `toString`, `substring`, `charAt`, `indexOf`, `repeat`, `slice`, `padStart`, `padEnd`
+- **Array Methods** (15): `map`, `filter`, `forEach`, `find`, `some`, `every`, `reduce`/`fold`, `join`, `includes`, `push`, `indexOf`, `slice`, `concat`, `reverse`, `pop`, `sort`, `shift`, `flat`, `flatMap`
+- **Math Functions** (15): `max`, `min`, `round`, `floor`, `ceil`, `abs`, `random`, `pow`, `sqrt`, `log`, `trunc`, `sign`, `sin`, `cos`, `tan`
+- **Math Constants** (2): `Math.PI`, `Math.E`
+- **Console** (5): `log`, `error`, `warn`, `info`, `debug`
 - **Control Flow**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternary
 - **Operators**: Arithmetic, comparison, logical, `**` (exponentiation), `%` (modulo)
 - **Class State**: Automatic `Arc<Mutex<T>>` wrapping for services/controllers
