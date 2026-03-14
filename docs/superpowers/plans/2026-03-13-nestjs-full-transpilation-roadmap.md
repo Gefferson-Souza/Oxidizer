@@ -14,7 +14,7 @@
 
 | Aspect | Status | Details |
 |--------|--------|---------|
-| Tests | 158 pass, 1 skip | 55 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
+| Tests | 162 pass, 1 skip | 59 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
 | CLI | 4 commands | check, build, compile, run (branded, --quiet, --json) |
 | Analyzer | 8 lint + 11 API blocks | var, any, eval, for-in, try-catch, delete, with, labeled |
 | Codegen | ~4190 lines, 20 modules | Expressions, statements, classes, stdlib |
@@ -160,7 +160,7 @@ match (|| -> Result<_, AppError> {
 
 #### Tasks
 
-- [ ] **Task 6.1.1: Remove try-catch from analyzer block list**
+- [x] **Task 6.1.1: Remove try-catch from analyzer block list** ✓
 
   Modify `crates/tyrus_analyzer/src/lints.rs`:
   - Remove the entire `fn visit_try_stmt(&mut self, n: &swc_ecma_ast::TryStmt)` method from the `Visit` impl for `LintVisitor` (lines 79-86)
@@ -180,7 +180,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo clippy --workspace`
 
-- [ ] **Task 6.1.2: Write failing equivalence test for basic try-catch**
+- [x] **Task 6.1.2: Write failing equivalence test for basic try-catch** ✓
 
   Create `tests/src/equivalence/error_handling.rs`:
 
@@ -211,7 +211,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test -p integration_tests test_equivalence_try_catch_basic` — Expected: FAIL
 
-- [ ] **Task 6.1.2b: Refactor stmt.rs before adding try-catch**
+- [x] **Task 6.1.2b: Refactor stmt.rs before adding try-catch** ✓ (PR #31)
 
   `stmt.rs` is already at 427 lines (near the 400-line project limit). Before adding try-catch logic, extract existing switch/for-of/do-while conversion into a sub-module to make room.
 
@@ -221,7 +221,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test --workspace` — all 157 tests must still pass.
 
-- [ ] **Task 6.1.3: Implement try-catch in stmt.rs**
+- [x] **Task 6.1.3: Implement try-catch in stmt/try_catch.rs** ✓
 
   Modify `crates/tyrus_codegen/src/convert/stmt.rs` (or `stmt/mod.rs` after refactor):
   - Add `Stmt::Try(try_stmt)` arm to `convert_stmt()`
@@ -234,7 +234,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test -p integration_tests test_equivalence_try_catch_basic` — Expected: PASS
 
-- [ ] **Task 6.1.4: Write equivalence test for try-catch with throw**
+- [x] **Task 6.1.4: Write equivalence test for try-catch with throw** ✓
 
   Add to `error_handling.rs`:
 
@@ -264,7 +264,7 @@ match (|| -> Result<_, AppError> {
 
   Run: `cargo test -p integration_tests test_equivalence_try_catch` — Expected: PASS
 
-- [ ] **Task 6.1.5: Write equivalence test for nested try-catch**
+- [x] **Task 6.1.5: Write equivalence test for nested try-catch** ✓
 
   ```rust
   #[test]

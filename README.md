@@ -158,11 +158,11 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Test Suite
 
-158 tests across 7 test types and 4 feature tiers:
+162 tests across 7 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **Equivalence** | 55 | Semantic proof: TS and Rust produce identical stdout |
+| **Equivalence** | 59 | Semantic proof: TS and Rust produce identical stdout |
 | **CLI** | 7 | Integration tests for all CLI commands and flags |
 | **Unit** | 27 | Fast, isolated codegen function tests |
 | **Snapshot** | 6 | Full transpilation output via `insta` |

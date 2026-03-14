@@ -152,11 +152,11 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Suite de Testes
 
-158 testes distribuídos em 7 tipos de teste e 4 camadas de funcionalidades:
+162 testes distribuídos em 7 tipos de teste e 4 camadas de funcionalidades:
 
 | Tipo | Quantidade | Descrição |
 |------|-----------|-----------|
-| **Equivalência** | 55 | Prova semântica: TS e Rust produzem stdout idêntico |
+| **Equivalência** | 59 | Prova semântica: TS e Rust produzem stdout idêntico |
 | **CLI** | 7 | Testes de integração para todos os comandos e flags |
 | **Unitário** | 27 | Rápido, funções isoladas de codegen |
 | **Snapshot** | 6 | Saída completa de transpilação via `insta` |

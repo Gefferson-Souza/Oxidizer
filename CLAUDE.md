@@ -169,6 +169,6 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Chunks 1-7 + Milestones 13A/13B + Milestone 14 HIGH + CLI/IR/Analyzer evolution + Phase 6.0 Infrastructure
-**Current:** Phase 6.0 complete — prettyplease, thiserror 2.0, trybuild, AppError HTTP variants
-**Status:** 158 tests passing (55 equivalence + 8 IR + 7 CLI + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped)
+**Completed:** Chunks 1-7 + Milestones 13A/13B + Milestone 14 HIGH + CLI/IR/Analyzer evolution + Phase 6.0 Infrastructure + Phase 6.1 try-catch
+**Current:** Phase 6.1 complete — try-catch → Result matching, throw new Error → Err(), nested try-catch
+**Status:** 162 tests passing (59 equivalence + 8 IR + 7 CLI + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped)

@@ -11,21 +11,21 @@
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 158 (55 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
-| Equivalence tests | 55 (proving TS↔Rust output identity) |
+| Tests passing | 162 (59 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
+| Equivalence tests | 59 (proving TS↔Rust output identity) |
 | Supported expressions | 16+ types |
-| Control flow | while, for, for-of, do-while, switch, if/else |
+| Control flow | while, for, for-of, do-while, switch, if/else, try-catch |
 | String methods | 16 (includes, replace, split, toUpperCase, toLowerCase, trim, startsWith, endsWith, toString, substring, charAt, indexOf, repeat, slice, padStart, padEnd) |
 | Array methods | 15 (map, filter, forEach, find, some, every, reduce, join, includes, push, indexOf, slice, concat, reverse, pop, sort, shift, flat, flatMap) |
 | Math functions | 15 (max, min, round, floor, ceil, abs, random, pow, sqrt, log, trunc, sign, sin, cos, tan) |
 | Math constants | 2 (PI, E) |
 | Console methods | 5 (log, error, warn, info, debug) |
-| Blocked by analyzer | 5 constructs (for-in, try-catch, delete, with, labeled) |
+| Blocked by analyzer | 4 constructs (for-in, delete, with, labeled) |
 | CLI commands | 4 (check, build, compile, run) |
-| Analyzer lint rules | 8 (var, any, eval, for-in, try-catch, delete, with, labeled) |
+| Analyzer lint rules | 7 (var, any, eval, for-in, delete, with, labeled) |
 | Unsupported APIs detected | 11 (DOM, timers, require, XMLHttpRequest, etc.) |
 | IR types defined | 4 (TyrusType, TyrusExpr, TyrusStmt, TyrusDecl) |
-| Known bugs | 1 (optional chaining on Option fields creates double-Option — needs type inference) |
+| Known bugs | 4 (optional chaining double-Option #existing, try-catch finally skipped on success #36, side-effect try early return #37, return in loop inside try #38) |
 
 ---
 
