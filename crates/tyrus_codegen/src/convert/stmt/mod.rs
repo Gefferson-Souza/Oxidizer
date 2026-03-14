@@ -14,6 +14,20 @@ use swc_ecma_ast::*;
 
 use super::interface::RustGenerator;
 
+/// Map NestJS exception class names to AppError variant names.
+fn nestjs_exception_to_app_error(class_name: &str) -> Option<&'static str> {
+    match class_name {
+        "NotFoundException" => Some("NotFound"),
+        "BadRequestException" => Some("BadRequest"),
+        "UnauthorizedException" => Some("Unauthorized"),
+        "ForbiddenException" => Some("Forbidden"),
+        "ConflictException" => Some("Conflict"),
+        "InternalServerErrorException" => Some("Internal"),
+        "Error" => None, // generic Error, use default handling
+        _ => None,
+    }
+}
+
 impl RustGenerator {
     /// Recursively convert statements with a custom return handler.
     /// Used by process_fn_decl to inject Result wrapping for async functions.
@@ -108,11 +122,35 @@ impl RustGenerator {
             Stmt::DoWhile(do_while) => self.convert_do_while_stmt(do_while),
             Stmt::Switch(switch_stmt) => self.convert_switch_stmt(switch_stmt),
             Stmt::Try(try_stmt) => self.convert_try_stmt(try_stmt),
-            Stmt::Throw(throw_stmt) => {
-                let arg = self.convert_expr(&throw_stmt.arg);
-                quote! { return Err(#arg.into()); }
-            }
+            Stmt::Throw(throw_stmt) => self.convert_throw(&throw_stmt.arg),
             _ => quote! { /* other stmts todo */ },
         }
+    }
+
+    /// Convert a throw statement, mapping NestJS exceptions to AppError variants.
+    fn convert_throw(&self, arg: &swc_ecma_ast::Expr) -> TokenStream {
+        // Detect: throw new XxxException("msg")
+        if let swc_ecma_ast::Expr::New(new_expr) = arg {
+            if let swc_ecma_ast::Expr::Ident(ident) = &*new_expr.callee {
+                let class_name = ident.sym.as_ref();
+
+                if let Some(variant) = nestjs_exception_to_app_error(class_name) {
+                    let variant_ident = quote::format_ident!("{}", variant);
+                    let msg = new_expr
+                        .args
+                        .as_ref()
+                        .and_then(|args| args.first())
+                        .map(|a| self.convert_expr(&a.expr))
+                        .unwrap_or_else(|| quote! { String::new() });
+                    return quote! {
+                        return Err(AppError::#variant_ident(#msg.to_string()));
+                    };
+                }
+            }
+        }
+
+        // Default: throw X → return Err(X.into())
+        let expr = self.convert_expr(arg);
+        quote! { return Err(#expr.into()); }
     }
 }
