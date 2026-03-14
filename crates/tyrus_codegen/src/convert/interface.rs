@@ -43,49 +43,46 @@ impl RustGenerator {
     }
 }
 
-impl Visit for RustGenerator {
-    fn visit_ts_interface_decl(&mut self, n: &TsInterfaceDecl) {
-        let interface_name = n.id.sym.to_string();
-        let struct_name = format_ident!("{}", interface_name);
-
-        let mut fields = Vec::new();
-
-        for member in &n.body.body {
+fn convert_interface_fields(body: &[TsTypeElement]) -> Vec<proc_macro2::TokenStream> {
+    body.iter()
+        .filter_map(|member| {
             if let TsTypeElement::TsPropertySignature(prop) = member {
-                let field_name_str = if let Some(ident) = prop.key.as_ident() {
-                    ident.sym.to_string()
-                } else {
-                    continue; // Skip non-identifier keys for now
-                };
-                let field_name =
-                    format_ident!("{}", super::helpers::to_snake_case(&field_name_str));
-
+                let name_str = prop.key.as_ident()?.sym.to_string();
+                let field_name = format_ident!("{}", super::helpers::to_snake_case(&name_str));
                 let mut field_type = map_ts_type(prop.type_ann.as_ref());
-
                 if prop.optional {
                     field_type = quote! { Option<#field_type> };
                 }
-
-                fields.push(quote! {
-                    pub #field_name: #field_type
-                });
+                Some(quote! { pub #field_name: #field_type })
+            } else {
+                None
             }
-        }
+        })
+        .collect()
+}
 
-        let generics = if let Some(type_params) = &n.type_params {
-            let params: Vec<_> = type_params
-                .params
-                .iter()
-                .map(|p| {
-                    let name = p.name.sym.to_string();
-                    let ident = format_ident!("{}", name);
-                    quote! { #ident: Clone }
-                })
-                .collect();
-            quote! { <#(#params),*> }
-        } else {
-            quote! {}
-        };
+fn convert_interface_generics(
+    type_params: Option<&swc_ecma_ast::TsTypeParamDecl>,
+) -> proc_macro2::TokenStream {
+    let Some(params) = type_params else {
+        return quote! {};
+    };
+    let idents: Vec<_> = params
+        .params
+        .iter()
+        .map(|p| {
+            let ident = format_ident!("{}", p.name.sym.to_string());
+            quote! { #ident: Clone }
+        })
+        .collect();
+    quote! { <#(#idents),*> }
+}
+
+impl Visit for RustGenerator {
+    fn visit_ts_interface_decl(&mut self, n: &TsInterfaceDecl) {
+        let struct_name = format_ident!("{}", n.id.sym.to_string());
+        let fields = convert_interface_fields(&n.body.body);
+        let generics = convert_interface_generics(n.type_params.as_deref());
 
         let struct_def = quote! {
             #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
