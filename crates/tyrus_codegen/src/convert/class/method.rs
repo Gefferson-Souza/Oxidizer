@@ -46,25 +46,24 @@ impl RustGenerator {
         // Build parameters
         let mut params = Vec::new();
 
-        // Handle self parameter
-        if is_handler {
-            // For handlers, we consume self (injected via FromRequest)
-            params.push(quote! { self });
-        } else if is_service_or_controller {
-            // For services/controllers (Singletons), we must use immutable &self (with interior mutability)
-            // to allow sharing via Arc across threads.
-            params.push(quote! { &self });
-        } else {
-            // For regular classes, detect if the method mutates self fields
-            let mutates = method
-                .function
-                .body
-                .as_ref()
-                .is_some_and(|body| Self::body_mutates_self(&body.stmts));
-            if mutates {
-                params.push(quote! { &mut self });
-            } else {
+        // Handle self parameter — static methods have no self
+        let is_static = method.is_static;
+        if !is_static {
+            if is_handler {
+                params.push(quote! { self });
+            } else if is_service_or_controller {
                 params.push(quote! { &self });
+            } else {
+                let mutates = method
+                    .function
+                    .body
+                    .as_ref()
+                    .is_some_and(|body| Self::body_mutates_self(&body.stmts));
+                if mutates {
+                    params.push(quote! { &mut self });
+                } else {
+                    params.push(quote! { &self });
+                }
             }
         }
 
