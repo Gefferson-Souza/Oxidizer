@@ -72,26 +72,39 @@ impl RustGenerator {
                 let param_name = format_ident!("{}", to_snake_case(ident.sym.as_ref()));
                 let param_type = map_ts_type(ident.type_ann.as_ref());
 
-                // Check for @Body decorator on parameters
-                let mut is_body = false;
+                // Check for NestJS parameter decorators (@Body, @Param, @Query)
+                let mut param_decorator = None;
 
-                // Correctly check decorators on the Param node
                 for decorator in &param.decorators {
                     if let Expr::Call(call) = &*decorator.expr {
                         if let swc_ecma_ast::Callee::Expr(expr) = &call.callee {
-                            if let Expr::Ident(ident) = &**expr {
-                                if ident.sym == "Body" {
-                                    is_body = true;
+                            if let Expr::Ident(dec_ident) = &**expr {
+                                let dec_name = dec_ident.sym.as_ref();
+                                if matches!(dec_name, "Body" | "Param" | "Query") {
+                                    param_decorator = Some(dec_name.to_string());
                                 }
                             }
                         }
                     }
                 }
 
-                if is_body {
-                    params.push(quote! { axum::Json(#param_name): axum::Json<#param_type> });
-                } else {
-                    params.push(quote! { #param_name: #param_type });
+                match param_decorator.as_deref() {
+                    Some("Body") => {
+                        params.push(quote! { axum::Json(#param_name): axum::Json<#param_type> });
+                    }
+                    Some("Param") => {
+                        params.push(
+                            quote! { axum::extract::Path(#param_name): axum::extract::Path<#param_type> },
+                        );
+                    }
+                    Some("Query") => {
+                        params.push(
+                            quote! { axum::extract::Query(#param_name): axum::extract::Query<#param_type> },
+                        );
+                    }
+                    _ => {
+                        params.push(quote! { #param_name: #param_type });
+                    }
                 }
             }
         }
