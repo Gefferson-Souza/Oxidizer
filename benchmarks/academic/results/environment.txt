@@ -1,0 +1,10 @@
+Date: 2026-03-14T00:45:40-03:00
+OS: Linux 6.14.0-28-generic x86_64
+Kernel: 6.14.0-28-generic
+CPU: 12th Gen Intel(R) Core(TM) i5-12450H
+CPU Cores: 12
+RAM Total: 
+Node.js: v22.21.1
+Rust: rustc 1.89.0 (29483883e 2025-08-04)
+Cargo: cargo 1.89.0 (c24e10642 2025-06-23)
+Iterations: 5 measured + 3 warmup
