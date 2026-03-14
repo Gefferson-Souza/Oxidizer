@@ -348,14 +348,26 @@ impl Visit for RustGenerator {
             };
 
             let enum_def = quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
                 #[repr(i32)]
                 #vis enum #enum_name {
+                    #[default]
                     #(#variants),*
                 }
             };
 
+            // Generate Display impl (prints numeric value, matching TS behavior)
+            let display_impl = quote! {
+                impl std::fmt::Display for #enum_name {
+                    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(f, "{}", *self as i32)
+                    }
+                }
+            };
+
             self.code.push_str(&enum_def.to_string());
+            self.code.push('\n');
+            self.code.push_str(&display_impl.to_string());
             self.code.push('\n');
         }
     }
