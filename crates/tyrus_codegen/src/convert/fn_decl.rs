@@ -16,6 +16,10 @@ impl RustGenerator {
         let fn_name = to_snake_case(&n.ident.sym);
         let fn_ident = format_ident!("{}", fn_name);
 
+        if fn_name == "main" {
+            self.has_declared_main = true;
+        }
+
         // Check if async
         let is_async = n.function.is_async;
 

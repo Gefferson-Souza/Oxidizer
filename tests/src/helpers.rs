@@ -14,10 +14,10 @@ pub fn transpile(ts_code: &str) -> String {
 
 /// Asserts that transpiled Rust produces identical stdout to the original TypeScript.
 ///
-/// The TypeScript code MUST:
-/// - Contain function declarations (not top-level statements)
-/// - Have a `main()` function that calls other functions
-/// - Use `console.log()` for observable output
+/// The TypeScript code supports:
+/// - Function declarations (transpiled as Rust functions)
+/// - Top-level statements (wrapped in `fn main()` automatically)
+/// - `console.log()` for observable output
 pub fn assert_output_equivalent(ts_code: &str) {
     // 1. Run TypeScript with Node.js
     let ts_output = tyrus_test_utils::run_node(ts_code);
