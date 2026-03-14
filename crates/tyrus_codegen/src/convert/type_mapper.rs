@@ -2,110 +2,115 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use swc_ecma_ast::{TsType, TsTypeAnn};
 
-/// Core type mapping logic: converts a `TsType` to a Rust `TokenStream`.
-/// Handles keywords, arrays, type references (including generics), and unions.
+/// Maps a TS keyword type (string, number, boolean, void) to its Rust equivalent.
+fn map_keyword_type(kind: swc_ecma_ast::TsKeywordTypeKind) -> TokenStream {
+    match kind {
+        swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => quote! { String },
+        swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => quote! { f64 },
+        swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => quote! { bool },
+        swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword => quote! { () },
+        _ => quote! { serde_json::Value },
+    }
+}
+
+/// Maps a TS type reference (Date, Array<T>, Record<K,V>, user-defined) to Rust.
+fn map_type_ref(type_ref: &swc_ecma_ast::TsTypeRef) -> TokenStream {
+    let Some(ident) = type_ref.type_name.as_ident() else {
+        return quote! { serde_json::Value };
+    };
+    let name = ident.sym.as_str();
+    match name {
+        "Date" => quote! { String },
+        "Array" => map_array_type(&type_ref.type_params),
+        "Record" => map_record_type(&type_ref.type_params),
+        _ => map_user_defined_type(name, &type_ref.type_params),
+    }
+}
+
+/// Extracts the first generic param as `Vec<T>`, defaulting to `Vec<Value>`.
+fn map_array_type(
+    type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>,
+) -> TokenStream {
+    if let Some(params) = type_params {
+        if let Some(first) = params.params.first() {
+            let inner = map_type_core(first);
+            return quote! { Vec<#inner> };
+        }
+    }
+    quote! { Vec<serde_json::Value> }
+}
+
+/// Maps Record<K,V> to HashMap<K,V>, defaulting to HashMap<String, Value>.
+fn map_record_type(
+    type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>,
+) -> TokenStream {
+    if let Some(params) = type_params {
+        if params.params.len() >= 2 {
+            let key = map_type_core(&params.params[0]);
+            let value = map_type_core(&params.params[1]);
+            return quote! { std::collections::HashMap<#key, #value> };
+        }
+    }
+    quote! { std::collections::HashMap<String, serde_json::Value> }
+}
+
+/// Maps a user-defined type reference, preserving generic parameters.
+fn map_user_defined_type(
+    name: &str,
+    type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>,
+) -> TokenStream {
+    let type_ident = proc_macro2::Ident::new(name, proc_macro2::Span::call_site());
+    if let Some(params) = type_params {
+        let mapped: Vec<_> = params.params.iter().map(|p| map_type_core(p)).collect();
+        quote! { #type_ident<#(#mapped),*> }
+    } else {
+        quote! { #type_ident }
+    }
+}
+
+/// Maps a TS union type (T | undefined -> Option<T>), falling back to Value.
+fn map_union_type(union_or_intersection: &swc_ecma_ast::TsUnionOrIntersectionType) -> TokenStream {
+    let swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(union) = union_or_intersection else {
+        return quote! { serde_json::Value };
+    };
+
+    let mut is_optional = false;
+    let mut inner_type = None;
+
+    for type_opt in &union.types {
+        match &**type_opt {
+            TsType::TsKeywordType(k)
+                if k.kind == swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword
+                    || k.kind == swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword =>
+            {
+                is_optional = true;
+            }
+            _ => {
+                if inner_type.is_none() {
+                    inner_type = Some(map_type_core(type_opt));
+                }
+            }
+        }
+    }
+
+    if is_optional {
+        let inner = inner_type.unwrap_or_else(|| quote! { serde_json::Value });
+        quote! { Option<#inner> }
+    } else {
+        quote! { serde_json::Value }
+    }
+}
+
+/// Core type mapping dispatcher: routes a `TsType` to the appropriate handler.
 fn map_type_core(ts_type: &TsType) -> TokenStream {
     match ts_type {
-        TsType::TsKeywordType(k) => match k.kind {
-            swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword => quote! { String },
-            swc_ecma_ast::TsKeywordTypeKind::TsNumberKeyword => quote! { f64 },
-            swc_ecma_ast::TsKeywordTypeKind::TsBooleanKeyword => quote! { bool },
-            swc_ecma_ast::TsKeywordTypeKind::TsVoidKeyword => quote! { () },
-            _ => quote! { serde_json::Value },
-        },
-        TsType::TsArrayType(array_type) => {
-            let inner_type = map_type_core(&array_type.elem_type);
-            quote! { Vec<#inner_type> }
+        TsType::TsKeywordType(k) => map_keyword_type(k.kind),
+        TsType::TsArrayType(arr) => {
+            let inner = map_type_core(&arr.elem_type);
+            quote! { Vec<#inner> }
         }
-        TsType::TsTypeRef(t) => {
-            if let Some(ident) = t.type_name.as_ident() {
-                let name = ident.sym.as_str();
-                match name {
-                    "Date" => quote! { String },
-                    "Array" => {
-                        if let Some(type_params) = &t.type_params {
-                            if let Some(first_param) = type_params.params.first() {
-                                let inner = map_type_core(first_param);
-                                quote! { Vec<#inner> }
-                            } else {
-                                quote! { Vec<serde_json::Value> }
-                            }
-                        } else {
-                            quote! { Vec<serde_json::Value> }
-                        }
-                    }
-                    "Record" => {
-                        if let Some(type_params) = &t.type_params {
-                            if type_params.params.len() >= 2 {
-                                let key = map_type_core(&type_params.params[0]);
-                                let value = map_type_core(&type_params.params[1]);
-                                quote! { std::collections::HashMap<#key, #value> }
-                            } else {
-                                quote! { std::collections::HashMap<String, serde_json::Value> }
-                            }
-                        } else {
-                            quote! { std::collections::HashMap<String, serde_json::Value> }
-                        }
-                    }
-                    _ => {
-                        // User defined type (Struct or Enum)
-                        let type_ident =
-                            proc_macro2::Ident::new(name, proc_macro2::Span::call_site());
-
-                        if let Some(type_params) = &t.type_params {
-                            let params: Vec<_> = type_params
-                                .params
-                                .iter()
-                                .map(|p| map_type_core(p))
-                                .collect();
-                            quote! { #type_ident<#(#params),*> }
-                        } else {
-                            quote! { #type_ident }
-                        }
-                    }
-                }
-            } else {
-                quote! { serde_json::Value }
-            }
-        }
-        TsType::TsUnionOrIntersectionType(union_or_intersection) => {
-            // Check for Optional (T | undefined)
-            if let swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(union) =
-                union_or_intersection
-            {
-                let mut is_optional = false;
-                let mut inner_type = None;
-
-                for type_opt in &union.types {
-                    match &**type_opt {
-                        TsType::TsKeywordType(k)
-                            if k.kind == swc_ecma_ast::TsKeywordTypeKind::TsUndefinedKeyword
-                                || k.kind == swc_ecma_ast::TsKeywordTypeKind::TsNullKeyword =>
-                        {
-                            is_optional = true;
-                        }
-                        _ => {
-                            if inner_type.is_none() {
-                                inner_type = Some(map_type_core(type_opt));
-                            }
-                        }
-                    }
-                }
-
-                if is_optional {
-                    if let Some(inner) = inner_type {
-                        quote! { Option<#inner> }
-                    } else {
-                        quote! { Option<serde_json::Value> }
-                    }
-                } else {
-                    // Regular union - fallback to Value for now
-                    quote! { serde_json::Value }
-                }
-            } else {
-                quote! { serde_json::Value }
-            }
-        }
+        TsType::TsTypeRef(t) => map_type_ref(t),
+        TsType::TsUnionOrIntersectionType(u) => map_union_type(u),
         _ => quote! { serde_json::Value },
     }
 }
@@ -187,11 +192,6 @@ pub fn is_void_or_promise_void(type_ann: Option<&TsTypeAnn>) -> bool {
             _ => false,
         }
     } else {
-        // If no return type, assume void for functions (in this context)
-        // But map_ts_type maps None to Value.
-        // We need consistency.
-        // For now, let's say None is NOT void if we map it to Value.
-        // But in process_fn_decl we might override this.
         false
     }
 }
