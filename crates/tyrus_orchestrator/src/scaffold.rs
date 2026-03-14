@@ -54,6 +54,42 @@ pub(crate) fn generate_main_rs(
         }
     }
 
+    // Fallback: if no DI graph but controllers exist, instantiate all classes
+    if instantiated_vars.is_empty() && !controllers.is_empty() {
+        for (class_name, module_path) in class_module_map {
+            let var_name = tyrus_common::util::to_snake_case(class_name);
+            let is_controller = controllers.contains(class_name);
+
+            // Instantiate services first (no deps), then controllers
+            if !is_controller {
+                main_content.push_str(&format!(
+                    "    let {} = Arc::new({}::{}::new_di());\n",
+                    var_name, module_path, class_name
+                ));
+                instantiated_vars.insert(class_name.clone(), var_name);
+            }
+        }
+        // Instantiate controllers with their service deps
+        for controller in controllers {
+            if let Some(module_path) = class_module_map.get(controller) {
+                let var_name = tyrus_common::util::to_snake_case(controller);
+                // Find service dependencies (vars already instantiated)
+                let service_args: Vec<String> = instantiated_vars
+                    .values()
+                    .map(|v| format!("{}.clone()", v))
+                    .collect();
+                main_content.push_str(&format!(
+                    "    let {} = Arc::new({}::{}::new_di({}));\n",
+                    var_name,
+                    module_path,
+                    controller,
+                    service_args.join(", ")
+                ));
+                instantiated_vars.insert(controller.clone(), var_name);
+            }
+        }
+    }
+
     main_content.push_str("\n    // Build router\n");
     main_content.push_str("    let app = axum::Router::new()");
 
