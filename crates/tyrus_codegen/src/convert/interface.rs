@@ -17,9 +17,10 @@ pub struct RustGenerator {
     pub has_declared_main: bool,
     pub current_class_state_fields: std::collections::HashMap<String, String>,
     /// Track class fields for inheritance (parent fields flattened into child)
-    /// Stores: field_name, TokenStream type, is_optional
     pub(crate) class_fields:
         std::collections::HashMap<String, Vec<(String, proc_macro2::TokenStream, bool)>>,
+    /// Track static methods per class (ClassName → [method_names])
+    pub(crate) static_methods: std::collections::HashMap<String, std::collections::HashSet<String>>,
     /// Variables declared with `: string` type annotation (used for stdlib disambiguation)
     pub(crate) string_vars: std::cell::RefCell<std::collections::HashSet<String>>,
 }
@@ -36,6 +37,7 @@ impl RustGenerator {
             has_declared_main: false,
             current_class_state_fields: std::collections::HashMap::new(),
             class_fields: std::collections::HashMap::new(),
+            static_methods: std::collections::HashMap::new(),
             string_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
         }
     }

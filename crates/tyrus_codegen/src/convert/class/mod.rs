@@ -83,9 +83,15 @@ impl RustGenerator {
         }
 
         // Pass 2: Process Methods and Constructor
+        let mut static_method_names = std::collections::HashSet::new();
         for member in &n.class.body {
             match member {
                 ClassMember::Method(method) => {
+                    if method.is_static {
+                        if let Some(ident) = method.key.as_ident() {
+                            static_method_names.insert(ident.sym.to_string());
+                        }
+                    }
                     methods.push(method);
                 }
                 ClassMember::Constructor(cons) => {
@@ -237,6 +243,12 @@ impl RustGenerator {
         // Store field map for potential child classes
         self.class_fields
             .insert(class_name.clone(), own_field_names);
+
+        // Store static method names for call-site transformation
+        if !static_method_names.is_empty() {
+            self.static_methods
+                .insert(class_name.clone(), static_method_names);
+        }
 
         // 2. Generate Impl (Methods)
         let mut impl_items = Vec::new();

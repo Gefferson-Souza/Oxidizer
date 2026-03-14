@@ -23,6 +23,26 @@ impl RustGenerator {
         // Check for axios and stdlib method calls
         if let Callee::Expr(expr) = &call.callee {
             if let Expr::Member(member) = &**expr {
+                // Check for static method call: ClassName.method(args) → ClassName::method(args)
+                if let Expr::Ident(obj_ident) = &*member.obj {
+                    let class_name = obj_ident.sym.as_ref();
+                    if let Some(static_set) = self.static_methods.get(class_name) {
+                        if let Some(method_ident) = member.prop.as_ident() {
+                            let method_str = method_ident.sym.as_ref();
+                            if static_set.contains(method_str) {
+                                let cls = format_ident!("{}", class_name);
+                                let meth = format_ident!("{}", to_snake_case(method_str));
+                                let args: Vec<_> = call
+                                    .args
+                                    .iter()
+                                    .map(|a| self.convert_expr(&a.expr))
+                                    .collect();
+                                return quote! { #cls::#meth(#(#args),*) };
+                            }
+                        }
+                    }
+                }
+
                 if let Some(tokens) = self.try_convert_axios_call(member, call) {
                     return tokens;
                 }
