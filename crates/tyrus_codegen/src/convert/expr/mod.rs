@@ -62,6 +62,11 @@ impl RustGenerator {
             }
             Expr::OptChain(opt_chain) => self.convert_opt_chain(opt_chain),
             Expr::Unary(unary) => self.convert_unary_expr(unary),
+            // Type assertions: mostly no-ops (types known at compile time)
+            Expr::TsAs(ts_as) => self.convert_expr(&ts_as.expr),
+            Expr::TsTypeAssertion(ta) => self.convert_expr(&ta.expr),
+            Expr::TsConstAssertion(tca) => self.convert_expr(&tca.expr),
+            Expr::TsNonNull(nn) => self.convert_expr(&nn.expr),
             _ => quote! { compile_error!("Tyrus: unsupported expression") },
         }
     }
