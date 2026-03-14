@@ -16,8 +16,10 @@ pub struct RustGenerator {
     pub main_body: String,
     pub has_declared_main: bool,
     pub current_class_state_fields: std::collections::HashMap<String, String>,
-    /// Track class field names for inheritance (parent fields flattened into child)
-    pub(crate) class_fields: std::collections::HashMap<String, Vec<(String, String)>>,
+    /// Track class fields for inheritance (parent fields flattened into child)
+    /// Stores: field_name, TokenStream type, is_optional
+    pub(crate) class_fields:
+        std::collections::HashMap<String, Vec<(String, proc_macro2::TokenStream, bool)>>,
     /// Variables declared with `: string` type annotation (used for stdlib disambiguation)
     pub(crate) string_vars: std::cell::RefCell<std::collections::HashSet<String>>,
 }
