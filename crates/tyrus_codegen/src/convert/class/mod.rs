@@ -137,30 +137,12 @@ impl RustGenerator {
                         let mut field_type = map_ts_type(type_ann);
                         let raw_type_str = field_type.to_string();
 
-                        // Heuristic: If it's a TypeRef (not primitive), wrap in Arc
-                        let is_dependency = if let Some(ann) = type_ann {
-                            if let Some(type_ref) = ann.type_ann.as_ts_type_ref() {
-                                if let Some(ident) = type_ref.type_name.as_ident() {
-                                    let name = ident.sym.as_str();
-                                    !matches!(
-                                        name,
-                                        "String"
-                                            | "f64"
-                                            | "bool"
-                                            | "i32"
-                                            | "Vec"
-                                            | "Option"
-                                            | "Array"
-                                    )
-                                } else {
-                                    true
-                                }
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        };
+                        // Only wrap in Arc for NestJS service/controller DI
+                        let is_dependency = is_service_or_controller
+                            && super::class::constructor::is_dependency_type(
+                                type_ann.map(std::convert::AsRef::as_ref),
+                                &generic_params,
+                            );
 
                         if is_dependency {
                             field_type = quote! { std::sync::Arc<#field_type> };
@@ -357,8 +339,11 @@ impl RustGenerator {
         // Capture the raw inner type string before wrapping in Option/Arc
         let raw_type_str = field_type.to_string();
 
-        let is_dependency =
-            super::class::constructor::is_dependency_type(prop.type_ann.as_deref(), generic_params);
+        let is_dependency = is_service_or_controller
+            && super::class::constructor::is_dependency_type(
+                prop.type_ann.as_deref(),
+                generic_params,
+            );
 
         if is_dependency {
             field_type = quote! { std::sync::Arc<#field_type> };

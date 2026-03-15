@@ -24,10 +24,10 @@ impl<
             _marker: std::marker::PhantomData,
         }
     }
-    pub fn new_di() -> Self {
+    pub fn new_di(data: T) -> Self {
         Self {
+            data: data,
             _marker: std::marker::PhantomData,
-            data: Default::default(),
         }
     }
     pub fn get(&self) -> T {
