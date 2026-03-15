@@ -72,8 +72,9 @@ Aderindo aos princípios estritos de "Transpilação Segura":
 - **Console** (5): `log`, `error`, `warn`, `info`, `debug`
 - **Fluxo de Controle**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternário, `try/catch`
 - **Top-Level Statements**: `const`, `let`, expressões auto-wrapped em `fn main()`
-- **Spread Operator**: `[...arr1, ...arr2]` → iterator chain
+- **Spread Operator**: `[...arr1, ...arr2]` → iterator chain, `{...obj, field}` → struct update
 - **Herança de Classe**: `extends`, `super()`, override de métodos via field flattening
+- **Getters/Setters**: `get prop()` → `fn prop(&self)`, `set prop(v)` → `fn set_prop(&mut self, v)`
 - **Métodos Estáticos**: `static add()` → função associada, `Class.method()` → `Class::method()`
 - **Type Assertions**: `as Type` → no-op (apenas compile-time)
 - **Enums Numéricos**: `enum Direction { Up = 0 }` → `#[repr(i32)] enum` com `Display`
@@ -81,6 +82,7 @@ Aderindo aos princípios estritos de "Transpilação Segura":
 - **Estado de Classe**: Encapsulamento automático com `Arc<Mutex<T>>` para services/controllers
 - **Interfaces**: `interface` -> `#[derive(Serialize, Deserialize)] struct`
 - **Unions de String**: `type Status = "a" | "b"` -> `enum` com `Display` e `PartialEq`
+- **Guards NestJS**: `@UseGuards(Guard)` → `axum::middleware::from_fn()` layer
 
 ---
 
@@ -165,19 +167,20 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Suite de Testes
 
-179 testes distribuídos em 7 tipos de teste e 4 camadas de funcionalidades:
+195 testes distribuídos em 8 tipos de teste e 4 camadas de funcionalidades:
 
 | Tipo | Quantidade | Descrição |
 |------|-----------|-----------|
-| **Equivalência** | 71 | Prova semântica: TS e Rust produzem stdout idêntico |
+| **Equivalência** | 81 | Prova semântica: TS e Rust produzem stdout idêntico |
 | **Unitário** | 49 | Rápido, funções isoladas de codegen |
 | **Snapshot** | 20 | Saída completa de transpilação via `insta` |
 | **IR** | 21 | Lowering de representação intermediária tipada |
 | **Compilação** | 9 | Rust gerado passa no `cargo check` por camada |
 | **CLI** | 7 | Testes de integração para todos os comandos e flags |
 | **Trybuild** | 1 | Verificação de compilação do Rust gerado |
+| **E2E/Build** | 5 | Pipeline completo: transpilar → compilar → executar servidor → verificar HTTP |
 
-Tipos de teste: **Equivalência** (TS↔Rust mesma saída) · **Unitário** (funções rápidas e isoladas) · **Snapshot** (insta, saída do codegen) · **IR** (type lowering) · **Compilação** (Rust gerado passa no `cargo check`) · **CLI** (integração de comandos) · **Trybuild** (verificação de compilação)
+Tipos de teste: **Equivalência** (TS↔Rust mesma saída) · **Unitário** (funções rápidas e isoladas) · **Snapshot** (insta, saída do codegen) · **IR** (type lowering) · **Compilação** (Rust gerado passa no `cargo check`) · **CLI** (integração de comandos) · **E2E** (verificação de servidor HTTP) · **Trybuild** (verificação de compilação)
 
 ---
 
