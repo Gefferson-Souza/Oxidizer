@@ -8,7 +8,14 @@ _Academic Project in Compiler Theory & Semantic Preservation_
 ![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-Tyrus is a source-to-source compiler designed to bridge the gap between high-level dynamic syntax (TypeScript) and low-level memory safety (Rust). As an academic initiative, it focuses on the formal mapping of higher-order abstractions to zero-cost Rust equivalents, exploring the boundaries of **Semantic Preservation** across differing execution models.
+Tyrus is a source-to-source compiler designed to bridge the gap between high-level dynamic syntax (TypeScript) and low-level memory safety (Rust). It focuses on the formal mapping of higher-order abstractions to zero-cost Rust equivalents, exploring the boundaries of **Semantic Preservation** across differing execution models.
+
+**Milestone:** Tyrus can now compile a NestJS CRUD API into a working Axum (Rust) server with a single command:
+
+```bash
+tyrus compile my-nestjs-project/src --output rust-server
+# → Rust binary with GET/POST endpoints, DI, and in-memory state
+```
 
 ---
 
