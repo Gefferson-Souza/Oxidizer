@@ -1,4 +1,5 @@
 use proc_macro2::TokenStream;
+use quote::quote;
 use swc_ecma_ast::{Callee, Expr, ExprOrSpread};
 
 use crate::convert::interface::RustGenerator;
@@ -40,6 +41,18 @@ pub(crate) fn try_handle_stdlib_call(
                     "Object" => {
                         if let Some(prop) = member.prop.as_ident() {
                             return object::handle(gen, prop.sym.as_ref(), args);
+                        }
+                    }
+                    "Date" => {
+                        if let Some(prop) = member.prop.as_ident() {
+                            if prop.sym.as_ref() == "now" {
+                                return Some(quote! {
+                                    std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_millis() as f64
+                                });
+                            }
                         }
                     }
                     _ => {}
