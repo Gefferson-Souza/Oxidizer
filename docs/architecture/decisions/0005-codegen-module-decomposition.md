@@ -33,16 +33,25 @@ Split into 10 focused modules:
 | `expr/literal.rs` | Literals, objects, arrays, template literals |
 | `expr/misc.rs` | Assignments, updates, optional chaining |
 
-### class.rs Decomposition (Chunk 3)
+### stmt.rs Further Decomposition (Phase 6)
 
-Split into 5 focused modules under `class/`:
+Added sub-modules as new statement types were implemented:
+
+| Module | Responsibility |
+|--------|---------------|
+| `stmt/try_catch.rs` | try-catch → Result matching pattern |
+
+### class.rs Decomposition (Chunk 3 + Phase 6-7)
+
+Split into 6 focused modules under `class/`:
 
 | Module | Responsibility |
 |--------|---------------|
 | `class/mod.rs` | Class dispatcher + property conversion |
 | `class/constructor.rs` | Constructor transpilation + DI detection |
 | `class/method.rs` | Method transpilation + decorator parsing |
-| `class/routing.rs` | Axum router generation + `FromRequestParts` |
+| `class/getter_setter.rs` | Getter/setter → accessor methods |
+| `class/routing.rs` | Axum router generation + @UseGuards middleware |
 | `class/mutation.rs` | Static self-mutation analysis |
 
 ### Orchestrator Decomposition (Chunk 3)

@@ -23,14 +23,22 @@ Transformaremos Decorators do NestJS em rotas e extratores do Axum.
     - Rust: `pub async fn find_one(...)`
     - A rota é registrada no Router: `.route("/:id", get(find_one))`
 
-3.  **Extractors (@Body, @Param):**
-    - TS: `create(@Body() user: UserDto)`
-    - Rust: `create(Json(user): Json<UserDto>)`
-    - O argumento é movido para o padrão de Extractor do Axum.
+3.  **Extractors (@Body, @Param, @Query):**
+    - TS: `create(@Body() user: UserDto)` → Rust: `create(Json(user): Json<UserDto>)`
+    - TS: `findOne(@Param('id') id: string)` → Rust: `find_one(Path(id): Path<String>)`
+    - TS: `search(@Query('q') q: string)` → Rust: `search(Query(q): Query<String>)`
 
 4.  **Injeção de Dependência:**
-    - O `Dependency Injection` do NestJS é simulado passando o `State` (Estado da Aplicação) para os handlers.
-    - O `Service` é instanciado no `main.rs` e passado via `.with_state(service)`.
+    - O `Dependency Injection` do NestJS é simulado via `State<Arc<Self>>` nos handlers.
+    - O `Service` é instanciado no `main.rs` e passado via `.with_state(Arc::new(service))`.
+
+5.  **Response Configuration:**
+    - TS: `@HttpCode(201)` → Rust: `Result<(StatusCode, Json<T>), AppError>`
+    - TS: `throw new NotFoundException("...")` → Rust: `return Err(AppError::NotFound("...".into()))`
+
+6.  **Guards:**
+    - TS: `@UseGuards(AuthGuard)` → Rust: `.layer(axum::middleware::from_fn(auth_guard_middleware))`
+    - `canActivate(): boolean` → async middleware function
 
 ## Consequências
 
@@ -38,7 +46,10 @@ Transformaremos Decorators do NestJS em rotas e extratores do Axum.
 
 - Axum é extremamente rápido.
 - O modelo de Extractors do Axum mapeia limpo para Decorators.
+- Guards NestJS mapeiam para `axum::middleware::from_fn()` (tower middleware).
+- `State<Arc<Self>>` permite compartilhar estado entre handlers sem `&mut self`.
 
 ### Negativas
 
-- Perda de alguns recursos dinâmicos do NestJS (Middleware complexo, Guards) que precisarão ser reimplementados "à la Rust" (tower middlewares).
+- Interceptors e Pipes complexos do NestJS precisarão de mapeamentos adicionais.
+- Dynamic modules (`forRoot`/`forAsync`) não suportados ainda.

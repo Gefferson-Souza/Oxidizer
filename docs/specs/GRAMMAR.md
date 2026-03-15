@@ -16,9 +16,14 @@ Statement ::=
     | ReturnStmt
     | IfStmt
     | WhileStmt
+    | ForStmt
     | ForOfStmt
-    | ForInStmt
     | DoWhileStmt
+    | SwitchStmt
+    | TryCatchStmt
+    | ThrowStmt
+    | TypeAliasDecl
+    | EnumDecl
 ```
 
 ## 2. Declarations
@@ -27,8 +32,15 @@ Statement ::=
 InterfaceDecl ::= 'interface' Identifier '{' InterfaceMember* '}'
 InterfaceMember ::= Identifier '?'? ':' Type ';'
 
-ClassDecl ::= Decorator* 'class' Identifier '{' ClassMember* '}'
-ClassMember ::= PropertyDecl | MethodDecl
+ClassDecl ::= Decorator* 'class' Identifier ('extends' Identifier)? '{' ClassMember* '}'
+ClassMember ::= PropertyDecl | MethodDecl | GetterDecl | SetterDecl | Constructor
+GetterDecl ::= 'get' Identifier '(' ')' ':' Type '{' Block '}'
+SetterDecl ::= 'set' Identifier '(' Param ')' '{' Block '}'
+Constructor ::= 'constructor' '(' ParamList ')' '{' Block '}'
+
+TypeAliasDecl ::= 'type' Identifier '=' Type
+EnumDecl ::= 'enum' Identifier '{' EnumMember (',' EnumMember)* '}'
+EnumMember ::= Identifier ('=' (NumberLiteral | StringLiteral))?
 
 FunctionDecl ::= 'async'? 'function' Identifier '(' ParamList ')' ':' Type '{' Block '}'
 ```
@@ -45,7 +57,16 @@ Expression ::=
     | AssignExpr
     | UpdateExpr
     | OptionalChainExpr
+    | TypeAssertionExpr
+    | TernaryExpr
+    | SpreadExpr
+    | NewExpr
     | Literal
+
+TypeAssertionExpr ::= Expression 'as' Type       (* → no-op, compile-time only *)
+TernaryExpr       ::= Expression '?' Expression ':' Expression
+SpreadExpr        ::= '...' Expression
+NewExpr           ::= 'new' Identifier '(' ArgumentList? ')'
 
 UnaryExpr         ::= ('!' | '-' | '+') Expression
 ArrowExpr         ::= '(' ParamList ')' '=>' (Expression | Block)
@@ -76,10 +97,15 @@ StringUnionType ::= StringLiteral ('|' StringLiteral)+
 
 ```ebnf
 WhileStmt   ::= 'while' '(' Expression ')' Block
-IfStmt      ::= 'if' '(' Expression ')' Block ('else' Block)?
+IfStmt      ::= 'if' '(' Expression ')' Block ('else' (IfStmt | Block))?
 ForOfStmt   ::= 'for' '(' ('let' | 'const') Identifier 'of' Expression ')' Block
-ForInStmt   ::= 'for' '(' ('let' | 'const') Identifier 'in' Expression ')' Block
+ForStmt     ::= 'for' '(' VariableDecl? ';' Expression? ';' Expression? ')' Block
 DoWhileStmt ::= 'do' Block 'while' '(' Expression ')'
+SwitchStmt  ::= 'switch' '(' Expression ')' '{' CaseClause* DefaultClause? '}'
+CaseClause  ::= 'case' Expression ':' Statement*
+DefaultClause ::= 'default' ':' Statement*
+TryCatchStmt ::= 'try' Block 'catch' '(' Identifier ')' Block ('finally' Block)?
+ThrowStmt   ::= 'throw' Expression
 ```
 
 ## 6. Literals (Supported)
@@ -112,8 +138,12 @@ SupportedDecorators ::=
     | '@Post' '(' StringLiteral? ')'
     | '@Put' '(' StringLiteral? ')'
     | '@Delete' '(' StringLiteral? ')'
+    | '@Patch' '(' StringLiteral? ')'
     | '@Body' '(' ')'
     | '@Param' '(' StringLiteral? ')'
+    | '@Query' '(' StringLiteral? ')'
+    | '@HttpCode' '(' NumberLiteral ')'
+    | '@UseGuards' '(' Identifier (',' Identifier)* ')'
 ```
 
 ## 8. Unsafe (Forbidden)
@@ -123,3 +153,7 @@ The following constructs are explicitly rejected by the `tyrus_analyzer` (`LintV
 - `any` type usage.
 - `eval()` calls.
 - `var` declarations (use `let`/`const`).
+- `for-in` loops (use `for-of`).
+- `delete` operator.
+- `with` statements.
+- Labeled statements.

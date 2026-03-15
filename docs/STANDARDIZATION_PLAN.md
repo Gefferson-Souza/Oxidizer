@@ -109,9 +109,11 @@ Manteremos a estrutura de Workspace, mas com adições acadêmicas:
   - [x] Tier 3: Generics, optional chaining, destructuring, métodos avançados de array/string, Math stdlib, ternary
   - [x] Tier 4: NestJS @Injectable (Arc<Mutex<T>>), @Controller com routing Axum, JSON extractors
   - [x] Verificação de compilação por tier via `cargo check` em batch
-  - [x] Total: 86 testes passando (71 integration + 2 tier4 + 9 codegen + 4 common)
-- [ ] **Fase 2: Benchmarking (Evidência)**
-  - [ ] Configurar `criterion` (crate de benchmark Rust).
-  - [ ] Criar cenário de teste comparativo.
-- [ ] **Fase 3: Tradução (Acessibilidade)**
-  - [ ] Criar `README.pt-br.md`.
+  - [x] Total: 179 testes passando (71 equivalence + 49 unit + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 1 trybuild)
+- [x] **Fase 2: Benchmarking (Evidência)**
+  - [x] Configurar `criterion` (crate de benchmark Rust).
+  - [x] Criar cenário de teste comparativo (6 cenários reais: data pipeline, statistics, text processing, sorting, matrix, accumulation).
+  - [x] Comparação 3-way: Node.js vs Tyrus-Rust vs hand-written Rust.
+  - [x] Resultados: 5-14x speedup vs Node.js (ver `docs/BENCHMARKS.md`).
+- [x] **Fase 3: Tradução (Acessibilidade)**
+  - [x] Criar `README.pt-br.md` (sincronizado com README.md).

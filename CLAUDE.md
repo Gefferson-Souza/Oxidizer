@@ -78,9 +78,9 @@ cargo bench --bench runtime_comparison # Node.js vs Rust runtime comparison
 | `tyrus_parser` | ~55 | Wraps SWC parser. `.ts` → `Program` |
 | `tyrus_ast` | ~730 | Typed IR: `TyrusModule`/`TyrusExpr`/`TyrusStmt`/`TyrusDecl`. SWC→IR lowering. |
 | `tyrus_analyzer` | ~580 | `LintVisitor` (8 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` + JSON reports |
-| `tyrus_codegen` | ~4190 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*`. |
+| `tyrus_codegen` | ~5040 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*`. |
 | `tyrus_di` | ~200 | DI graph (petgraph). Topological sort. |
-| `tyrus_orchestrator` | ~590 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
+| `tyrus_orchestrator` | ~650 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
 | `tyrus_diagnostics` | ~69 | `TyrusError` + miette |
 | `tyrus_common` | ~70 | `FilePath`, `to_snake_case()`, config |
 | `tyrus_test_utils` | ~195 | `assert_rust_compiles()`, `compile_and_run_rust()`, `run_node()` |
@@ -90,33 +90,34 @@ cargo bench --bench runtime_comparison # Node.js vs Rust runtime comparison
 ```
 crates/tyrus_codegen/src/
 ├── convert/
-│   ├── mod.rs            # Module declarations
-│   ├── interface.rs      # RustGenerator visitor, interfaces → structs
+│   ├── mod.rs            # Module declarations and re-exports
+│   ├── interface.rs      # RustGenerator struct + Visit impl (entry point)
 │   ├── helpers.rs        # to_snake_case, to_pascal_case, is_string_expr, is_primitive_type
 │   ├── fn_decl.rs        # Function declaration transpilation
-│   ├── stmt/             # Statement conversion (split from 427-line monolith)
+│   ├── type_mapper.rs    # TS→Rust type mapping (map_type_core)
+│   ├── module.rs         # Module/import handling
+│   ├── stmt/             # Statement conversion
 │   │   ├── mod.rs         # Dispatcher + convert_stmt, convert_stmt_recursive
 │   │   ├── var_decl.rs    # Variable declarations (ident, object/array destructuring)
 │   │   ├── loops.rs       # while, for-of, for-in, for, do-while
-│   │   └── switch.rs      # switch → match
-│   ├── type_mapper.rs    # TS→Rust type mapping
-│   └── expr/             # Expression conversion
-│       ├── mod.rs         # Expression dispatcher
-│       ├── binary.rs      # Binary operators (+, -, *, /, ==, etc.)
-│       ├── call.rs        # Function/method calls
-│       ├── member.rs      # Member access (obj.field)
-│       ├── arrow.rs       # Arrow functions
-│       ├── literal.rs     # Object/array/template literals
-│       └── misc.rs        # Assignment, update, unary, optional chaining
-│   ├── class/            # Class → struct+impl (split from 1048-line monolith)
+│   │   ├── switch.rs      # switch → match
+│   │   └── try_catch.rs   # try-catch → Result matching
+│   ├── class/            # Class → struct+impl
 │   │   ├── mod.rs         # Class dispatcher + property conversion
 │   │   ├── constructor.rs # Constructor transpilation + DI
 │   │   ├── method.rs      # Method transpilation + decorators
-│   │   ├── routing.rs     # Axum router generation + FromRequestParts
+│   │   ├── routing.rs     # Axum router generation + @UseGuards middleware
 │   │   └── mutation.rs    # Self-mutation detection
-│   └── module.rs         # Module/import handling
+│   └── expr/             # Expression conversion
+│       ├── mod.rs         # Expression dispatcher (convert_expr)
+│       ├── binary.rs      # Binary operators (+, -, *, /, ==, etc.)
+│       ├── call.rs        # Function/method calls, axios/fetch/array methods
+│       ├── member.rs      # Property access, mutex state (convert_member_expr)
+│       ├── arrow.rs       # Arrow functions → closures
+│       ├── literal.rs     # Object/array/template literals
+│       └── misc.rs        # Assignments, updates, optional chaining
 └── stdlib/               # Standard library mappings
-    ├── mod.rs, console.rs, array.rs, string.rs, math.rs, json.rs
+    ├── mod.rs, console.rs, array.rs, string.rs, math.rs, json.rs, object.rs
 ```
 
 ## Type Mappings (TS → Rust)
@@ -145,10 +146,17 @@ tests/
 │   ├── snapshot/      # MEDIUM (<10s): Full transpilation → insta snapshots
 │   ├── compilation/   # SLOW (<60s): Batch cargo check per tier
 │   └── equivalence/   # SEMANTIC: Run TS (Node) + Rust, compare stdout
-│       ├── basic.rs    # Arithmetic, control flow, unary ops
-│       ├── strings.rs  # String methods equivalence
-│       ├── arrays.rs   # Array methods equivalence
-│       └── console.rs  # console.log formatting
+│       ├── basic.rs         # Arithmetic, control flow, unary ops
+│       ├── strings.rs       # String methods equivalence
+│       ├── arrays.rs        # Array methods equivalence
+│       ├── console.rs       # console.log formatting
+│       ├── control_flow.rs  # if/else, for-of, do-while, switch, ternary
+│       ├── error_handling.rs # try-catch, throw
+│       ├── inheritance.rs   # extends, super(), method override
+│       ├── math.rs          # Math functions and constants
+│       ├── spread.rs        # Spread operator, rest params
+│       ├── top_level.rs     # Top-level const/let/expressions
+│       └── type_features.rs # Type assertions, numeric enums
 ├── fixtures/
 │   ├── tier1/         # Basic: variables, math, functions, control flow
 │   ├── tier2/         # Intermediate: interfaces, classes, async
@@ -169,7 +177,8 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Phase 1-6 + Phase 7.1-7.3 + full function refactoring + working NestJS server
+**Completed:** Phase 1-6 + Phase 7.1-7.3 + full function refactoring + working NestJS CRUD server
 **Current:** MILESTONE — First NestJS CRUD server compiled to Rust (GET + POST working)
-**Status:** 179 tests passing (71 equivalence + 8 IR + 7 CLI + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped)
+**Pending PRs:** #91 (getter/setter, Phase 6.5), #93 (@UseGuards, Phase 7.4)
+**Status:** 179 tests on main (71 equivalence + 49 unit + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 1 trybuild + 1 skipped)
 **Server:** `tyrus compile src/ --output build/` → Axum server with GET/POST endpoints
