@@ -3,6 +3,7 @@ mod basic;
 mod console;
 mod control_flow;
 mod error_handling;
+mod getters_setters;
 mod inheritance;
 mod math;
 mod spread;

@@ -1,4 +1,5 @@
 mod constructor;
+mod getter_setter;
 mod method;
 mod mutation;
 mod routing;
@@ -82,18 +83,34 @@ impl RustGenerator {
             }
         }
 
-        // Pass 2: Process Methods and Constructor
+        // Pass 2: Process Methods, Getters/Setters, and Constructor
         let mut static_method_names = std::collections::HashSet::new();
+        let mut getters = Vec::new();
+        let mut setters = Vec::new();
         for member in &n.class.body {
             match member {
-                ClassMember::Method(method) => {
-                    if method.is_static {
+                ClassMember::Method(method) => match method.kind {
+                    swc_ecma_ast::MethodKind::Getter => {
                         if let Some(ident) = method.key.as_ident() {
-                            static_method_names.insert(ident.sym.to_string());
+                            self.getter_names.insert(ident.sym.to_string());
                         }
+                        getters.push(method);
                     }
-                    methods.push(method);
-                }
+                    swc_ecma_ast::MethodKind::Setter => {
+                        if let Some(ident) = method.key.as_ident() {
+                            self.setter_names.insert(ident.sym.to_string());
+                        }
+                        setters.push(method);
+                    }
+                    swc_ecma_ast::MethodKind::Method => {
+                        if method.is_static {
+                            if let Some(ident) = method.key.as_ident() {
+                                static_method_names.insert(ident.sym.to_string());
+                            }
+                        }
+                        methods.push(method);
+                    }
+                },
                 ClassMember::Constructor(cons) => {
                     constructor = Some(cons);
                 }
@@ -282,6 +299,16 @@ impl RustGenerator {
             if let Some(info) = route_info {
                 routes.push(info);
             }
+        }
+
+        // Getters
+        for getter in &getters {
+            impl_items.push(self.convert_getter(getter));
+        }
+
+        // Setters
+        for setter in &setters {
+            impl_items.push(self.convert_setter(setter));
         }
 
         // Generate controller routing if applicable

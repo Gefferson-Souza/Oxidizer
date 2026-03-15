@@ -47,8 +47,17 @@ impl RustGenerator {
                         }
                     } else if let Some(prop_ident) = member.prop.as_ident() {
                         let prop_name = to_snake_case(prop_ident.sym.as_ref());
-                        let field = format_ident!("{}", prop_name);
                         let obj = self.convert_expr(&member.obj);
+
+                        // Setter call-site: obj.prop = v → obj.set_prop(v)
+                        if assign.op == swc_ecma_ast::AssignOp::Assign
+                            && self.setter_names.contains(prop_ident.sym.as_ref())
+                        {
+                            let setter = format_ident!("set_{}", prop_name);
+                            return quote! { #obj.#setter(#right) };
+                        }
+
+                        let field = format_ident!("{}", prop_name);
                         quote! { #obj.#field }
                     } else {
                         quote! { compile_error!("Tyrus: unsupported member assignment pattern") }

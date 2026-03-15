@@ -16,15 +16,19 @@ pub struct RustGenerator {
     pub main_body: String,
     pub has_declared_main: bool,
     pub current_class_state_fields: std::collections::HashMap<String, String>,
-    /// Track class fields for inheritance (parent fields flattened into child)
+    /// Class fields for inheritance (parent fields flattened into child)
     pub(crate) class_fields:
         std::collections::HashMap<String, Vec<(String, proc_macro2::TokenStream, bool)>>,
-    /// Track static methods per class (ClassName → [method_names])
+    /// Static methods per class (ClassName → method_names)
     pub(crate) static_methods: std::collections::HashMap<String, std::collections::HashSet<String>>,
-    /// When true, Expr::This generates `state` instead of `self` (for Axum State handlers)
+    /// When true, Expr::This generates `state` instead of `self`
     pub(crate) use_state_for_this: std::cell::Cell<bool>,
-    /// Variables declared with `: string` type annotation (used for stdlib disambiguation)
+    /// Variables with `: string` annotation (stdlib disambiguation)
     pub(crate) string_vars: std::cell::RefCell<std::collections::HashSet<String>>,
+    /// Getter property names (call-site: obj.prop → obj.prop())
+    pub(crate) getter_names: std::collections::HashSet<String>,
+    /// Setter property names (call-site: obj.prop = v → obj.set_prop(v))
+    pub(crate) setter_names: std::collections::HashSet<String>,
 }
 
 impl RustGenerator {
@@ -42,6 +46,8 @@ impl RustGenerator {
             static_methods: std::collections::HashMap::new(),
             use_state_for_this: std::cell::Cell::new(false),
             string_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
+            getter_names: std::collections::HashSet::new(),
+            setter_names: std::collections::HashSet::new(),
         }
     }
 }
@@ -112,7 +118,6 @@ impl Visit for RustGenerator {
         let alias_name = format_ident!("{}", alias_name_str);
 
         // Check for String Union: type Status = "open" | "closed"
-        // let mut is_string_union = false; (Unused)
         if let swc_ecma_ast::TsType::TsUnionOrIntersectionType(
             swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(union),
         ) = &*n.type_ann
@@ -127,8 +132,6 @@ impl Visit for RustGenerator {
                     )
                 })
             {
-                // is_string_union = true; (Unused variable removed)
-
                 // Generate Enum
                 let mut valid_variants = Vec::new();
 
@@ -251,8 +254,6 @@ impl Visit for RustGenerator {
 
     fn visit_ts_enum_decl(&mut self, n: &swc_ecma_ast::TsEnumDecl) {
         let enum_name = format_ident!("{}", n.id.sym.to_string());
-
-        // Detect if this is a string enum or numeric enum
         let is_string_enum = n.members.iter().any(|m| {
             m.init
                 .as_ref()
