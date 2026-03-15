@@ -176,3 +176,50 @@ fn test_multi_module_build() {
         "Router setup missing: {main_content}"
     );
 }
+
+#[test]
+fn test_reference_nestjs_transpiles_and_compiles() {
+    let current_dir = std::env::current_dir().expect("Failed to get CWD");
+    let fixture_path = current_dir.join("fixtures/reference_nestjs");
+    let output_dir = current_dir.join("target/test_output/reference_nestjs_build");
+
+    if output_dir.exists() {
+        std::fs::remove_dir_all(&output_dir).expect("Failed to clean output dir");
+    }
+    std::fs::create_dir_all(&output_dir).expect("Failed to create output dir");
+
+    // 1. Transpile
+    tyrus_orchestrator::build_project(&fixture_path, &output_dir).expect("build_project failed");
+
+    // 2. Verify structure
+    assert!(output_dir.join("src/lib.rs").exists(), "lib.rs missing");
+    assert!(output_dir.join("src/main.rs").exists(), "main.rs missing");
+    assert!(output_dir.join("Cargo.toml").exists(), "Cargo.toml missing");
+    assert!(output_dir.join("src/users").is_dir(), "users/ dir missing");
+
+    // 3. Verify compilation
+    let output = std::process::Command::new("cargo")
+        .arg("check")
+        .current_dir(&output_dir)
+        .output()
+        .expect("Failed to run cargo check");
+
+    assert!(
+        output.status.success(),
+        "Generated Rust failed to compile:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // 4. Verify main.rs has proper DI and routing
+    let main_content =
+        std::fs::read_to_string(output_dir.join("src/main.rs")).expect("read main.rs");
+
+    assert!(
+        main_content.contains("AppController") && main_content.contains("UsersController"),
+        "Both controllers should be in main.rs: {main_content}"
+    );
+    assert!(
+        main_content.contains("router"),
+        "Router should be configured: {main_content}"
+    );
+}
