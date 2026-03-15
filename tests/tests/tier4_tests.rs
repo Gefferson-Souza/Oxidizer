@@ -131,3 +131,48 @@ fn test_tier4_full_build() {
         "Controller extension layer missing"
     );
 }
+
+#[test]
+fn test_multi_module_build() {
+    let current_dir = std::env::current_dir().expect("Failed to get CWD");
+    let fixture_path = current_dir.join("fixtures/tier4_multi_module");
+    let output_dir = current_dir.join("target/test_output/multi_module_build");
+
+    if output_dir.exists() {
+        std::fs::remove_dir_all(&output_dir).expect("Failed to clean output dir");
+    }
+    std::fs::create_dir_all(&output_dir).expect("Failed to create output dir");
+
+    tyrus_orchestrator::build_project(&fixture_path, &output_dir).expect("build_project failed");
+
+    // Verify directory structure
+    assert!(
+        output_dir.join("src/lib.rs").exists(),
+        "lib.rs not generated"
+    );
+    assert!(
+        output_dir.join("src/main.rs").exists(),
+        "main.rs not generated"
+    );
+    assert!(
+        output_dir.join("src/users").is_dir(),
+        "users/ directory not generated"
+    );
+
+    // Verify main.rs has both services and controllers
+    let main_content =
+        std::fs::read_to_string(output_dir.join("src/main.rs")).expect("Failed to read main.rs");
+
+    assert!(
+        main_content.contains("UsersService") || main_content.contains("users_service"),
+        "UsersService missing from main.rs: {main_content}"
+    );
+    assert!(
+        main_content.contains("AppService") || main_content.contains("app_service"),
+        "AppService missing from main.rs: {main_content}"
+    );
+    assert!(
+        main_content.contains("router"),
+        "Router setup missing: {main_content}"
+    );
+}
