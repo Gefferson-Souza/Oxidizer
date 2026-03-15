@@ -34,24 +34,32 @@ impl RustGenerator {
         let mut fields = Vec::new();
         for prop in &obj.props {
             if let swc_ecma_ast::PropOrSpread::Prop(p) = prop {
-                if let swc_ecma_ast::Prop::KeyValue(kv) = &**p {
-                    if let swc_ecma_ast::PropName::Ident(ident) = &kv.key {
-                        let key = ident.sym.as_ref();
+                match &**p {
+                    swc_ecma_ast::Prop::KeyValue(kv) => {
+                        if let swc_ecma_ast::PropName::Ident(ident) = &kv.key {
+                            let key = ident.sym.as_ref();
 
-                        let is_null = matches!(&*kv.value, Expr::Lit(Lit::Null(_)));
-                        let is_undefined = if let Expr::Ident(id) = &*kv.value {
-                            id.sym.as_ref() == "undefined"
-                        } else {
-                            false
-                        };
+                            let is_null = matches!(&*kv.value, Expr::Lit(Lit::Null(_)));
+                            let is_undefined = if let Expr::Ident(id) = &*kv.value {
+                                id.sym.as_ref() == "undefined"
+                            } else {
+                                false
+                            };
 
-                        if is_null || is_undefined {
-                            fields.push(quote! { #key: serde_json::Value::Null });
-                        } else {
-                            let val = self.convert_expr(&kv.value);
-                            fields.push(quote! { #key: #val });
+                            if is_null || is_undefined {
+                                fields.push(quote! { #key: serde_json::Value::Null });
+                            } else {
+                                let val = self.convert_expr(&kv.value);
+                                fields.push(quote! { #key: #val });
+                            }
                         }
                     }
+                    swc_ecma_ast::Prop::Shorthand(ident) => {
+                        let key = ident.sym.as_ref();
+                        let val_name = super::convert_ident(ident);
+                        fields.push(quote! { #key: #val_name });
+                    }
+                    _ => {}
                 }
             }
         }

@@ -95,6 +95,23 @@ impl RustGenerator {
                     if let Some(tokens) = self.try_convert_array_method(member, call) {
                         return tokens;
                     }
+                    // this.method(args) → self.method(args)
+                    if member.obj.is_this() {
+                        if let Some(prop) = member.prop.as_ident() {
+                            let method = format_ident!("{}", to_snake_case(prop.sym.as_ref()));
+                            let args: Vec<_> = call
+                                .args
+                                .iter()
+                                .map(|a| self.convert_expr(&a.expr))
+                                .collect();
+                            let receiver = if self.use_state_for_this.get() {
+                                quote! { state }
+                            } else {
+                                quote! { self }
+                            };
+                            return quote! { #receiver.#method(#(#args),*) };
+                        }
+                    }
                 }
                 self.convert_expr(expr)
             }

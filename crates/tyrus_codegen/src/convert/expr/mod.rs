@@ -85,6 +85,14 @@ impl RustGenerator {
     }
 
     fn convert_new_expr(&self, new_expr: &NewExpr) -> TokenStream {
+        if let Expr::Ident(ident) = &*new_expr.callee {
+            match ident.sym.as_ref() {
+                "Map" => return quote! { std::collections::HashMap::new() },
+                "Set" => return quote! { std::collections::HashSet::new() },
+                _ => {}
+            }
+        }
+
         let callee = self.convert_expr(&new_expr.callee);
         let args: Vec<TokenStream> = new_expr
             .args
