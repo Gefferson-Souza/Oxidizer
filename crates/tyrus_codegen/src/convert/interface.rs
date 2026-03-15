@@ -29,6 +29,10 @@ pub struct RustGenerator {
     pub(crate) getter_names: std::collections::HashSet<String>,
     /// Setter property names (call-site: obj.prop = v → obj.set_prop(v))
     pub(crate) setter_names: std::collections::HashSet<String>,
+    /// Variables with Map type annotation (stdlib disambiguation)
+    pub(crate) map_vars: std::cell::RefCell<std::collections::HashSet<String>>,
+    /// Variables with Set type annotation (stdlib disambiguation)
+    pub(crate) set_vars: std::cell::RefCell<std::collections::HashSet<String>>,
 }
 
 impl RustGenerator {
@@ -48,6 +52,8 @@ impl RustGenerator {
             string_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
             getter_names: std::collections::HashSet::new(),
             setter_names: std::collections::HashSet::new(),
+            map_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
+            set_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
         }
     }
 }

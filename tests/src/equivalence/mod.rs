@@ -8,6 +8,7 @@ mod inheritance;
 mod math;
 mod nestjs_logic;
 mod spread;
+mod sprint1;
 mod static_members;
 mod strings;
 mod top_level;

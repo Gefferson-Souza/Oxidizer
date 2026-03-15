@@ -67,6 +67,18 @@ impl RustGenerator {
             return quote! { #obj.len() as f64 };
         }
 
+        // Map/Set .size → .len()
+        if name == "size" {
+            if let Expr::Ident(ident) = obj_expr {
+                let snake = to_snake_case(ident.sym.as_ref());
+                let is_collection = self.map_vars.borrow().contains(&snake)
+                    || self.set_vars.borrow().contains(&snake);
+                if is_collection {
+                    return quote! { #obj.len() as f64 };
+                }
+            }
+        }
+
         if let Some(constant) = Self::try_math_constant(obj_expr, name) {
             return constant;
         }

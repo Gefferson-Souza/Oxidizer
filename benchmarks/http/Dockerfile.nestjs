@@ -1,0 +1,14 @@
+FROM node:22-slim
+
+WORKDIR /app
+
+COPY nestjs/package.json .
+RUN npm install 2>/dev/null
+
+COPY nestjs/tsconfig.json .
+COPY nestjs/src/ src/
+RUN npx tsc
+
+EXPOSE 3000
+
+CMD ["node", "dist/main.js"]

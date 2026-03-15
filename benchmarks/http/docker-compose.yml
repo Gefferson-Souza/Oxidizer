@@ -1,0 +1,40 @@
+services:
+  nestjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.nestjs
+    container_name: bench-nestjs
+    cpus: 2.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    ports:
+      - "3100:3000"
+    networks:
+      - bench-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  axum:
+    build:
+      context: .
+      dockerfile: Dockerfile.axum
+    container_name: bench-axum
+    cpus: 2.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    ports:
+      - "3101:3000"
+    networks:
+      - bench-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+networks:
+  bench-net:
+    driver: bridge
