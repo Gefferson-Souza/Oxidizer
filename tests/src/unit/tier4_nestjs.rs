@@ -143,3 +143,57 @@ function validate(input: string): string {
         "Expected AppError::BadRequest in: {rust}"
     );
 }
+
+#[test]
+fn test_use_guards_generates_middleware() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Controller, Get, UseGuards, Injectable } from "@nestjs/common";
+@Injectable()
+class AuthGuard {
+    canActivate(): boolean {
+        return true;
+    }
+}
+@Controller("/api")
+@UseGuards(AuthGuard)
+class ApiController {
+    @Get("/")
+    getData(): string {
+        return "protected";
+    }
+}
+"#,
+    );
+    assert!(
+        rust.contains("middleware"),
+        "Expected middleware function in: {rust}"
+    );
+    assert!(
+        rust.contains("layer"),
+        "Expected .layer() call in router: {rust}"
+    );
+}
+
+#[test]
+fn test_guard_class_generates_middleware_fn() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Injectable } from "@nestjs/common";
+@Injectable()
+class AuthGuard {
+    canActivate(): boolean {
+        return true;
+    }
+}
+"#,
+    );
+    assert!(
+        rust.contains("auth_guard_middleware"),
+        "Expected auth_guard_middleware function in: {rust}"
+    );
+    assert!(
+        rust.contains("UNAUTHORIZED"),
+        "Expected UNAUTHORIZED status code in: {rust}"
+    );
+}

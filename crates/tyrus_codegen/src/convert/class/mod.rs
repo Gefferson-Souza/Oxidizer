@@ -15,6 +15,13 @@ impl RustGenerator {
         let class_name = n.ident.sym.to_string();
         let struct_name = format_ident!("{}", class_name);
 
+        // Guard class detection: if class has canActivate(), emit middleware
+        if let Some(middleware) = self.try_emit_guard_middleware(n, &class_name) {
+            self.code.push_str(&middleware.to_string());
+            self.code.push('\n');
+            return;
+        }
+
         self.is_controller = class_name.ends_with("Controller");
 
         let is_service_or_controller = class_name.ends_with("Service")
