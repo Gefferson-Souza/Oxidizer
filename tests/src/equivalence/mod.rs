@@ -6,6 +6,7 @@ mod error_handling;
 mod getters_setters;
 mod inheritance;
 mod math;
+mod nestjs_logic;
 mod spread;
 mod static_members;
 mod strings;
