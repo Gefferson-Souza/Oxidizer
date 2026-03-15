@@ -22,7 +22,8 @@ fn map_type_ref(type_ref: &swc_ecma_ast::TsTypeRef) -> TokenStream {
     match name {
         "Date" => quote! { String },
         "Array" => map_array_type(&type_ref.type_params),
-        "Record" => map_record_type(&type_ref.type_params),
+        "Record" | "Map" => map_record_type(&type_ref.type_params),
+        "Set" => map_set_type(&type_ref.type_params),
         _ => map_user_defined_type(name, &type_ref.type_params),
     }
 }
@@ -52,6 +53,17 @@ fn map_record_type(
         }
     }
     quote! { std::collections::HashMap<String, serde_json::Value> }
+}
+
+/// Maps Set<T> to HashSet<T>, defaulting to HashSet<String>.
+fn map_set_type(type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>) -> TokenStream {
+    if let Some(params) = type_params {
+        if let Some(first) = params.params.first() {
+            let inner = map_type_core(first);
+            return quote! { std::collections::HashSet<#inner> };
+        }
+    }
+    quote! { std::collections::HashSet<String> }
 }
 
 /// Maps a user-defined type reference, preserving generic parameters.

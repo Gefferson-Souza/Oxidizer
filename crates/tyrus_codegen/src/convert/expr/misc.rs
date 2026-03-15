@@ -75,7 +75,16 @@ impl RustGenerator {
         match assign.op {
             swc_ecma_ast::AssignOp::Assign => quote! { #left = #right },
             swc_ecma_ast::AssignOp::AddAssign => quote! { #left += #right },
-            _ => quote! { #left op= #right },
+            swc_ecma_ast::AssignOp::SubAssign => quote! { #left -= #right },
+            swc_ecma_ast::AssignOp::MulAssign => quote! { #left *= #right },
+            swc_ecma_ast::AssignOp::DivAssign => quote! { #left /= #right },
+            swc_ecma_ast::AssignOp::ModAssign => quote! { #left %= #right },
+            swc_ecma_ast::AssignOp::BitAndAssign => quote! { #left &= #right },
+            swc_ecma_ast::AssignOp::BitOrAssign => quote! { #left |= #right },
+            swc_ecma_ast::AssignOp::BitXorAssign => quote! { #left ^= #right },
+            swc_ecma_ast::AssignOp::LShiftAssign => quote! { #left <<= #right },
+            swc_ecma_ast::AssignOp::RShiftAssign => quote! { #left >>= #right },
+            _ => quote! { compile_error!("Tyrus: unsupported assignment operator") },
         }
     }
 
