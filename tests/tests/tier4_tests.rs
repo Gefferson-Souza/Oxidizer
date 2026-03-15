@@ -262,20 +262,21 @@ fn test_http_equivalence_rust_server() {
         .spawn()
         .expect("start server");
 
-    // 5. Wait for server to be ready (poll health)
+    // 5. Wait for server to be ready
     let ready = wait_for_server("http://127.0.0.1:3100/", 30);
-
-    // 6. Run HTTP checks
-    if ready {
-        verify_endpoint("http://127.0.0.1:3100/", "ok");
-        verify_endpoint("http://127.0.0.1:3100/users", "[]");
+    if !ready {
+        server.kill().ok();
+        server.wait().ok();
+        panic!("Server did not start within 30 attempts");
     }
+
+    // 6. Verify HTTP responses
+    verify_endpoint("http://127.0.0.1:3100/", "ok");
+    verify_endpoint("http://127.0.0.1:3100/users", "[]");
 
     // 7. Cleanup
     server.kill().ok();
     server.wait().ok();
-
-    assert!(ready, "Server did not start within 30 attempts");
 }
 
 fn wait_for_server(url: &str, max_attempts: u32) -> bool {

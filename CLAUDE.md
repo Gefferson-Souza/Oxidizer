@@ -177,8 +177,7 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Phase 1-6 + Phase 7.1-7.3 + full function refactoring + working NestJS CRUD server
-**Current:** MILESTONE — First NestJS CRUD server compiled to Rust (GET + POST working)
-**Pending PRs:** #91 (getter/setter, Phase 6.5), #93 (@UseGuards, Phase 7.4)
-**Status:** 179 tests on main (71 equivalence + 49 unit + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 1 trybuild + 1 skipped)
-**Server:** `tyrus compile src/ --output build/` → Axum server with GET/POST endpoints
+**Completed:** Phase 1-8 complete. Full NestJS → Rust transpilation with HTTP equivalence verified.
+**Milestone:** Multi-module NestJS project transpiles, compiles, and serves correct HTTP responses.
+**Status:** 195 tests (81 equivalence + 49 unit + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 5 E2E/build + 1 trybuild + 1 skipped)
+**E2E:** `test_http_equivalence_rust_server` — transpile → compile → start server → verify GET responses
