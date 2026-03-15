@@ -72,8 +72,9 @@ Adhering to strict "Safe Transpilation" principles:
 - **Console** (5): `log`, `error`, `warn`, `info`, `debug`
 - **Control Flow**: `if/else`, `while`, `for`, `for-of`, `do-while`, `switch/case`, ternary, `try/catch`
 - **Top-Level Statements**: `const`, `let`, expressions auto-wrapped in `fn main()`
-- **Spread Operator**: `[...arr1, ...arr2]` → iterator chain
+- **Spread Operator**: `[...arr1, ...arr2]` → iterator chain, `{...obj, field}` → struct update
 - **Class Inheritance**: `extends`, `super()`, method override via field flattening
+- **Getters/Setters**: `get prop()` → `fn prop(&self)`, `set prop(v)` → `fn set_prop(&mut self, v)`
 - **Static Methods**: `static add()` → associated function, `Class.method()` → `Class::method()`
 - **Type Assertions**: `as Type` → no-op (compile-time only)
 - **Numeric Enums**: `enum Direction { Up = 0 }` → `#[repr(i32)] enum` with `Display`
@@ -81,6 +82,7 @@ Adhering to strict "Safe Transpilation" principles:
 - **Class State**: Automatic `Arc<Mutex<T>>` wrapping for services/controllers
 - **Interfaces**: `interface` -> `#[derive(Serialize, Deserialize)] struct`
 - **String Unions**: `type Status = "a" | "b"` -> `enum` with `Display` and `PartialEq`
+- **NestJS Guards**: `@UseGuards(Guard)` → `axum::middleware::from_fn()` layer
 
 ---
 
@@ -171,19 +173,20 @@ tyrus --quiet check ./src/index.ts
 
 ## 🧪 Test Suite
 
-179 tests across 7 test types and 4 feature tiers:
+195 tests across 8 test types and 4 feature tiers:
 
 | Type | Count | Description |
 |------|-------|-------------|
-| **Equivalence** | 71 | Semantic proof: TS and Rust produce identical stdout |
+| **Equivalence** | 81 | Semantic proof: TS and Rust produce identical stdout |
 | **Unit** | 49 | Fast, isolated codegen function tests |
 | **Snapshot** | 20 | Full transpilation output via `insta` |
 | **IR** | 21 | Typed intermediate representation lowering |
 | **Compilation** | 9 | Generated Rust passes `cargo check` per tier |
 | **CLI** | 7 | Integration tests for all CLI commands and flags |
 | **Trybuild** | 1 | Compile-verification of generated Rust |
+| **E2E/Build** | 5 | Full pipeline: transpile → compile → run server → verify HTTP |
 
-Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **IR** (type lowering) · **Compilation** (generated Rust passes `cargo check`) · **CLI** (command integration) · **Trybuild** (compile-verification)
+Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **IR** (type lowering) · **Compilation** (generated Rust passes `cargo check`) · **CLI** (command integration) · **E2E** (HTTP server verification) · **Trybuild** (compile-verification)
 
 ---
 
