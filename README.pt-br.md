@@ -170,14 +170,14 @@ tyrus --quiet check ./src/index.ts
 | Tipo | Quantidade | Descrição |
 |------|-----------|-----------|
 | **Equivalência** | 71 | Prova semântica: TS e Rust produzem stdout idêntico |
+| **Unitário** | 49 | Rápido, funções isoladas de codegen |
+| **Snapshot** | 20 | Saída completa de transpilação via `insta` |
+| **IR** | 21 | Lowering de representação intermediária tipada |
+| **Compilação** | 9 | Rust gerado passa no `cargo check` por camada |
 | **CLI** | 7 | Testes de integração para todos os comandos e flags |
-| **Unitário** | 27 | Rápido, funções isoladas de codegen |
-| **Snapshot** | 6 | Saída completa de transpilação via `insta` |
-| **Compilação** | 54 | Rust gerado passa no `cargo check` por camada |
-| **IR** | 8 | Lowering de representação intermediária tipada |
 | **Trybuild** | 1 | Verificação de compilação do Rust gerado |
 
-Tipos de teste: **Equivalência** (TS↔Rust mesma saída) · **CLI** (integração de comandos) · **Unitário** (funções rápidas e isoladas) · **Snapshot** (insta, saída do codegen) · **Compilação** (Rust gerado passa no `cargo check`) · **IR** (type lowering) · **Trybuild** (verificação de compilação)
+Tipos de teste: **Equivalência** (TS↔Rust mesma saída) · **Unitário** (funções rápidas e isoladas) · **Snapshot** (insta, saída do codegen) · **IR** (type lowering) · **Compilação** (Rust gerado passa no `cargo check`) · **CLI** (integração de comandos) · **Trybuild** (verificação de compilação)
 
 ---
 
@@ -196,19 +196,20 @@ convert/
 ├── mod.rs          — declarações de módulo e re-exports
 ├── interface.rs    — definição da struct RustGenerator + impl Visit (ponto de entrada)
 ├── helpers.rs      — utilitários compartilhados: to_snake_case, to_pascal_case, is_string_expr
-├── stmt/           — conversão de statements (separado em sub-módulos)
-│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
-│   ├── var_decl.rs     — declarações de variáveis (ident, desestruturação objeto/array)
-│   ├── loops.rs        — while, for-of, for-in, for, do-while
-│   └── switch.rs       — switch → match
 ├── fn_decl.rs      — processamento de declaração de funções (process_fn_decl)
 ├── module.rs       — manipulação de módulos/imports
 ├── type_mapper.rs  — mapeamento de tipos TypeScript → Rust (map_type_core deduplicado)
-├── class/          — class → struct+impl (separado do monolítico class.rs)
+├── stmt/           — conversão de statements
+│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
+│   ├── var_decl.rs     — declarações de variáveis (ident, desestruturação objeto/array)
+│   ├── loops.rs        — while, for-of, for-in, for, do-while
+│   ├── switch.rs       — switch → match
+│   └── try_catch.rs    — try-catch → Result matching
+├── class/          — class → struct+impl
 │   ├── mod.rs          — dispatcher + conversão de propriedades
 │   ├── constructor.rs  — transpilação de construtores + DI
 │   ├── method.rs       — transpilação de métodos + decorators
-│   ├── routing.rs      — geração de router Axum + FromRequestParts
+│   ├── routing.rs      — geração de router Axum + middleware @UseGuards
 │   └── mutation.rs     — detecção de self-mutation
 └── expr/
     ├── mod.rs      — dispatcher de expressões (convert_expr)
