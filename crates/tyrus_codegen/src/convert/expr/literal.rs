@@ -145,21 +145,34 @@ impl RustGenerator {
         let type_ident = format_ident!("{}", type_name);
         let mut fields = Vec::new();
 
+        let mut spread_base: Option<TokenStream> = None;
+
         for prop in &obj.props {
-            if let swc_ecma_ast::PropOrSpread::Prop(p) = prop {
-                if let swc_ecma_ast::Prop::KeyValue(kv) = &**p {
-                    if let swc_ecma_ast::PropName::Ident(key_ident) = &kv.key {
-                        let field_name = format_ident!("{}", to_snake_case(key_ident.sym.as_ref()));
-                        let val = self.convert_expr(&kv.value);
-                        fields.push(quote! { #field_name: #val });
+            match prop {
+                swc_ecma_ast::PropOrSpread::Spread(spread) => {
+                    spread_base = Some(self.convert_expr(&spread.expr));
+                }
+                swc_ecma_ast::PropOrSpread::Prop(p) => {
+                    if let swc_ecma_ast::Prop::KeyValue(kv) = &**p {
+                        if let swc_ecma_ast::PropName::Ident(key_ident) = &kv.key {
+                            let field_name =
+                                format_ident!("{}", to_snake_case(key_ident.sym.as_ref()));
+                            let val = self.convert_expr(&kv.value);
+                            fields.push(quote! { #field_name: #val });
+                        }
+                    } else if let swc_ecma_ast::Prop::Shorthand(shorthand) = &**p {
+                        let field_name = format_ident!("{}", to_snake_case(shorthand.sym.as_ref()));
+                        fields.push(quote! { #field_name: #field_name.clone() });
                     }
-                } else if let swc_ecma_ast::Prop::Shorthand(shorthand) = &**p {
-                    let field_name = format_ident!("{}", to_snake_case(shorthand.sym.as_ref()));
-                    fields.push(quote! { #field_name: #field_name.clone() });
                 }
             }
         }
 
-        Some(quote! { #type_ident { #(#fields),* } })
+        // Rust struct update syntax: Type { field: val, ..base }
+        if let Some(base) = spread_base {
+            Some(quote! { #type_ident { #(#fields,)* ..#base } })
+        } else {
+            Some(quote! { #type_ident { #(#fields),* } })
+        }
     }
 }
