@@ -8,7 +8,14 @@ _Projeto Acadêmico em Teoria de Compiladores e Preservação Semântica_
 ![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-Tyrus é um compilador source-to-source projetado para conectar a sintaxe dinâmica de alto nível (TypeScript) à segurança de memória de baixo nível (Rust). Como uma iniciativa acadêmica, concentra-se no mapeamento formal de abstrações de ordem superior para equivalentes Rust de custo zero, explorando os limites da **Preservação Semântica** entre modelos de execução distintos.
+Tyrus é um compilador source-to-source projetado para conectar a sintaxe dinâmica de alto nível (TypeScript) à segurança de memória de baixo nível (Rust). Concentra-se no mapeamento formal de abstrações de ordem superior para equivalentes Rust de custo zero, explorando os limites da **Preservação Semântica** entre modelos de execução distintos.
+
+**Marco:** O Tyrus agora compila uma API NestJS CRUD em um servidor Axum (Rust) funcional:
+
+```bash
+tyrus compile meu-projeto-nestjs/src --output servidor-rust
+# → Binário Rust com endpoints GET/POST, DI e estado em memória
+```
 
 ---
 
