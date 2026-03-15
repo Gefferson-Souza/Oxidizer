@@ -55,7 +55,7 @@ fn map_record_type(
     quote! { std::collections::HashMap<String, serde_json::Value> }
 }
 
-/// Maps Set<T> to HashSet<T>, defaulting to HashSet<String>.
+/// Maps Set<T> to HashSet<T>, defaulting to HashSet<serde_json::Value>.
 fn map_set_type(type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>) -> TokenStream {
     if let Some(params) = type_params {
         if let Some(first) = params.params.first() {
@@ -63,7 +63,7 @@ fn map_set_type(type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>
             return quote! { std::collections::HashSet<#inner> };
         }
     }
-    quote! { std::collections::HashSet<String> }
+    quote! { std::collections::HashSet<serde_json::Value> }
 }
 
 /// Maps a user-defined type reference, preserving generic parameters.

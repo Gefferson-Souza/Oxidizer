@@ -79,11 +79,23 @@ impl RustGenerator {
             swc_ecma_ast::AssignOp::MulAssign => quote! { #left *= #right },
             swc_ecma_ast::AssignOp::DivAssign => quote! { #left /= #right },
             swc_ecma_ast::AssignOp::ModAssign => quote! { #left %= #right },
-            swc_ecma_ast::AssignOp::BitAndAssign => quote! { #left &= #right },
-            swc_ecma_ast::AssignOp::BitOrAssign => quote! { #left |= #right },
-            swc_ecma_ast::AssignOp::BitXorAssign => quote! { #left ^= #right },
-            swc_ecma_ast::AssignOp::LShiftAssign => quote! { #left <<= #right },
-            swc_ecma_ast::AssignOp::RShiftAssign => quote! { #left >>= #right },
+            // Bitwise ops: TS numbers are f64 but bitwise truncates to i32.
+            // Rust f64 doesn't implement BitAnd/BitOr/etc, so cast through i64.
+            swc_ecma_ast::AssignOp::BitAndAssign => {
+                quote! { #left = ((#left as i64) & (#right as i64)) as f64 }
+            }
+            swc_ecma_ast::AssignOp::BitOrAssign => {
+                quote! { #left = ((#left as i64) | (#right as i64)) as f64 }
+            }
+            swc_ecma_ast::AssignOp::BitXorAssign => {
+                quote! { #left = ((#left as i64) ^ (#right as i64)) as f64 }
+            }
+            swc_ecma_ast::AssignOp::LShiftAssign => {
+                quote! { #left = ((#left as i64) << (#right as i64)) as f64 }
+            }
+            swc_ecma_ast::AssignOp::RShiftAssign => {
+                quote! { #left = ((#left as i64) >> (#right as i64)) as f64 }
+            }
             _ => quote! { compile_error!("Tyrus: unsupported assignment operator") },
         }
     }

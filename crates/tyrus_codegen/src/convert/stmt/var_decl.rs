@@ -44,11 +44,25 @@ impl RustGenerator {
         let var_name = to_snake_case(&ident.id.sym);
         let var_ident = format_ident!("{}", var_name);
 
-        // Track string-typed variables for stdlib disambiguation
+        // Track typed variables for stdlib disambiguation
         if let Some(type_ann) = &ident.type_ann {
             if let swc_ecma_ast::TsType::TsKeywordType(kw) = &*type_ann.type_ann {
                 if kw.kind == swc_ecma_ast::TsKeywordTypeKind::TsStringKeyword {
                     self.string_vars.borrow_mut().insert(var_name.clone());
+                }
+            }
+            // Track Map/Set variables: Map<K,V> or Set<T>
+            if let swc_ecma_ast::TsType::TsTypeRef(type_ref) = &*type_ann.type_ann {
+                if let Some(ref_ident) = type_ref.type_name.as_ident() {
+                    match ref_ident.sym.as_ref() {
+                        "Map" => {
+                            self.map_vars.borrow_mut().insert(var_name.clone());
+                        }
+                        "Set" => {
+                            self.set_vars.borrow_mut().insert(var_name.clone());
+                        }
+                        _ => {}
+                    }
                 }
             }
         }

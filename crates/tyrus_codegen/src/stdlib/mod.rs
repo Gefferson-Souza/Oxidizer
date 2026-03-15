@@ -6,6 +6,7 @@ use crate::convert::interface::RustGenerator;
 pub(crate) mod array;
 pub(crate) mod console;
 pub(crate) mod json;
+pub(crate) mod map_set;
 pub(crate) mod math;
 pub(crate) mod object;
 pub(crate) mod string;
@@ -56,6 +57,21 @@ pub(crate) fn try_handle_method_call(
     method: &str,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
+    // Check if object is a Map or Set variable first
+    if let Expr::Ident(ident) = obj {
+        let snake = crate::convert::helpers::to_snake_case(&ident.sym);
+        if gen.map_vars.borrow().contains(&snake) {
+            if let Some(res) = map_set::handle_map(gen, obj, method, args) {
+                return Some(res);
+            }
+        }
+        if gen.set_vars.borrow().contains(&snake) {
+            if let Some(res) = map_set::handle_set(gen, obj, method, args) {
+                return Some(res);
+            }
+        }
+    }
+
     // For methods that exist on both String and Array (slice, indexOf, includes),
     // use a heuristic: check if the object looks like a string expression.
     let mut is_string = crate::convert::helpers::is_string_expr(obj);

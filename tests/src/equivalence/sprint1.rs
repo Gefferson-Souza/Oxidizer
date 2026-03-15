@@ -1,5 +1,7 @@
 use crate::helpers::assert_output_equivalent;
 
+// ── Assignment Operators ──
+
 #[test]
 fn test_equivalence_subtract_assign() {
     assert_output_equivalent(
@@ -67,6 +69,151 @@ function main(): void {
     a *= 2;
     a /= 3;
     console.log(Math.floor(a));
+}
+main();
+"#,
+    );
+}
+
+// ── Bitwise Assignment Operators ──
+
+#[test]
+fn test_equivalence_bitwise_and_assign() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let x: number = 255;
+    x &= 15;
+    console.log(x);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_bitwise_or_assign() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let x: number = 10;
+    x |= 5;
+    console.log(x);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_bitwise_xor_assign() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let x: number = 12;
+    x ^= 6;
+    console.log(x);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_left_shift_assign() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let x: number = 1;
+    x <<= 4;
+    console.log(x);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_right_shift_assign() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let x: number = 32;
+    x >>= 2;
+    console.log(x);
+}
+main();
+"#,
+    );
+}
+
+// ── Map (HashMap) ──
+
+#[test]
+fn test_equivalence_map_set_get_has() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let cache: Map<string, number> = new Map();
+    cache.set("alice", 42);
+    cache.set("bob", 99);
+    console.log(cache.has("alice"));
+    console.log(cache.has("charlie"));
+    console.log(cache.size);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_map_delete() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let m: Map<string, string> = new Map();
+    m.set("a", "hello");
+    m.set("b", "world");
+    m.delete("a");
+    console.log(m.has("a"));
+    console.log(m.size);
+}
+main();
+"#,
+    );
+}
+
+// ── Set (HashSet) ──
+
+#[test]
+fn test_equivalence_set_add_has() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let ids: Set<string> = new Set();
+    ids.add("alice");
+    ids.add("bob");
+    ids.add("alice");
+    console.log(ids.has("alice"));
+    console.log(ids.has("charlie"));
+    console.log(ids.size);
+}
+main();
+"#,
+    );
+}
+
+#[test]
+fn test_equivalence_set_delete() {
+    assert_output_equivalent(
+        r#"
+function main(): void {
+    let s: Set<string> = new Set();
+    s.add("x");
+    s.add("y");
+    s.delete("x");
+    console.log(s.has("x"));
+    console.log(s.size);
 }
 main();
 "#,
