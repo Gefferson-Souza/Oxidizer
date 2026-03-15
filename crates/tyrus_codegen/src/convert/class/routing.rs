@@ -1,6 +1,7 @@
 use quote::{format_ident, quote};
 use swc_ecma_ast::{ClassDecl, Expr, Lit};
 
+use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
 
 /// Extracted controller decorator information.
@@ -48,6 +49,20 @@ pub(crate) fn extract_controller_info(n: &ClassDecl) -> ControllerInfo {
     }
 }
 
+/// Finds the `canActivate()` method in a class, if present.
+fn find_can_activate_method(n: &ClassDecl) -> Option<&swc_ecma_ast::ClassMethod> {
+    n.class.body.iter().find_map(|member| {
+        if let swc_ecma_ast::ClassMember::Method(method) = member {
+            if let Some(ident) = method.key.as_ident() {
+                if ident.sym.as_ref() == "canActivate" {
+                    return Some(method);
+                }
+            }
+        }
+        None
+    })
+}
+
 /// Extracts guard class names from `@UseGuards(Guard1, Guard2)` arguments.
 fn extract_guard_args(call: &swc_ecma_ast::CallExpr, guard_names: &mut Vec<String>) {
     for arg in &call.args {
@@ -89,8 +104,7 @@ pub(crate) fn generate_router_method(
     let layer_calls: Vec<_> = guard_names
         .iter()
         .map(|name| {
-            let fn_name =
-                format_ident!("{}_middleware", super::super::helpers::to_snake_case(name));
+            let fn_name = format_ident!("{}_middleware", to_snake_case(name));
             quote! { .layer(axum::middleware::from_fn(#fn_name)) }
         })
         .collect();
@@ -196,22 +210,8 @@ impl RustGenerator {
         n: &ClassDecl,
         class_name: &str,
     ) -> Option<proc_macro2::TokenStream> {
-        let can_activate = n.class.body.iter().find_map(|member| {
-            if let swc_ecma_ast::ClassMember::Method(method) = member {
-                if let Some(ident) = method.key.as_ident() {
-                    if ident.sym.as_ref() == "canActivate" {
-                        return Some(method);
-                    }
-                }
-            }
-            None
-        })?;
-
-        let fn_name = format_ident!(
-            "{}_middleware",
-            super::super::helpers::to_snake_case(class_name)
-        );
-
+        let can_activate = find_can_activate_method(n)?;
+        let fn_name = format_ident!("{}_middleware", to_snake_case(class_name));
         let body_stmts = self.convert_guard_body(can_activate);
 
         Some(quote! {
@@ -220,14 +220,8 @@ impl RustGenerator {
                 request: axum::http::Request<axum::body::Body>,
                 next: axum::middleware::Next,
             ) -> Result<axum::response::Response, axum::http::StatusCode> {
-                let can_activate = (|| -> bool {
-                    #(#body_stmts)*
-                })();
-                if can_activate {
-                    Ok(next.run(request).await)
-                } else {
-                    Err(axum::http::StatusCode::UNAUTHORIZED)
-                }
+                #(#body_stmts)*
+                Ok(next.run(request).await)
             }
         })
     }
@@ -238,9 +232,31 @@ impl RustGenerator {
         method: &swc_ecma_ast::ClassMethod,
     ) -> Vec<proc_macro2::TokenStream> {
         let Some(body) = &method.function.body else {
-            return vec![quote! { true }];
+            return Vec::new();
         };
-        body.stmts.iter().map(|s| self.convert_stmt(s)).collect()
+        body.stmts
+            .iter()
+            .map(|s| self.convert_guard_stmt(s))
+            .collect()
+    }
+
+    /// Converts a guard statement, rewriting `return false` → 401 response.
+    fn convert_guard_stmt(&self, stmt: &swc_ecma_ast::Stmt) -> proc_macro2::TokenStream {
+        // Intercept `return false` → Err(UNAUTHORIZED)
+        if let swc_ecma_ast::Stmt::Return(ret) = stmt {
+            if let Some(arg) = &ret.arg {
+                if let swc_ecma_ast::Expr::Lit(swc_ecma_ast::Lit::Bool(b)) = &**arg {
+                    if !b.value {
+                        return quote! {
+                            return Err(axum::http::StatusCode::UNAUTHORIZED);
+                        };
+                    }
+                    // `return true` → no-op (fall through to Ok(next.run(...)))
+                    return quote! {};
+                }
+            }
+        }
+        self.convert_stmt(stmt)
     }
 
     /// Emits controller-specific code: `FromRequestParts` impl, router method,

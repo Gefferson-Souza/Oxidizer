@@ -192,6 +192,26 @@ class AuthGuard {
         rust.contains("auth_guard_middleware"),
         "Expected auth_guard_middleware function in: {rust}"
     );
+    // Guard class also produces struct+impl (for DI compatibility)
+    assert!(
+        rust.contains("struct AuthGuard"),
+        "Expected struct AuthGuard in: {rust}"
+    );
+}
+
+#[test]
+fn test_guard_return_false_emits_unauthorized() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Injectable } from "@nestjs/common";
+@Injectable()
+class DenyGuard {
+    canActivate(): boolean {
+        return false;
+    }
+}
+"#,
+    );
     assert!(
         rust.contains("UNAUTHORIZED"),
         "Expected UNAUTHORIZED status code in: {rust}"
