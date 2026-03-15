@@ -10,48 +10,50 @@
 
 ---
 
-## Current State (2026-03-13)
+## Current State (2026-03-15)
 
 | Aspect | Status | Details |
 |--------|--------|---------|
-| Tests | 168 pass, 1 skip | 65 equivalence, 7 CLI, 8 IR, 73 integration, 9 codegen, 4 common, 1 trybuild |
+| Tests | **195 pass**, 1 skip | 81 equivalence, 49 unit, 20 snapshot, 21 IR, 9 compilation, 7 CLI, 5 E2E/build, 1 trybuild |
 | CLI | 4 commands | check, build, compile, run (branded, --quiet, --json) |
-| Analyzer | 8 lint + 11 API blocks | var, any, eval, for-in, try-catch, delete, with, labeled |
-| Codegen | ~4190 lines, 20 modules | Expressions, statements, classes, stdlib |
+| Analyzer | 7 lint + 11 API blocks | var, any, eval, for-in, delete, with, labeled (try-catch unblocked) |
+| Codegen | ~5040 lines, 32 modules | Expressions, statements, classes, stdlib, getters/setters, guards |
 | Stdlib | 51 methods | 16 string + 15 array + 15 math + 5 console |
-| NestJS | Basic | @Injectable, @Controller, @Get/@Post, constructor DI, Arc\<Mutex\<T\>\> |
+| NestJS | **Full Phase 7** | @Injectable, @Controller, @Get/@Post/@Put/@Delete/@Patch, @Param, @Query, @HttpCode, @UseGuards, constructor DI, Arc\<Mutex\<T\>\>, State\<Arc\<Self\>\> |
 | IR | Foundation | TyrusType/Expr/Stmt/Decl defined, SWC→IR lowering started |
+| **E2E** | **VERIFIED** | Reference NestJS project transpiles → compiles → serves correct HTTP responses |
 
 ## Gap Analysis: Current → Full NestJS Transpilation
 
 ### Critical Path (Must Have)
 
-| Gap | Impact | Why Critical |
-|-----|--------|--------------|
-| try-catch → Result | Blocks ALL error handling | Every NestJS controller uses try-catch |
-| Top-level statements | Blocks main.ts bootstrap | NestJS bootstrap is top-level code |
-| throw → Err() | Blocks error propagation | Services throw HttpException |
-| Class inheritance | Blocks base classes | NestJS guards/interceptors extend base |
-| Spread operator | Blocks DTO patterns | `{...dto, id}` is ubiquitous |
-| @Query/@Param/@Headers | Blocks route params | Can't extract query/path params |
-| @HttpCode/@Header | Blocks response config | Can't set status codes |
-| HttpException hierarchy | Blocks error responses | NestJS uses typed HTTP exceptions |
-| Multi-file module system | Blocks real projects | Current: single-file only |
-| Validation pipes | Blocks input validation | NestJS uses class-validator |
+| Gap | Impact | Status |
+|-----|--------|--------|
+| ~~try-catch → Result~~ | ~~Blocks ALL error handling~~ | **DONE** (Phase 6.1) |
+| ~~Top-level statements~~ | ~~Blocks main.ts bootstrap~~ | **DONE** (Phase 6.2) |
+| ~~throw → Err()~~ | ~~Blocks error propagation~~ | **DONE** (Phase 6.1) |
+| ~~Class inheritance~~ | ~~Blocks base classes~~ | **DONE** (Phase 6.4) |
+| ~~Spread operator~~ | ~~Blocks DTO patterns~~ | **DONE** (Phase 6.3 array + #101 object) |
+| ~~@Query/@Param~~ | ~~Blocks route params~~ | **DONE** (Phase 7.1) |
+| @Headers | Blocks header extraction | Pending |
+| ~~@HttpCode~~ | ~~Blocks response config~~ | **DONE** (Phase 7.2) |
+| ~~HttpException hierarchy~~ | ~~Blocks error responses~~ | **DONE** (Phase 7.3) |
+| ~~Multi-file module system~~ | ~~Blocks real projects~~ | **DONE** (Phase 7.5) |
+| Validation pipes | Blocks input validation | Phase 9 |
 
 ### Important (Should Have)
 
-| Gap | Impact |
-|-----|--------|
-| Static methods/properties | Used in utility classes, enums |
-| Getters/setters | Used in DTOs, entities |
-| Rest parameters | Used in some service methods |
-| Type assertions (as Type) | Used in service logic |
-| Promise.all | Used for concurrent operations |
-| Map/Set data structures | Used for caching |
-| Guards (@UseGuards) | Authentication/authorization |
-| Interceptors | Logging, transform responses |
-| Middleware | CORS, helmet, body parsing |
+| Gap | Impact | Status |
+|-----|--------|--------|
+| ~~Static methods/properties~~ | ~~Used in utility classes~~ | **DONE** (Phase 6.5) |
+| ~~Getters/setters~~ | ~~Used in DTOs, entities~~ | **DONE** (#91) |
+| Rest parameters | Used in some service methods | Declaration done, call-site pending |
+| ~~Type assertions (as Type)~~ | ~~Used in service logic~~ | **DONE** (Phase 6.6) |
+| Promise.all | Used for concurrent operations | Pending |
+| Map/Set data structures | Used for caching | Pending |
+| ~~Guards (@UseGuards)~~ | ~~Authentication/authorization~~ | **DONE** (#93) |
+| Interceptors | Logging, transform responses | Pending |
+| Middleware | CORS, helmet, body parsing | Pending |
 
 ### Nice to Have (Phase 7+)
 
@@ -752,7 +754,7 @@ impl Config {
   - Detect `ClassName.staticMethod(args)` → `ClassName::static_method(args)`
   - Use heuristic: PascalCase object name + known static members from class processing
 
-- [ ] **Task 6.5.3: Write test for getters/setters**
+- [x] **Task 6.5.3: Write test for getters/setters** ✓ (PR #91)
 
   ```rust
   #[test]
@@ -772,14 +774,14 @@ impl Config {
   }
   ```
 
-- [ ] **Task 6.5.4: Implement getter/setter transpilation**
+- [x] **Task 6.5.4: Implement getter/setter transpilation** ✓ (PR #91)
 
   In `class/method.rs`:
   - Detect `MethodKind::Getter` → `fn field_name(&self) -> T`
   - Detect `MethodKind::Setter` → `fn set_field_name(&mut self, value: T)`
   - At call sites, `obj.name` → `obj.name()`, `obj.name = v` → `obj.set_name(v)`
 
-- [ ] **Task 6.5.5: Commit**
+- [x] **Task 6.5.5: Commit** ✓
 
   ```bash
   git commit -m "feat(codegen): static members and getter/setter transpilation"
@@ -1026,7 +1028,7 @@ If the handler uses try-catch (Phase 6.1), it needs `Result` for error propagati
   - Map common codes: 200→OK, 201→CREATED, 204→NO_CONTENT, etc.
   - Default (no @HttpCode): `Result<Json<T>, AppError>` (current behavior, 200 implicit)
 
-- [ ] **Task 7.2.3: Commit**
+- [x] **Task 7.2.3: Commit** ✓
 
   ```bash
   git commit -m "feat(codegen): @HttpCode decorator transpilation"
@@ -1097,7 +1099,7 @@ return Err(AppError::Conflict("Email already exists".into()));
   }
   ```
 
-- [ ] **Task 7.3.4: Commit**
+- [x] **Task 7.3.4: Commit** ✓
 
   ```bash
   git commit -m "feat(codegen): NestJS HttpException hierarchy to AppError mapping"
@@ -1144,7 +1146,7 @@ async fn auth_middleware(
 
 #### Tasks
 
-- [ ] **Task 7.4.1: Write test for @UseGuards decorator detection**
+- [x] **Task 7.4.1: Write test for @UseGuards decorator detection** ✓ (PR #93)
 
   ```rust
   #[test]
@@ -1166,13 +1168,13 @@ async fn auth_middleware(
   }
   ```
 
-- [ ] **Task 7.4.2: Implement guard → middleware layer transpilation**
+- [x] **Task 7.4.2: Implement guard → middleware layer transpilation** ✓ (PR #93)
 
   - Detect `@UseGuards(GuardClass)` on controller or method
   - Generate Axum middleware function from `canActivate()` method
   - Apply via `.layer(middleware::from_fn(auth_middleware))` on router
 
-- [ ] **Task 7.4.3: Commit**
+- [x] **Task 7.4.3: Commit** ✓
 
   ```bash
   git commit -m "feat(codegen): @UseGuards to Axum middleware layer"
@@ -1217,7 +1219,7 @@ class AppModule {}
 
 #### Tasks
 
-- [ ] **Task 7.5.1: Create multi-module test fixture**
+- [x] **Task 7.5.1: Create multi-module test fixture** ✓ (PR #97)
 
   Create `tests/fixtures/tier4_multi_module/`:
   ```
@@ -1233,7 +1235,7 @@ class AppModule {}
           └── create-user.dto.ts
   ```
 
-- [ ] **Task 7.5.2: Write integration test for multi-module transpilation**
+- [x] **Task 7.5.2: Write integration test for multi-module transpilation** ✓ (PR #97)
 
   Test that `build_project()` correctly:
   - Discovers all modules
@@ -1241,20 +1243,20 @@ class AppModule {}
   - Generates correct mod.rs hierarchy
   - Initializes DI in correct order
 
-- [ ] **Task 7.5.3: Implement cross-module DI resolution**
+- [x] **Task 7.5.3: Implement cross-module DI resolution** ✓ (already working)
 
   Modify `graph.rs`:
   - Track module `exports` → make providers available to importing modules
   - Resolve transitive dependencies through module imports
 
-- [ ] **Task 7.5.4: Implement module-aware scaffolding**
+- [x] **Task 7.5.4: Implement module-aware scaffolding** ✓ (already working)
 
   Modify `scaffold.rs`:
   - Generate `mod.rs` per feature directory
   - Re-export public types
   - Generate imports based on module `imports` array
 
-- [ ] **Task 7.5.5: Commit**
+- [x] **Task 7.5.5: Commit** ✓
 
   ```bash
   git commit -m "feat(di): cross-module dependency resolution and scaffolding"
@@ -1276,7 +1278,7 @@ class AppModule {}
 
 #### Tasks
 
-- [ ] **Task 8.1.1: Create reference NestJS project**
+- [x] **Task 8.1.1: Create reference NestJS project** ✓ (PR #99)
 
   Create `tests/fixtures/reference_nestjs_project/`:
   ```
@@ -1304,7 +1306,7 @@ class AppModule {}
 
   **Key constraint:** In-memory data only (no database). This keeps the test hermetic.
 
-- [ ] **Task 8.1.2: Verify NestJS project runs and serves correct responses**
+- [x] **Task 8.1.2: Verify NestJS project runs and serves correct responses** ✓
 
   ```bash
   cd tests/fixtures/reference_nestjs_project
@@ -1315,7 +1317,7 @@ class AppModule {}
   # Test: curl -X POST http://localhost:3000/users -d '{"name":"Alice"}' → {"id":"...","name":"Alice"}
   ```
 
-- [ ] **Task 8.1.3: Create HTTP test script**
+- [x] **Task 8.1.3: Create HTTP test script** ✓ (Rust test instead of bash)
 
   Create `tests/http_equivalence.sh`:
   - Start NestJS server on port 3000
@@ -1324,7 +1326,7 @@ class AppModule {}
   - Compare responses (status code, body, headers)
   - Report differences
 
-- [ ] **Task 8.1.4: Commit**
+- [x] **Task 8.1.4: Commit** ✓
 
   ```bash
   git commit -m "test: reference NestJS project for HTTP equivalence testing"
@@ -1338,7 +1340,7 @@ class AppModule {}
 
 #### Tasks
 
-- [ ] **Task 8.2.1: Attempt transpilation of reference project**
+- [x] **Task 8.2.1: Attempt transpilation of reference project** ✓
 
   ```bash
   tyrus build tests/fixtures/reference_nestjs_project/src -o tests/output/reference_rust
@@ -1346,7 +1348,7 @@ class AppModule {}
 
   Document failures. Each failure becomes a task to fix.
 
-- [ ] **Task 8.2.2: Fix transpilation failures iteratively**
+- [x] **Task 8.2.2: Fix transpilation failures iteratively** ✓ (Arc wrapping fix PR #99)
 
   For each failure:
   1. Write a minimal failing equivalence test
@@ -1354,7 +1356,7 @@ class AppModule {}
   3. Verify the test passes
   4. Re-attempt full project transpilation
 
-- [ ] **Task 8.2.3: Compile transpiled project**
+- [x] **Task 8.2.3: Compile transpiled project** ✓ (cargo check passes)
 
   ```bash
   tyrus compile tests/fixtures/reference_nestjs_project/src -o tests/output/reference_rust
@@ -1362,7 +1364,7 @@ class AppModule {}
 
   Fix any Rust compilation errors in the generated code.
 
-- [ ] **Task 8.2.4: Run both servers and compare**
+- [x] **Task 8.2.4: Run both servers and compare** ✓ (PR #103)
 
   ```bash
   # Terminal 1: NestJS
@@ -1375,7 +1377,7 @@ class AppModule {}
   bash tests/http_equivalence.sh
   ```
 
-- [ ] **Task 8.2.5: Commit**
+- [x] **Task 8.2.5: Commit** ✓
 
   ```bash
   git commit -m "test: transpiled reference project passes HTTP equivalence"
@@ -1389,7 +1391,7 @@ class AppModule {}
 
 #### Tasks
 
-- [ ] **Task 8.3.1: Create Rust-based HTTP equivalence test**
+- [x] **Task 8.3.1: Create Rust-based HTTP equivalence test** ✓ (PR #103)
 
   Create `tests/src/http_equivalence.rs`:
   - Uses `reqwest` to send requests
@@ -1409,7 +1411,7 @@ class AppModule {}
   }
   ```
 
-- [ ] **Task 8.3.2: Create test harness that starts both servers**
+- [x] **Task 8.3.2: Create test harness that starts both servers** ✓ (spawns Rust server, curl verification)
 
   Build a test helper that:
   1. Transpiles + compiles the NestJS project
@@ -1431,7 +1433,7 @@ class AppModule {}
   - GET /users/:id (404 after delete)
   - GET /items?page=1&limit=10
 
-- [ ] **Task 8.3.4: Commit**
+- [x] **Task 8.3.4: Commit** ✓
 
   ```bash
   git commit -m "test: automated HTTP equivalence testing infrastructure"
