@@ -78,6 +78,11 @@ impl RustGenerator {
         };
         let prop = format_ident!("{}", prop_name);
 
+        // Getter call-site: obj.prop → obj.prop() when prop is a known getter
+        if self.getter_names.contains(name) && !Self::is_enum_or_static_access(obj) {
+            return quote! { #obj.#prop() };
+        }
+
         if Self::is_enum_or_static_access(obj) {
             quote! { #obj::#prop }
         } else {
