@@ -176,14 +176,14 @@ tyrus --quiet check ./src/index.ts
 | Type | Count | Description |
 |------|-------|-------------|
 | **Equivalence** | 71 | Semantic proof: TS and Rust produce identical stdout |
+| **Unit** | 49 | Fast, isolated codegen function tests |
+| **Snapshot** | 20 | Full transpilation output via `insta` |
+| **IR** | 21 | Typed intermediate representation lowering |
+| **Compilation** | 9 | Generated Rust passes `cargo check` per tier |
 | **CLI** | 7 | Integration tests for all CLI commands and flags |
-| **Unit** | 27 | Fast, isolated codegen function tests |
-| **Snapshot** | 6 | Full transpilation output via `insta` |
-| **Compilation** | 54 | Generated Rust passes `cargo check` per tier |
-| **IR** | 8 | Typed intermediate representation lowering |
 | **Trybuild** | 1 | Compile-verification of generated Rust |
 
-Test types: **Equivalence** (TS↔Rust same output) · **CLI** (command integration) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **Compilation** (generated Rust passes `cargo check`) · **IR** (type lowering) · **Trybuild** (compile-verification)
+Test types: **Equivalence** (TS↔Rust same output) · **Unit** (fast, isolated functions) · **Snapshot** (insta, codegen output) · **IR** (type lowering) · **Compilation** (generated Rust passes `cargo check`) · **CLI** (command integration) · **Trybuild** (compile-verification)
 
 ---
 
@@ -202,19 +202,20 @@ convert/
 ├── mod.rs          — module declarations and re-exports
 ├── interface.rs    — RustGenerator struct definition + Visit impl (entry point)
 ├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
-├── stmt/           — statement conversion (split into sub-modules)
-│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
-│   ├── var_decl.rs     — variable declarations (ident, object/array destructuring)
-│   ├── loops.rs        — while, for-of, for-in, for, do-while
-│   └── switch.rs       — switch → match
 ├── fn_decl.rs      — function declaration processing (process_fn_decl)
 ├── module.rs       — module/import handling
 ├── type_mapper.rs  — TypeScript → Rust type mapping (deduplicated map_type_core)
-├── class/          — class → struct+impl (split from monolithic class.rs)
+├── stmt/           — statement conversion
+│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
+│   ├── var_decl.rs     — variable declarations (ident, object/array destructuring)
+│   ├── loops.rs        — while, for-of, for-in, for, do-while
+│   ├── switch.rs       — switch → match
+│   └── try_catch.rs    — try-catch → Result matching
+├── class/          — class → struct+impl
 │   ├── mod.rs          — dispatcher + property conversion
 │   ├── constructor.rs  — constructor transpilation + DI
 │   ├── method.rs       — method transpilation + decorators
-│   ├── routing.rs      — Axum router generation + FromRequestParts
+│   ├── routing.rs      — Axum router generation + @UseGuards middleware
 │   └── mutation.rs     — self-mutation detection
 └── expr/
     ├── mod.rs      — expression dispatcher (convert_expr)

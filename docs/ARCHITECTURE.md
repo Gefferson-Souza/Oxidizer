@@ -17,7 +17,7 @@ The entry point uses the `swc_ecma_parser` to ingest TypeScript source files.
 This stage validates the AST against the **Oxidizable Standard**.
 
 - **Input:** AST + source code + file name.
-- **Lint rules (8):** Bans `var`, `any`, `eval`, `for-in`, `try-catch`, `delete`, `with`, labeled statements.
+- **Lint rules (8):** Bans `var`, `any`, `eval`, `for-in`, `delete`, `with`, labeled statements. (Note: `try-catch` was unblocked in Phase 6.1)
 - **Unsupported API detection (11):** Blocks `document`, `window`, `navigator`, `localStorage`, `sessionStorage`, `XMLHttpRequest`, `require`, `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`.
 - **Visitors:** `LintVisitor` (8 rules) + `DecoratorVisitor` (NestJS metadata) + `UnsupportedApiVisitor` (blocked APIs).
 - **Output:** `AnalysisResult { errors, diagnostics, graph }` — errors are `TyrusError`, diagnostics are structured `Diagnostic` with severity/code/span/suggestion.
@@ -78,19 +78,20 @@ convert/
 ├── mod.rs          — module declarations and re-exports
 ├── interface.rs    — RustGenerator struct definition + Visit impl (pipeline entry point)
 ├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
-├── stmt/           — statement conversion (split into sub-modules)
-│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
-│   ├── var_decl.rs     — variable declarations (ident, object/array destructuring)
-│   ├── loops.rs        — while, for-of, for-in, for, do-while
-│   └── switch.rs       — switch → match
 ├── fn_decl.rs      — function declaration processing (process_fn_decl)
 ├── module.rs       — module/import handling
 ├── type_mapper.rs  — TypeScript → Rust type mapping (deduplicated map_type_core)
-├── class/          — class → struct+impl (decomposed from monolithic class.rs)
+├── stmt/           — statement conversion
+│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
+│   ├── var_decl.rs     — variable declarations (ident, object/array destructuring)
+│   ├── loops.rs        — while, for-of, for-in, for, do-while
+│   ├── switch.rs       — switch → match
+│   └── try_catch.rs    — try-catch → Result matching
+├── class/          — class → struct+impl
 │   ├── mod.rs          — dispatcher + property conversion
 │   ├── constructor.rs  — constructor transpilation + DI
 │   ├── method.rs       — method transpilation + decorators
-│   ├── routing.rs      — Axum router generation + FromRequestParts
+│   ├── routing.rs      — Axum router generation + @UseGuards middleware
 │   └── mutation.rs     — self-mutation detection
 └── expr/
     ├── mod.rs      — expression dispatcher (convert_expr)
@@ -119,7 +120,7 @@ convert/
 
 Four visitors traverse the SWC AST via `swc_ecma_visit::Visit`:
 
-1. `LintVisitor` — rejects `var`, `any`, `eval`, `for-in`, `try-catch`, `delete`, `with`, labeled (in `tyrus_analyzer`)
+1. `LintVisitor` — rejects `var`, `any`, `eval`, `for-in`, `delete`, `with`, labeled (in `tyrus_analyzer`)
 2. `DecoratorVisitor` — extracts `@Module`, `@Injectable`, `@Controller` metadata (in `tyrus_analyzer`)
 3. `UnsupportedApiVisitor` — detects DOM, browser, timer, CommonJS APIs (in `tyrus_analyzer`)
 4. `RustGenerator` — produces Rust token streams (entry point: `interface.rs`)
@@ -145,7 +146,7 @@ tests/
     └── tier4/         — framework integration (NestJS → Axum)
 ```
 
-153 tests across 6 categories: CLI integration (7), equivalence (51), unit (27), snapshot (6), compilation (54), IR lowering (8).
+179 tests across 7 categories: equivalence (71), unit (49), snapshot (20), IR (21), compilation (9), CLI (7), trybuild (1).
 
 ---
 
