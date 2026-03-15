@@ -223,3 +223,86 @@ fn test_reference_nestjs_transpiles_and_compiles() {
         "Router should be configured: {main_content}"
     );
 }
+
+#[test]
+fn test_http_equivalence_rust_server() {
+    let current_dir = std::env::current_dir().expect("CWD");
+    let fixture_path = current_dir.join("fixtures/reference_nestjs");
+    let output_dir = current_dir.join("target/test_output/http_equiv_build");
+
+    // 1. Clean + Transpile
+    if output_dir.exists() {
+        std::fs::remove_dir_all(&output_dir).expect("clean");
+    }
+    std::fs::create_dir_all(&output_dir).expect("mkdir");
+    tyrus_orchestrator::build_project(&fixture_path, &output_dir).expect("transpile");
+
+    // 2. Patch port to 3100 (avoid conflict with user's ports)
+    let main_path = output_dir.join("src/main.rs");
+    let main_content = std::fs::read_to_string(&main_path).expect("read");
+    let patched = main_content.replace("0.0.0.0:3000", "127.0.0.1:3100");
+    std::fs::write(&main_path, patched).expect("write");
+
+    // 3. Compile (release for speed)
+    let build = std::process::Command::new("cargo")
+        .args(["build", "--release"])
+        .current_dir(&output_dir)
+        .output()
+        .expect("cargo build");
+    assert!(
+        build.status.success(),
+        "Build failed:\n{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+
+    // 4. Start server
+    let mut server = std::process::Command::new(output_dir.join("target/release/server"))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("start server");
+
+    // 5. Wait for server to be ready (poll health)
+    let ready = wait_for_server("http://127.0.0.1:3100/", 30);
+
+    // 6. Run HTTP checks
+    if ready {
+        verify_endpoint("http://127.0.0.1:3100/", "ok");
+        verify_endpoint("http://127.0.0.1:3100/users", "[]");
+    }
+
+    // 7. Cleanup
+    server.kill().ok();
+    server.wait().ok();
+
+    assert!(ready, "Server did not start within 30 attempts");
+}
+
+fn wait_for_server(url: &str, max_attempts: u32) -> bool {
+    for _ in 0..max_attempts {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if std::process::Command::new("curl")
+            .args(["-s", "-o", "/dev/null", "-w", "%{http_code}", url])
+            .output()
+            .is_ok_and(|o| o.stdout == b"200")
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn verify_endpoint(url: &str, expected_contains: &str) {
+    let output = std::process::Command::new("curl")
+        .args(["-s", url])
+        .output()
+        .expect("curl failed");
+    let body = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        body.contains(expected_contains),
+        "GET {} — expected '{}' in response, got: {}",
+        url,
+        expected_contains,
+        body
+    );
+}
