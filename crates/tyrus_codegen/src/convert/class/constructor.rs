@@ -57,6 +57,7 @@ struct ExtractedParams {
 fn extract_constructor_params(
     constructor: &Constructor,
     generic_params: &HashSet<String>,
+    is_service_or_controller: bool,
 ) -> ExtractedParams {
     let mut result = ExtractedParams {
         params: Vec::new(),
@@ -68,10 +69,15 @@ fn extract_constructor_params(
     for param in &constructor.params {
         match param {
             swc_ecma_ast::ParamOrTsParamProp::TsParamProp(prop) => {
-                extract_ts_param_prop(prop, generic_params, &mut result);
+                extract_ts_param_prop(prop, generic_params, is_service_or_controller, &mut result);
             }
             swc_ecma_ast::ParamOrTsParamProp::Param(pat_param) => {
-                extract_plain_param(pat_param, generic_params, &mut result);
+                extract_plain_param(
+                    pat_param,
+                    generic_params,
+                    is_service_or_controller,
+                    &mut result,
+                );
             }
         }
     }
@@ -83,6 +89,7 @@ fn extract_constructor_params(
 fn extract_ts_param_prop(
     prop: &swc_ecma_ast::TsParamProp,
     generic_params: &HashSet<String>,
+    is_service_or_controller: bool,
     result: &mut ExtractedParams,
 ) {
     let ident = match &prop.param {
@@ -95,7 +102,10 @@ fn extract_ts_param_prop(
     let type_ann = ident.type_ann.as_ref();
     let mut param_type = map_ts_type(type_ann);
 
-    if is_dependency_type(type_ann.map(std::convert::AsRef::as_ref), generic_params) {
+    // Only wrap in Arc for NestJS service/controller classes (DI singletons)
+    let is_dep = is_service_or_controller
+        && is_dependency_type(type_ann.map(std::convert::AsRef::as_ref), generic_params);
+    if is_dep {
         param_type = quote! { std::sync::Arc<#param_type> };
         result.dependency_params.insert(param_name_str.clone());
     }
@@ -109,6 +119,7 @@ fn extract_ts_param_prop(
 fn extract_plain_param(
     pat_param: &swc_ecma_ast::Param,
     generic_params: &HashSet<String>,
+    is_service_or_controller: bool,
     result: &mut ExtractedParams,
 ) {
     let ident = match &pat_param.pat {
@@ -119,7 +130,10 @@ fn extract_plain_param(
     let param_name = format_ident!("{}", to_snake_case(ident.sym.as_ref()));
     let mut param_type = map_ts_type(ident.type_ann.as_ref());
 
-    if is_dependency_type(ident.type_ann.as_deref(), generic_params) {
+    // Only wrap in Arc for NestJS service/controller classes
+    let is_dep =
+        is_service_or_controller && is_dependency_type(ident.type_ann.as_deref(), generic_params);
+    if is_dep {
         param_type = quote! { std::sync::Arc<#param_type> };
         result.dependency_params.insert(ident.sym.to_string());
     }
@@ -299,7 +313,7 @@ fn build_di_constructor(
             swc_ecma_ast::ParamOrTsParamProp::TsParamProp(prop) => {
                 build_di_ts_param(
                     prop,
-                    ctx.generic_params,
+                    ctx,
                     &mut di_params,
                     &mut di_field_inits,
                     &mut di_initialized,
@@ -340,7 +354,7 @@ fn build_di_constructor(
 /// Process a `TsParamProp` for the DI constructor.
 fn build_di_ts_param(
     prop: &swc_ecma_ast::TsParamProp,
-    generic_params: &HashSet<String>,
+    ctx: &ConstructorCtx<'_>,
     di_params: &mut Vec<proc_macro2::TokenStream>,
     di_field_inits: &mut Vec<proc_macro2::TokenStream>,
     di_initialized: &mut HashSet<String>,
@@ -355,7 +369,12 @@ fn build_di_ts_param(
     let type_ann = ident.type_ann.as_ref();
     let mut param_type = map_ts_type(type_ann);
 
-    if is_dependency_type(type_ann.map(std::convert::AsRef::as_ref), generic_params) {
+    let is_dep = ctx.is_service_or_controller
+        && is_dependency_type(
+            type_ann.map(std::convert::AsRef::as_ref),
+            ctx.generic_params,
+        );
+    if is_dep {
         param_type = quote! { std::sync::Arc<#param_type> };
     }
 
@@ -381,7 +400,15 @@ fn build_di_plain_param(
     let param_name = format_ident!("{}", &param_name_str);
     let param_type = map_ts_type(ident.type_ann.as_ref());
 
-    if !is_dependency_type(ident.type_ann.as_deref(), ctx.generic_params) {
+    let is_dep = ctx.is_service_or_controller
+        && is_dependency_type(ident.type_ann.as_deref(), ctx.generic_params);
+    if !is_dep {
+        // For non-DI classes, just pass as raw type
+        di_params.push(quote! { #param_name: #param_type });
+        if ctx.class_fields.iter().any(|(n, _)| n == &param_name_str) {
+            di_field_inits.push(quote! { #param_name: #param_name });
+            di_initialized.insert(param_name_str);
+        }
         return;
     }
 
@@ -422,7 +449,11 @@ impl RustGenerator {
         _struct_name: &proc_macro2::Ident,
         ctx: &ConstructorCtx<'_>,
     ) -> proc_macro2::TokenStream {
-        let mut extracted = extract_constructor_params(ctx.constructor, ctx.generic_params);
+        let mut extracted = extract_constructor_params(
+            ctx.constructor,
+            ctx.generic_params,
+            ctx.is_service_or_controller,
+        );
 
         let init_ctx = FieldInitCtx {
             class_fields: ctx.class_fields,
