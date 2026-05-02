@@ -1,5 +1,6 @@
 use quote::{format_ident, quote};
 use swc_ecma_ast::ClassDecl;
+use tyrus_decorator_kinds::DecoratorKind;
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
@@ -17,9 +18,10 @@ pub(crate) struct ControllerInfo {
 /// a class via the shared [`crate::decorators::DecoratorRegistry`]. The
 /// per-decorator parsing logic lives in the handler files
 /// (`decorators/controller.rs`, `decorators/use_guards.rs`); this function
-/// is the bridge that exposes the registry's `ClassContext` to legacy callers.
+/// is the bridge that exposes the registry's [`ClassDecoratorContext`] to
+/// legacy callers.
 pub(crate) fn extract_controller_info(n: &ClassDecl) -> ControllerInfo {
-    let mut ctx = decorators::ClassContext::default();
+    let mut ctx = decorators::ClassDecoratorContext::default();
     decorators::shared_registry().apply_class_decorators(n, &mut ctx);
     ControllerInfo {
         is_controller: ctx.is_controller,
@@ -90,6 +92,12 @@ pub(crate) fn generate_router_method(
 }
 
 /// Builds individual `.route()` calls from route metadata.
+///
+/// The HTTP verb name is mapped to its `axum::routing::*` constructor via
+/// [`DecoratorKind::axum_routing_fn_name`] — the same source of truth
+/// `extract_method_decorators` uses, eliminating the previous duplicate
+/// match on `"Get"` / `"Post"` / etc. that existed in both this module
+/// and `class/method.rs`.
 fn build_route_calls(
     routes: &[(String, String, String)],
     controller_path: &str,
@@ -97,19 +105,30 @@ fn build_route_calls(
     routes
         .iter()
         .map(|(method_name, http_method, path)| {
-            let method_ident = format_ident!("{}", method_name);
-            let axum_method = match http_method.as_str() {
-                "Get" => quote! { get },
-                "Post" => quote! { post },
-                "Put" => quote! { put },
-                "Delete" => quote! { delete },
-                "Patch" => quote! { patch },
-                _ => quote! { get },
-            };
-            let full_path = combine_paths(controller_path, path);
-            quote! { .route(#full_path, axum::routing::#axum_method(Self::#method_ident)) }
+            build_single_route(method_name, http_method, path, controller_path)
         })
         .collect()
+}
+
+/// Emits a single `.route(path, axum::routing::verb(Self::handler))` call,
+/// or a `compile_error!` token if the verb is unknown (which would indicate
+/// an internal inconsistency between the registry and this dispatcher).
+fn build_single_route(
+    method_name: &str,
+    http_method: &str,
+    path: &str,
+    controller_path: &str,
+) -> proc_macro2::TokenStream {
+    let Some(axum_fn_name) =
+        DecoratorKind::from_name(http_method).and_then(DecoratorKind::axum_routing_fn_name)
+    else {
+        let msg = format!("Tyrus: unknown HTTP method decorator '{http_method}'");
+        return quote! { compile_error!(#msg); };
+    };
+    let method_ident = format_ident!("{}", method_name);
+    let axum_method = format_ident!("{}", axum_fn_name);
+    let full_path = combine_paths(controller_path, path);
+    quote! { .route(#full_path, axum::routing::#axum_method(Self::#method_ident)) }
 }
 
 /// Combines controller path and method path into a full route path.
@@ -132,27 +151,48 @@ fn combine_paths(controller_path: &str, method_path: &str) -> String {
     }
 }
 
-/// Maps an HTTP status code to its axum StatusCode constant.
+/// Common HTTP status codes mapped to their `axum::http::StatusCode`
+/// constants. Adding support for a new code is a one-line table edit;
+/// uncovered codes generate a `compile_error!` rather than a runtime
+/// `unwrap_or` fallback.
+const STATUS_CODES: &[(u16, &str)] = &[
+    (100, "CONTINUE"),
+    (200, "OK"),
+    (201, "CREATED"),
+    (202, "ACCEPTED"),
+    (204, "NO_CONTENT"),
+    (301, "MOVED_PERMANENTLY"),
+    (302, "FOUND"),
+    (304, "NOT_MODIFIED"),
+    (400, "BAD_REQUEST"),
+    (401, "UNAUTHORIZED"),
+    (403, "FORBIDDEN"),
+    (404, "NOT_FOUND"),
+    (405, "METHOD_NOT_ALLOWED"),
+    (409, "CONFLICT"),
+    (410, "GONE"),
+    (422, "UNPROCESSABLE_ENTITY"),
+    (429, "TOO_MANY_REQUESTS"),
+    (500, "INTERNAL_SERVER_ERROR"),
+    (502, "BAD_GATEWAY"),
+    (503, "SERVICE_UNAVAILABLE"),
+    (504, "GATEWAY_TIMEOUT"),
+];
+
+/// Maps an HTTP status code to its `axum::http::StatusCode` constant. Codes
+/// outside [`STATUS_CODES`] expand to a `compile_error!` token — generated
+/// Rust never carries an `unwrap_or` fallback for status codes.
 pub(crate) fn map_status_code(code: u16) -> proc_macro2::TokenStream {
     use quote::quote;
-    match code {
-        200 => quote! { axum::http::StatusCode::OK },
-        201 => quote! { axum::http::StatusCode::CREATED },
-        204 => quote! { axum::http::StatusCode::NO_CONTENT },
-        301 => quote! { axum::http::StatusCode::MOVED_PERMANENTLY },
-        400 => quote! { axum::http::StatusCode::BAD_REQUEST },
-        401 => quote! { axum::http::StatusCode::UNAUTHORIZED },
-        403 => quote! { axum::http::StatusCode::FORBIDDEN },
-        404 => quote! { axum::http::StatusCode::NOT_FOUND },
-        409 => quote! { axum::http::StatusCode::CONFLICT },
-        500 => quote! { axum::http::StatusCode::INTERNAL_SERVER_ERROR },
-        100..=999 => {
-            quote! { axum::http::StatusCode::from_u16(#code).unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR) }
-        }
-        _ => {
-            quote! { compile_error!("Tyrus: @HttpCode value is not a valid HTTP status code (100-999)") }
-        }
+    if let Some((_, name)) = STATUS_CODES.iter().find(|(c, _)| *c == code) {
+        let ident = format_ident!("{}", name);
+        return quote! { axum::http::StatusCode::#ident };
     }
+    let msg = format!(
+        "Tyrus: @HttpCode({code}) is not in the supported status code table; \
+         add it to STATUS_CODES in convert/class/routing.rs or use a standard code"
+    );
+    quote! { compile_error!(#msg) }
 }
 
 /// Builds the doc comment for a handler method.
