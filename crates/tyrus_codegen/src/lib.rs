@@ -1,4 +1,5 @@
 pub mod convert;
+pub(crate) mod decorators;
 pub mod stdlib;
 
 use convert::interface::RustGenerator;
