@@ -7,7 +7,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-cargo_metadata = "0.18"
+cargo_metadata = "0.23"
 tempfile = "3.10"
 uuid = { version = "1.7", features = ["v4"] }
 miette = { version = "7.6.0", features = ["fancy"] }
