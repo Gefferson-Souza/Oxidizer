@@ -519,17 +519,6 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94b22e06ecb0110981051723910cbf0b5f5e09a2062dd7663334ee79a9d1286c"
-dependencies = [
- "cfg-if",
- "libc",
- "wasi",
-]
-
-[[package]]
-name = "getrandom"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
@@ -747,7 +736,7 @@ name = "integration_tests"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",
- "getrandom 0.2.14",
+ "getrandom",
  "insta",
  "predicates",
  "serde_json",
@@ -2007,7 +1996,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "console",
- "getrandom 0.2.14",
+ "getrandom",
  "indicatif",
  "miette",
  "tokio",
@@ -2038,7 +2027,7 @@ dependencies = [
 name = "tyrus_common"
 version = "0.1.0"
 dependencies = [
- "getrandom 0.2.14",
+ "getrandom",
  "serde",
  "serde_json",
 ]
@@ -2170,7 +2159,7 @@ version = "1.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee48d38b119b0cd71fe4141b30f5ba9c7c5d9f4e7a3a8b4a674e4b6ef789976f"
 dependencies = [
- "getrandom 0.3.4",
+ "getrandom",
  "js-sys",
  "wasm-bindgen",
 ]
