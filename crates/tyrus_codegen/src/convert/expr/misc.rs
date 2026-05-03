@@ -28,16 +28,93 @@ impl RustGenerator {
     pub(crate) fn convert_assign_expr(&self, assign: &AssignExpr) -> TokenStream {
         let right = self.convert_expr(&assign.right);
         match self.resolve_assign_lhs(&assign.left, assign.op) {
-            AssignLhs::StateField { receiver, field } => quote! {
-                {
-                    let __new_val = #right;
-                    *#receiver.#field.lock().unwrap_or_else(|e| e.into_inner()) = __new_val;
-                }
-            },
+            AssignLhs::StateField { receiver, field } => {
+                self.emit_state_field_assign(&receiver, &field, assign.op, &right)
+            }
             AssignLhs::Setter { obj, setter } => quote! { #obj.#setter(#right) },
             AssignLhs::Plain(lhs) => self.emit_assign_op(assign.op, &lhs, &right),
             AssignLhs::Invalid(err) => err,
         }
+    }
+
+    /// Emits a Mutex-safe write to a `this.field` state field (#129).
+    ///
+    /// All ops route through a read-then-write split using a separate
+    /// statement for each `.lock()` call. The `MutexGuard` from each lock
+    /// is dropped at its statement's `;`, so the two locks never coexist —
+    /// preventing `std::sync::Mutex` re-entrance deadlocks.
+    fn emit_state_field_assign(
+        &self,
+        receiver: &TokenStream,
+        field: &Ident,
+        op: AssignOp,
+        rhs: &TokenStream,
+    ) -> TokenStream {
+        // Guarded read: block-scoped guard, returns Copy value.
+        let guarded_read = quote! {
+            { let __g = #receiver.#field.lock().unwrap_or_else(|e| e.into_inner()); *__g }
+        };
+        let new_val = match op {
+            AssignOp::Assign => quote! { #rhs },
+            AssignOp::AddAssign => quote! { #guarded_read + #rhs },
+            AssignOp::SubAssign => quote! { #guarded_read - #rhs },
+            AssignOp::MulAssign => quote! { #guarded_read * #rhs },
+            AssignOp::DivAssign => quote! { #guarded_read / #rhs },
+            AssignOp::ModAssign => quote! { #guarded_read % #rhs },
+            AssignOp::BitAndAssign => {
+                quote! { ((#guarded_read as i64) & (#rhs as i64)) as f64 }
+            }
+            AssignOp::BitOrAssign => {
+                quote! { ((#guarded_read as i64) | (#rhs as i64)) as f64 }
+            }
+            AssignOp::BitXorAssign => {
+                quote! { ((#guarded_read as i64) ^ (#rhs as i64)) as f64 }
+            }
+            AssignOp::LShiftAssign => {
+                quote! { ((#guarded_read as i64) << (#rhs as i64)) as f64 }
+            }
+            AssignOp::RShiftAssign => {
+                quote! { ((#guarded_read as i64) >> (#rhs as i64)) as f64 }
+            }
+            _ => {
+                return quote! {
+                    compile_error!("Tyrus: unsupported assignment operator on state field")
+                }
+            }
+        };
+        quote! {
+            {
+                let __new_val = #new_val;
+                *#receiver.#field.lock().unwrap_or_else(|e| e.into_inner()) = __new_val;
+            }
+        }
+    }
+
+    /// Returns `(receiver, field_ident)` if `expr` is `this.<field>` and
+    /// `<field>` is a tracked state field of the current class. Used by
+    /// update-expr (`++`/`--`) to route through the same split-write path
+    /// as compound assigns.
+    fn try_resolve_this_state_field(&self, expr: &Expr) -> Option<(TokenStream, Ident)> {
+        let Expr::Member(member) = expr else {
+            return None;
+        };
+        if !member.obj.is_this() {
+            return None;
+        }
+        let prop_ident = member.prop.as_ident()?;
+        if !self
+            .current_class_state_fields
+            .contains_key(prop_ident.sym.as_ref())
+        {
+            return None;
+        }
+        let field = format_ident!("{}", to_snake_case(prop_ident.sym.as_ref()));
+        let receiver = if self.use_state_for_this.get() {
+            quote! { state }
+        } else {
+            quote! { self }
+        };
+        Some((receiver, field))
     }
 
     fn resolve_assign_lhs(&self, target: &AssignTarget, op: AssignOp) -> AssignLhs {
@@ -139,6 +216,14 @@ impl RustGenerator {
     }
 
     pub(crate) fn convert_update_expr(&self, update: &UpdateExpr) -> TokenStream {
+        if let Some((receiver, field)) = self.try_resolve_this_state_field(&update.arg) {
+            let op = match update.op {
+                UpdateOp::PlusPlus => AssignOp::AddAssign,
+                UpdateOp::MinusMinus => AssignOp::SubAssign,
+            };
+            return self.emit_state_field_assign(&receiver, &field, op, &quote! { 1.0 });
+        }
+
         let arg = self.convert_expr(&update.arg);
         match update.op {
             UpdateOp::PlusPlus => quote! { #arg += 1.0 },

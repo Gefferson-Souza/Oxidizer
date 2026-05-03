@@ -47,10 +47,20 @@ impl RustGenerator {
             "f64" | "bool" | "i32" | "usize" | "u64" | "i64"
         );
 
+        // Wrap each read in a block so the MutexGuard temporary drops at the
+        // end of the block — not at the end of the enclosing statement (#129).
+        // Reading the same state field twice in one statement (e.g. struct
+        // literal `User { id: this.x, count: this.x }`, fn args
+        // `Math.max(this.x, this.x)`) would otherwise hold two guards and
+        // deadlock on the second `.lock()` call.
         if needs_deref {
-            quote! { *#receiver.#field_ident.lock().unwrap_or_else(|e| e.into_inner()) }
+            quote! {
+                { let __g = #receiver.#field_ident.lock().unwrap_or_else(|e| e.into_inner()); *__g }
+            }
         } else {
-            quote! { #receiver.#field_ident.lock().unwrap_or_else(|e| e.into_inner()).clone() }
+            quote! {
+                { let __g = #receiver.#field_ident.lock().unwrap_or_else(|e| e.into_inner()); __g.clone() }
+            }
         }
     }
 
