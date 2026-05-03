@@ -20,3 +20,16 @@ impl MethodDecoratorHandler for HttpCodeHandler {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handler_kind_is_http_code() {
+        let h = HttpCodeHandler;
+        assert_eq!(h.kind(), DecoratorKind::HttpCode);
+        assert!(!DecoratorKind::HttpCode.is_http_method());
+        assert!(DecoratorKind::HttpCode.axum_routing_fn_name().is_none());
+    }
+}

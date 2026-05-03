@@ -298,3 +298,73 @@ impl RustGenerator {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn map_status_code_emits_constant_for_known_code() {
+        let token = map_status_code(200);
+        assert!(token.to_string().contains("StatusCode :: OK"));
+    }
+
+    #[test]
+    fn map_status_code_covers_full_table() {
+        for (code, name) in STATUS_CODES {
+            let token = map_status_code(*code);
+            let s = token.to_string();
+            assert!(
+                s.contains(name),
+                "code {code} expected to emit {name}, got: {s}"
+            );
+            assert!(
+                !s.contains("compile_error"),
+                "code {code} unexpectedly emitted compile_error"
+            );
+            assert!(
+                !s.contains("unwrap_or"),
+                "code {code} regressed: unwrap_or should not appear in generated code"
+            );
+        }
+    }
+
+    #[test]
+    fn map_status_code_emits_compile_error_for_unknown_code() {
+        for code in [0_u16, 999, 12345_u16.saturating_mul(1)] {
+            let token = map_status_code(code);
+            let s = token.to_string();
+            assert!(
+                s.contains("compile_error"),
+                "code {code} should emit compile_error, got: {s}"
+            );
+            assert!(
+                !s.contains("unwrap_or"),
+                "code {code} regressed: generated code must not contain unwrap_or"
+            );
+        }
+    }
+
+    #[test]
+    fn build_single_route_known_verb_emits_axum_routing() {
+        let token = build_single_route("find_all", "Get", "", "/users");
+        let s = token.to_string();
+        assert!(s.contains("axum :: routing :: get"));
+        assert!(s.contains("\"/users\""));
+        assert!(s.contains("Self :: find_all"));
+    }
+
+    #[test]
+    fn build_single_route_unknown_verb_emits_compile_error() {
+        let token = build_single_route("foo", "BogusVerb", "", "/x");
+        let s = token.to_string();
+        assert!(
+            s.contains("compile_error"),
+            "unknown verb should emit compile_error, got: {s}"
+        );
+        assert!(
+            s.contains("BogusVerb"),
+            "compile_error should name the verb"
+        );
+    }
+}
