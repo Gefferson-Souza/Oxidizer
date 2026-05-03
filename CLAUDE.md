@@ -8,20 +8,22 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## STRICT RULES (NEVER VIOLATE)
 
-These rules are enforced by `.cargo/config.toml` and CI. Violations = compile error.
+**Canonical authority:** [`docs/standards/POWER_OF_TEN.md`](docs/standards/POWER_OF_TEN.md) — 12 rules adapted from NASA/JPL Power of Ten. Adopted via [ADR 0008](docs/architecture/decisions/0008-tyrus-strict-rules.md). The table below is a quick reference; the doc is the binding spec.
 
-| Rule | Violation | Use Instead |
-|------|-----------|-------------|
-| No `.unwrap()` | `clippy::unwrap_used` | `?`, `.unwrap_or()`, `.unwrap_or_default()`, `.unwrap_or_else()`, `match` |
-| No `.expect()` | `clippy::expect_used` | Same as unwrap alternatives |
-| No `panic!()` | `clippy::panic` | `Result<T, TyrusError>` |
-| No `todo!()` | `clippy::todo` | `compile_error!("Tyrus: ...")` in generated code, `Result::Err` in lib code |
-| No string concat for codegen | Manual review | `quote!` macros only |
-| Files < 400 lines | Code review | Split into modules |
-| Functions < 50 lines | `clippy::too_many_lines` | Extract helpers |
-| Max 5 function params | `clippy::too_many_arguments` | Create context structs |
-| Max 4 nesting levels | `clippy::cognitive_complexity` | Early returns, extract functions |
-| `pub(crate)` not `pub` | Code review | Only expose what other crates need |
+| # | Rule | Severity | Enforced by |
+|---|------|----------|-------------|
+| 1 | Bounded control flow (no unbounded recursion) | HIGH | review checklist + nightly fuzz |
+| 2 | Bounded loops (O(n) in input size) | HIGH | review checklist + fuzz |
+| 3 | Minimal scope for bindings + struct fields | MEDIUM | `clippy::needless_pass_by_value` |
+| 4 | Functions ≤ 50 lines, files ≤ 400, ≤ 5 params, ≤ 4 nesting | CRITICAL | `clippy::too_many_lines/arguments/cognitive_complexity` + `scripts/gates.sh` |
+| 5 | Equivalence-test density (every codegen change → test) | CRITICAL | PR template + `cargo nextest` + `cargo-llvm-cov` |
+| 6 | Total error handling (no `unwrap`/`expect`/`panic`/`todo`) | CRITICAL | `.cargo/config.toml` clippy lints |
+| 7 | `quote!` macros only — never string-concat codegen | CRITICAL | review + grep gate |
+| 8 | Two-layer architecture (generic AST + semantic registry) | CRITICAL | review + ADR 0007 precedent |
+| 9 | Local-first validation parity (hook == CI via `scripts/gates.sh`) | CRITICAL | shared script |
+| 10 | ADR for architectural decisions | HIGH | PR template |
+| 11 | One branch = one concern + Conventional Commits | HIGH | PR title regex |
+| 12 | Warnings-clean + daily audited (`--all-targets`, `cargo deny`, `cargo audit`) | CRITICAL | CI workflow |
 
 ## Build & Dev Commands
 
