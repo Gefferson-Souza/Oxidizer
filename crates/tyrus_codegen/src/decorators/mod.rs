@@ -17,15 +17,20 @@
 //! means: add one variant to `DecoratorKind`, write one handler file, register
 //! it in [`default_registry`]. No hot-path file is touched.
 //!
-//! ## What's here today (PR #2)
+//! ## What's here today (PR #3)
 //!
-//! Class-level (`@Controller`, `@UseGuards`) and method-level (`@Get`/`@Post`/
-//! `@Put`/`@Delete`/`@Patch` + `@HttpCode`) handlers are wired. Param-level
-//! handlers (`@Body`/`@Param`/`@Query`) land in PR #3.
+//! All three scopes wired:
+//! - Class-level: `@Controller`, `@UseGuards`
+//! - Method-level: `@Get`/`@Post`/`@Put`/`@Delete`/`@Patch` + `@HttpCode`
+//! - Param-level: `@Body`, `@Param`, `@Query`
+//!
+//! PR #5 will add `@Headers` purely by extending `params.rs` + registering
+//! one new handler — proving the registry pattern's extensibility claim.
 
 pub(crate) mod controller;
 pub(crate) mod http_code;
 pub(crate) mod http_method;
+pub(crate) mod params;
 pub(crate) mod use_guards;
 
 use std::collections::HashMap;
@@ -69,9 +74,8 @@ pub(crate) trait MethodDecoratorHandler: Send + Sync {
 }
 
 /// Handler for param-level decorators (`@Body`, `@Param`, `@Query`, ...).
-/// Wired in PR #3. `emit_extractor` returns the Axum extractor token to
-/// substitute for the parameter binding.
-#[allow(dead_code)]
+/// `emit_extractor` returns the Axum extractor token to substitute for
+/// the parameter binding in the generated handler signature.
 pub(crate) trait ParamDecoratorHandler: Send + Sync {
     fn kind(&self) -> DecoratorKind;
     fn emit_extractor(
@@ -87,8 +91,6 @@ pub(crate) trait ParamDecoratorHandler: Send + Sync {
 pub(crate) struct DecoratorRegistry {
     class: HashMap<DecoratorKind, Box<dyn ClassDecoratorHandler>>,
     method: HashMap<DecoratorKind, Box<dyn MethodDecoratorHandler>>,
-    /// Param-level handler storage, populated in PR #3.
-    #[allow(dead_code)]
     param: HashMap<DecoratorKind, Box<dyn ParamDecoratorHandler>>,
 }
 
@@ -109,7 +111,6 @@ impl DecoratorRegistry {
         self.method.insert(handler.kind(), handler);
     }
 
-    #[allow(dead_code)]
     pub(crate) fn register_param(&mut self, handler: Box<dyn ParamDecoratorHandler>) {
         self.param.insert(handler.kind(), handler);
     }
@@ -123,6 +124,28 @@ impl DecoratorRegistry {
         kind: DecoratorKind,
     ) -> Option<&dyn MethodDecoratorHandler> {
         self.method.get(&kind).map(std::convert::AsRef::as_ref)
+    }
+
+    pub(crate) fn param_handler(&self, kind: DecoratorKind) -> Option<&dyn ParamDecoratorHandler> {
+        self.param.get(&kind).map(std::convert::AsRef::as_ref)
+    }
+
+    /// Scans a function parameter's decorators and returns the kind of the
+    /// first one recognized as a param-level decorator. The caller is
+    /// expected to look up the handler via [`Self::param_handler`] and call
+    /// `emit_extractor` for the actual token emission. Decorators that
+    /// don't classify (non-call expressions, unknown names) or aren't
+    /// param-level are skipped, not aborted.
+    pub(crate) fn first_param_decorator_kind(&self, param: &Param) -> Option<DecoratorKind> {
+        for decorator in &param.decorators {
+            let Some((kind, _call)) = classify_decorator(decorator) else {
+                continue;
+            };
+            if self.param.contains_key(&kind) {
+                return Some(kind);
+            }
+        }
+        None
     }
 
     /// Iterates the class decorators of `n`, classifies each by name,
@@ -192,6 +215,10 @@ pub(crate) fn default_registry() -> DecoratorRegistry {
         registry.register_method(Box::new(http_method::HttpMethodHandler::new(kind)));
     }
     registry.register_method(Box::new(http_code::HttpCodeHandler));
+    // Param-level — Body, Param (NestJS @Param == Axum Path), Query.
+    registry.register_param(Box::new(params::BodyHandler));
+    registry.register_param(Box::new(params::ParamHandler));
+    registry.register_param(Box::new(params::QueryHandler));
     registry
 }
 
@@ -230,5 +257,20 @@ mod tests {
         }
         // Method lookup must not return class-level handlers.
         assert!(r.method_handler(DecoratorKind::Controller).is_none());
+    }
+
+    #[test]
+    fn default_registry_has_param_handlers() {
+        let r = default_registry();
+        for kind in [
+            DecoratorKind::Body,
+            DecoratorKind::Param,
+            DecoratorKind::Query,
+        ] {
+            assert!(r.param_handler(kind).is_some(), "{kind:?} not registered");
+        }
+        // Param lookup must not return class-/method-level handlers.
+        assert!(r.param_handler(DecoratorKind::Controller).is_none());
+        assert!(r.param_handler(DecoratorKind::HttpGet).is_none());
     }
 }

@@ -78,7 +78,12 @@ fn build_self_param(
     }
 }
 
-/// Converts a single method parameter, handling @Body/@Param/@Query decorators.
+/// Converts a single method parameter. Decorator-driven extractor selection
+/// is delegated to the [`crate::decorators::DecoratorRegistry`]: the registry
+/// classifies the decorator (if any) and the matching
+/// [`ParamDecoratorHandler::emit_extractor`] produces the Axum binding token.
+/// Plain (undecorated) parameters fall through to a generic
+/// `name: Type` binding.
 fn convert_single_param(param: &swc_ecma_ast::Param) -> Option<proc_macro2::TokenStream> {
     let Pat::Ident(ident) = &param.pat else {
         return None;
@@ -86,40 +91,15 @@ fn convert_single_param(param: &swc_ecma_ast::Param) -> Option<proc_macro2::Toke
 
     let param_name = format_ident!("{}", to_snake_case(ident.sym.as_ref()));
     let param_type = map_ts_type(ident.type_ann.as_ref());
-    let decorator = find_param_decorator(param);
+    let registry = decorators::shared_registry();
 
-    let tokens = match decorator.as_deref() {
-        Some("Body") => {
-            quote! { axum::Json(#param_name): axum::Json<#param_type> }
-        }
-        Some("Param") => {
-            quote! { axum::extract::Path(#param_name): axum::extract::Path<#param_type> }
-        }
-        Some("Query") => {
-            quote! { axum::extract::Query(#param_name): axum::extract::Query<#param_type> }
-        }
-        _ => {
-            quote! { #param_name: #param_type }
-        }
-    };
+    let tokens = registry
+        .first_param_decorator_kind(param)
+        .and_then(|kind| registry.param_handler(kind))
+        .map(|handler| handler.emit_extractor(param, &param_name, &param_type))
+        .unwrap_or_else(|| quote! { #param_name: #param_type });
+
     Some(tokens)
-}
-
-/// Finds the first NestJS parameter decorator (@Body, @Param, @Query) on a param.
-fn find_param_decorator(param: &swc_ecma_ast::Param) -> Option<String> {
-    for decorator in &param.decorators {
-        if let Expr::Call(call) = &*decorator.expr {
-            if let swc_ecma_ast::Callee::Expr(expr) = &call.callee {
-                if let Expr::Ident(dec_ident) = &**expr {
-                    let dec_name = dec_ident.sym.as_ref();
-                    if matches!(dec_name, "Body" | "Param" | "Query") {
-                        return Some(dec_name.to_string());
-                    }
-                }
-            }
-        }
-    }
-    None
 }
 
 /// Builds the full parameter list including self and method params.
