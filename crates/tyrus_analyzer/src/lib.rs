@@ -1,8 +1,11 @@
-pub mod decorators;
-pub mod lints;
+// Visitor modules are crate-private — only `Analyzer::analyze` should
+// instantiate them. `report` and `severity` are exposed because the CLI
+// and orchestrator format diagnostics for end users.
+pub(crate) mod decorators;
+pub(crate) mod lints;
 pub mod report;
 pub mod severity;
-pub mod unsupported;
+pub(crate) mod unsupported;
 
 use crate::decorators::DecoratorVisitor;
 use crate::lints::LintVisitor;

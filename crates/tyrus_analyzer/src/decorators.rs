@@ -5,16 +5,14 @@ use tyrus_di::graph::DiGraph;
 use tyrus_di::module::Module;
 use tyrus_di::provider::{InjectionScope, Provider};
 
-pub struct DecoratorVisitor {
-    pub graph: DiGraph,
-    pub current_module: Option<Module>,
+pub(crate) struct DecoratorVisitor {
+    pub(crate) graph: DiGraph,
 }
 
 impl DecoratorVisitor {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             graph: DiGraph::new(),
-            current_module: None,
         }
     }
 }

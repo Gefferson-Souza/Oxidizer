@@ -4,9 +4,9 @@ use swc_ecma_visit::{Visit, VisitWith};
 use crate::severity::Diagnostic;
 
 /// Detects usage of APIs that cannot be transpiled to Rust
-pub struct UnsupportedApiVisitor {
-    pub diagnostics: Vec<Diagnostic>,
-    pub file_name: String,
+pub(crate) struct UnsupportedApiVisitor {
+    pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) file_name: String,
 }
 
 const BLOCKED_GLOBALS: &[(&str, &str, &str)] = &[
@@ -76,7 +76,7 @@ const BLOCKED_FUNCTIONS: &[(&str, &str, &str, &str)] = &[
 ];
 
 impl UnsupportedApiVisitor {
-    pub fn new(file_name: String) -> Self {
+    pub(crate) fn new(file_name: String) -> Self {
         Self {
             diagnostics: Vec::new(),
             file_name,
