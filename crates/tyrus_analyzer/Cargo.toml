@@ -7,6 +7,7 @@ edition = "2021"
 tyrus_common = { path = "../tyrus_common" }
 tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 tyrus_di = { path = "../tyrus_di" }
+tyrus_decorator_kinds = { path = "../tyrus_decorator_kinds" }
 swc_ecma_ast = "18.0.0"
 swc_ecma_visit = "18.0.0"
 swc_common = { version = "17.0.1", features = ["tty-emitter"] }

@@ -1,0 +1,173 @@
+//! Decorator handler registry.
+//!
+//! This module is the architectural answer to the prior approach where every
+//! NestJS decorator required hardcoded match arms scattered across
+//! `class/mod.rs`, `class/method.rs`, `class/routing.rs`, and the analyzer.
+//!
+//! ## Design
+//!
+//! Three traits, one per scope:
+//!
+//! - [`ClassDecoratorHandler`] — runs over a `ClassDecl`, mutates a [`ClassContext`]
+//! - [`MethodDecoratorHandler`] — runs over a `ClassMethod`, mutates a [`MethodContext`]
+//! - [`ParamDecoratorHandler`] — runs over a `Param`, emits an Axum extractor token
+//!
+//! A [`DecoratorRegistry`] dispatches a decorator's identifier to the right
+//! handler via [`tyrus_decorator_kinds::DecoratorKind`]. Adding a new decorator
+//! means: add one variant to `DecoratorKind`, write one handler file, register
+//! it in [`default_registry`]. No hot-path file is touched.
+//!
+//! ## What's here today (PR #1)
+//!
+//! Only the **class-level** half of the registry is wired:
+//! [`ControllerHandler`] and [`UseGuardsHandler`]. Method- and param-level
+//! handlers are stubbed (the trait + storage exists, but `default_registry`
+//! does not register any yet — those land in PR #2 and PR #3).
+
+pub(crate) mod controller;
+pub(crate) mod use_guards;
+
+use std::collections::HashMap;
+use std::sync::OnceLock;
+use swc_ecma_ast::{CallExpr, ClassDecl, ClassMethod, Param};
+use tyrus_decorator_kinds::DecoratorKind;
+
+/// Mutable bag of class-level metadata that handlers populate.
+///
+/// `ControllerHandler` flips `is_controller` and writes `controller_path`;
+/// `UseGuardsHandler` appends to `guard_names`. Code outside this module
+/// reads the resulting struct — it never observes which handler wrote what.
+#[derive(Debug, Default, Clone)]
+pub(crate) struct ClassContext {
+    pub(crate) is_controller: bool,
+    pub(crate) controller_path: String,
+    pub(crate) guard_names: Vec<String>,
+}
+
+/// Mutable bag of method-level metadata. Populated in PR #2.
+#[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
+pub(crate) struct MethodContext {
+    pub(crate) http_method: Option<String>,
+    pub(crate) route_path: String,
+    pub(crate) http_code: Option<u16>,
+}
+
+/// Handler for class-level decorators (`@Controller`, `@UseGuards`, ...).
+pub(crate) trait ClassDecoratorHandler: Send + Sync {
+    fn kind(&self) -> DecoratorKind;
+    fn apply(&self, class: &ClassDecl, call: &CallExpr, ctx: &mut ClassContext);
+}
+
+/// Handler for method-level decorators (`@Get`, `@Post`, `@HttpCode`, ...).
+/// Wired in PR #2.
+#[allow(dead_code)]
+pub(crate) trait MethodDecoratorHandler: Send + Sync {
+    fn kind(&self) -> DecoratorKind;
+    fn apply(&self, method: &ClassMethod, call: &CallExpr, ctx: &mut MethodContext);
+}
+
+/// Handler for param-level decorators (`@Body`, `@Param`, `@Query`, ...).
+/// Wired in PR #3. `emit_extractor` returns the Axum extractor token to
+/// substitute for the parameter binding.
+#[allow(dead_code)]
+pub(crate) trait ParamDecoratorHandler: Send + Sync {
+    fn kind(&self) -> DecoratorKind;
+    fn emit_extractor(
+        &self,
+        param: &Param,
+        param_name: &proc_macro2::Ident,
+        param_type: &proc_macro2::TokenStream,
+    ) -> proc_macro2::TokenStream;
+}
+
+/// Central registry. Owned by `RustGenerator` (or built ad-hoc). Lookup is
+/// `O(1)` via `HashMap` keyed on [`DecoratorKind`].
+pub(crate) struct DecoratorRegistry {
+    class: HashMap<DecoratorKind, Box<dyn ClassDecoratorHandler>>,
+    #[allow(dead_code)]
+    method: HashMap<DecoratorKind, Box<dyn MethodDecoratorHandler>>,
+    #[allow(dead_code)]
+    param: HashMap<DecoratorKind, Box<dyn ParamDecoratorHandler>>,
+}
+
+impl DecoratorRegistry {
+    pub(crate) fn new() -> Self {
+        Self {
+            class: HashMap::new(),
+            method: HashMap::new(),
+            param: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn register_class(&mut self, handler: Box<dyn ClassDecoratorHandler>) {
+        self.class.insert(handler.kind(), handler);
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn register_method(&mut self, handler: Box<dyn MethodDecoratorHandler>) {
+        self.method.insert(handler.kind(), handler);
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn register_param(&mut self, handler: Box<dyn ParamDecoratorHandler>) {
+        self.param.insert(handler.kind(), handler);
+    }
+
+    pub(crate) fn class_handler(&self, kind: DecoratorKind) -> Option<&dyn ClassDecoratorHandler> {
+        self.class.get(&kind).map(std::convert::AsRef::as_ref)
+    }
+
+    /// Iterates the class decorators of `n`, classifies each by name,
+    /// and invokes the corresponding handler. Unknown decorators are
+    /// silently ignored — generic translation responsibility lies elsewhere.
+    pub(crate) fn apply_class_decorators(&self, n: &ClassDecl, ctx: &mut ClassContext) {
+        for decorator in &n.class.decorators {
+            let swc_ecma_ast::Expr::Call(call) = &*decorator.expr else {
+                continue;
+            };
+            let swc_ecma_ast::Callee::Expr(callee_expr) = &call.callee else {
+                continue;
+            };
+            let swc_ecma_ast::Expr::Ident(ident) = &**callee_expr else {
+                continue;
+            };
+            let Some(kind) = DecoratorKind::from_name(ident.sym.as_ref()) else {
+                continue;
+            };
+            if let Some(handler) = self.class_handler(kind) {
+                handler.apply(n, call, ctx);
+            }
+        }
+    }
+}
+
+/// The default registry used by the transpiler. Adding a new built-in
+/// decorator means adding one `register_*` line here.
+pub(crate) fn default_registry() -> DecoratorRegistry {
+    let mut registry = DecoratorRegistry::new();
+    registry.register_class(Box::new(controller::ControllerHandler));
+    registry.register_class(Box::new(use_guards::UseGuardsHandler));
+    registry
+}
+
+/// Process-wide singleton of [`default_registry`]. Built once on first access;
+/// subsequent calls are a pointer load.
+pub(crate) fn shared_registry() -> &'static DecoratorRegistry {
+    static REGISTRY: OnceLock<DecoratorRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(default_registry)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_registry_has_class_handlers() {
+        let r = default_registry();
+        assert!(r.class_handler(DecoratorKind::Controller).is_some());
+        assert!(r.class_handler(DecoratorKind::UseGuards).is_some());
+        // Method-/param-level handlers land in PR #2 and #3.
+        assert!(r.class_handler(DecoratorKind::HttpGet).is_none());
+    }
+}

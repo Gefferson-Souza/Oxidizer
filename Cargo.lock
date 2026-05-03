@@ -1985,6 +1985,7 @@ dependencies = [
  "swc_ecma_ast",
  "swc_ecma_visit",
  "tyrus_common",
+ "tyrus_decorator_kinds",
  "tyrus_di",
  "tyrus_diagnostics",
 ]
@@ -2030,6 +2031,7 @@ dependencies = [
  "syn",
  "tyrus_ast",
  "tyrus_common",
+ "tyrus_decorator_kinds",
 ]
 
 [[package]]
@@ -2040,6 +2042,10 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "tyrus_decorator_kinds"
+version = "0.1.0"
 
 [[package]]
 name = "tyrus_di"

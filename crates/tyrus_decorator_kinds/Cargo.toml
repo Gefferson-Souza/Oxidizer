@@ -1,0 +1,7 @@
+[package]
+name = "tyrus_decorator_kinds"
+version = "0.1.0"
+edition = "2021"
+description = "Single source of truth for NestJS decorator name → kind classification, shared between analyzer and codegen."
+
+[dependencies]

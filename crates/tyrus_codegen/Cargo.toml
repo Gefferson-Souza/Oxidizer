@@ -12,3 +12,4 @@ swc_ecma_visit = "18.0.0"
 swc_common = { version = "17.0.1", features = ["tty-emitter"] }
 tyrus_common = { path = "../tyrus_common" }
 tyrus_ast = { path = "../tyrus_ast" }
+tyrus_decorator_kinds = { path = "../tyrus_decorator_kinds" }
