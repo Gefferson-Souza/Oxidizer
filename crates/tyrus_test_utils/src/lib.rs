@@ -1,9 +1,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
 static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -88,12 +89,12 @@ rand = "0.8"
     }
 }
 
-/// Compiles Rust code as a binary and runs it, returning stdout.
-/// The code must contain a `fn main()`.
+/// Sets up a single-binary Cargo project for `code` and runs `cargo build`,
+/// returning the path to the produced binary inside the shared target dir.
 ///
-/// # Panics
-/// Panics if compilation or execution fails.
-pub fn compile_and_run_rust(code: &str) -> String {
+/// `_temp_dir` is dropped on return but the binary lives in the shared target,
+/// so the path remains valid for the caller to invoke.
+fn prepare_and_build_binary(code: &str) -> PathBuf {
     let run_id = RUN_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
     let bin_name = format!("tyrus_run_{}_{}", pid, run_id);
@@ -145,7 +146,19 @@ serde_json = "1.0"
         );
     }
 
-    let bin_path = shared_target.join("debug").join(&bin_name);
+    shared_target.join("debug").join(&bin_name)
+}
+
+/// Compiles Rust code as a binary and runs it, returning stdout.
+/// The code must contain a `fn main()`.
+///
+/// # Panics
+/// Panics if compilation or execution fails. Has no timeout — a deadlocked
+/// binary will hang the test runner. Prefer [`compile_and_run_rust_with_timeout`]
+/// for code paths that may deadlock.
+pub fn compile_and_run_rust(code: &str) -> String {
+    let bin_path = prepare_and_build_binary(code);
+
     let run_output = Command::new(&bin_path)
         .output()
         .expect("Failed to run compiled binary");
@@ -159,6 +172,66 @@ serde_json = "1.0"
     }
 
     String::from_utf8_lossy(&run_output.stdout).to_string()
+}
+
+/// Compiles and runs Rust code with a wall-clock timeout on the binary execution.
+///
+/// On timeout, the child process is killed before this function panics — preventing
+/// orphaned processes from accumulating across deadlock-prone tests.
+///
+/// Build time is **not** included in the timeout; only the binary's execution.
+///
+/// # Panics
+/// - Build failure (same as [`compile_and_run_rust`]).
+/// - Non-zero exit status from the binary.
+/// - Timeout: the binary did not exit within `timeout` (likely deadlock).
+pub fn compile_and_run_rust_with_timeout(code: &str, timeout: Duration) -> String {
+    let bin_path = prepare_and_build_binary(code);
+
+    let mut child = Command::new(&bin_path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn compiled binary");
+
+    let start = Instant::now();
+    let exit_status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!(
+                        "\n=== RUST BINARY TIMEOUT ===\n\
+                         Did not exit within {:?} (likely deadlock).\n\
+                         CODE:\n{}",
+                        timeout, code
+                    );
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("Failed to poll child process: {e}");
+            }
+        }
+    };
+
+    let output = child
+        .wait_with_output()
+        .expect("Failed to read child output after exit");
+
+    if !exit_status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        panic!(
+            "\n=== RUST EXECUTION FAILED ===\nCODE:\n{}\n\nSTDERR:\n{}",
+            code, stderr
+        );
+    }
+
+    String::from_utf8_lossy(&output.stdout).to_string()
 }
 
 /// Runs TypeScript code using Node.js and returns stdout.
@@ -191,4 +264,27 @@ pub fn run_node(ts_code: &str) -> String {
          CODE:\n{}\n\nSTDERR:\n{}",
         ts_code, stderr
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "RUST BINARY TIMEOUT")]
+    fn timeout_kills_deadlocked_binary() {
+        compile_and_run_rust_with_timeout(
+            r#"fn main() { std::thread::park(); }"#,
+            Duration::from_millis(500),
+        );
+    }
+
+    #[test]
+    fn no_timeout_for_fast_program() {
+        let out = compile_and_run_rust_with_timeout(
+            r#"fn main() { println!("ok"); }"#,
+            Duration::from_secs(60),
+        );
+        assert_eq!(out.trim(), "ok");
+    }
 }

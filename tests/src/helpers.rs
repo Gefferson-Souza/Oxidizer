@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Duration;
 
 /// Transpile a TypeScript string to Rust code (no compilation).
 /// This is the primary test helper — fast, no I/O beyond a temp file.
@@ -36,6 +37,39 @@ pub fn assert_output_equivalent(ts_code: &str) {
     let rust_output = tyrus_test_utils::compile_and_run_rust(&rust_binary);
 
     // 5. Compare outputs
+    assert_eq!(
+        ts_output.trim(),
+        rust_output.trim(),
+        "\n╔══════════════════════════════════════════╗\n\
+         ║  SEMANTIC EQUIVALENCE FAILURE             ║\n\
+         ╚══════════════════════════════════════════╝\n\n\
+         TypeScript output: {:?}\n\
+         Rust output:       {:?}\n\n\
+         Generated Rust code:\n{}\n",
+        ts_output.trim(),
+        rust_output.trim(),
+        rust_code
+    );
+}
+
+/// Same contract as [`assert_output_equivalent`] but bounds the Rust binary's
+/// execution wall-clock time. Use for tests that exercise code paths prone
+/// to deadlock (e.g., mutex re-entrance regressions).
+///
+/// On timeout, the child process is killed and the test panics with a message
+/// that names the timeout — preventing nextest from hanging indefinitely.
+pub fn assert_output_equivalent_with_timeout(ts_code: &str, timeout: Duration) {
+    let ts_output = tyrus_test_utils::run_node(ts_code);
+    let rust_code = transpile(ts_code);
+
+    let rust_binary = if rust_code.contains("fn main()") {
+        rust_code.clone()
+    } else {
+        format!("{}\nfn main() {{}}", rust_code)
+    };
+
+    let rust_output = tyrus_test_utils::compile_and_run_rust_with_timeout(&rust_binary, timeout);
+
     assert_eq!(
         ts_output.trim(),
         rust_output.trim(),
