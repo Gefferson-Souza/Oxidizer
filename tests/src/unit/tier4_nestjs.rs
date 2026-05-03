@@ -112,6 +112,63 @@ class ItemsController {
     );
 }
 
+/// Empirical proof point for ADR 0007: adding `@Headers` (a NestJS decorator
+/// previously unsupported) required edits to exactly 4 files —
+/// `tyrus_decorator_kinds/src/lib.rs` (one variant + maps),
+/// `tyrus_codegen/src/decorators/params.rs` (one handler),
+/// `tyrus_codegen/src/decorators/mod.rs` (one register line),
+/// and this test. Zero edits to any `convert/class/*`, `convert/expr/*`,
+/// or analyzer file. This test pins the property.
+#[test]
+fn test_headers_decorator_emits_header_map_param() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Controller, Get, Headers } from "@nestjs/common";
+@Controller("/echo")
+class EchoController {
+    @Get("/")
+    echo(@Headers() headers: any): string {
+        return "ok";
+    }
+}
+"#,
+    );
+    assert!(
+        rust.contains("axum :: http :: HeaderMap") || rust.contains("axum::http::HeaderMap"),
+        "Expected axum::http::HeaderMap parameter in: {rust}"
+    );
+    assert!(
+        rust.contains("headers"),
+        "Expected the parameter name 'headers' in: {rust}"
+    );
+}
+
+/// `@Headers` must coexist with other param decorators in the same handler
+/// signature — proves dispatch is independent per-param, not order-sensitive.
+#[test]
+fn test_headers_decorator_combines_with_path_extractor() {
+    let rust = crate::helpers::transpile(
+        r#"
+import { Controller, Get, Headers, Param } from "@nestjs/common";
+@Controller("/echo")
+class EchoController {
+    @Get("/:id")
+    echo(@Param("id") id: string, @Headers() headers: any): string {
+        return id;
+    }
+}
+"#,
+    );
+    assert!(
+        rust.contains("axum :: extract :: Path") || rust.contains("axum::extract::Path"),
+        "Expected Path extractor for @Param in: {rust}"
+    );
+    assert!(
+        rust.contains("axum :: http :: HeaderMap") || rust.contains("axum::http::HeaderMap"),
+        "Expected HeaderMap for @Headers in: {rust}"
+    );
+}
+
 #[test]
 fn test_nestjs_not_found_exception_maps_to_app_error() {
     let rust = crate::helpers::transpile(
