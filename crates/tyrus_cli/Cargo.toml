@@ -13,7 +13,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 miette = { version = "7.6.0", features = ["fancy"] }
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.52", features = ["full"] }
 tyrus_orchestrator = { path = "../tyrus_orchestrator" }
 tyrus_common = { path = "../tyrus_common" }
 tyrus_analyzer = { path = "../tyrus_analyzer" }
