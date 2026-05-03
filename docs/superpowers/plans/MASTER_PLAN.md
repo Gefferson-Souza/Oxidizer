@@ -7,11 +7,12 @@
 
 ---
 
-## Current State (2026-03-13)
+## Current State (2026-05-02)
 
 | Metric | Value |
 |--------|-------|
-| Tests passing | 179 (71 equivalence + 7 CLI + 8 IR + 73 integration + 9 codegen + 4 common + 1 trybuild + 1 skipped) |
+| Tests passing | **230** (95 equivalence + 62 unit incl. registry/handler isolation + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 5 tier4 E2E + 1 trybuild + 1 skipped) |
+| Crates | **11** (added `tyrus_decorator_kinds` in PR #109 — single source of truth for decorator name → kind classification) |
 | Equivalence tests | 71 (proving TS↔Rust output identity) |
 | Array spread | `[...a, ...b]` → `a.iter().cloned().chain(b.iter().cloned()).collect()` |
 | Static methods | `Class.method()` → `Class::method()` (associated functions) |
@@ -43,9 +44,14 @@ Phase 3 ✅ Equivalence     (Milestone 13A)    — Prove output identity for bas
 Phase 4 ✅ Control Flow    (Milestone 13B)    — Unlock blocked constructs + bug fixes
 Phase 5 ✅ Stdlib Complete (Milestone 14)     — Full JS/TS method coverage (ALL methods done)
 Phase 5.5 ✅ Architecture  (CLI+IR+Analyzer)  — Branded CLI, typed IR, expanded analyzer
-Phase 6.0 ✅ Infrastructure (prettyplease, thiserror 2.0, trybuild) — See docs/superpowers/plans/2026-03-13-nestjs-full-transpilation-roadmap.md
-Phase 6 ✅ Advanced TS     (Milestone 15)     — Class inheritance, static, enums, type assertions, spread
-Phase 7 📋 Academic        (Milestone 16)     — Benchmarks, formal spec, paper
+Phase 6.0 ✅ Infrastructure (prettyplease, thiserror 2.0, trybuild)
+Phase 6 ✅ Advanced TS     (Milestone 15)     — Class inheritance, static, enums, type assertions, spread, getters/setters
+Phase 7 ✅ NestJS Framework — @Param/@Query/@HttpCode/@UseGuards, HttpException, multi-module DI, getters/setters
+Phase 8 ✅ HTTP equivalence E2E — reference NestJS project transpiles, compiles, serves identical responses (`test_http_equivalence_rust_server`)
+Sprint 1 ✅ Quick Wins     — assignment ops, Map/Set, this.method(), object shorthand, Date.now(), object spread
+Caminho C 🚧 Decorator Registry (PR #1-#5, ADR 0007) — replace scattered match-arm decorator dispatch with a trait-based registry; PR #1-#3 merged-in-flight, PR #4 (this PR) docs sync, PR #5 empirical proof via @Headers
+Phase 9 📋 Validation & Pipes (class-validator → garde, ParseIntPipe, ValidationPipe)
+Phase 10 📋 Academic       (Milestone 16)     — Benchmarks, formal spec, paper
 ```
 
 ---
