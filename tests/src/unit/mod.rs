@@ -1,4 +1,5 @@
 mod expr;
+mod state_mutation;
 mod stdlib;
 mod stmt;
 mod tier3;

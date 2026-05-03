@@ -31,12 +31,18 @@ impl UsersService {
         }
     }
     pub fn find_all(&self) -> Vec<User> {
-        return self.users.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        return {
+            let __g = self.users.lock().unwrap_or_else(|e| e.into_inner());
+            __g.clone()
+        };
     }
     pub fn create(&self, dto: CreateUserDto) -> User {
         let user = User {
-            id: self.users.lock().unwrap_or_else(|e| e.into_inner()).clone().len() as f64
-                + 1f64,
+            id: {
+                let __g = self.users.lock().unwrap_or_else(|e| e.into_inner());
+                __g.clone()
+            }
+                .len() as f64 + 1f64,
             name: dto.name,
             email: dto.email,
         };
