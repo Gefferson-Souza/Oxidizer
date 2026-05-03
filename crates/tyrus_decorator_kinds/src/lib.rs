@@ -51,6 +51,7 @@ pub enum DecoratorKind {
     Body,
     Param,
     Query,
+    Headers,
 }
 
 impl DecoratorKind {
@@ -72,6 +73,7 @@ impl DecoratorKind {
             "Body" => Some(Self::Body),
             "Param" => Some(Self::Param),
             "Query" => Some(Self::Query),
+            "Headers" => Some(Self::Headers),
             _ => None,
         }
     }
@@ -88,7 +90,7 @@ impl DecoratorKind {
             | Self::HttpDelete
             | Self::HttpPatch
             | Self::HttpCode => DecoratorScope::Method,
-            Self::Body | Self::Param | Self::Query => DecoratorScope::Param,
+            Self::Body | Self::Param | Self::Query | Self::Headers => DecoratorScope::Param,
         }
     }
 
@@ -99,6 +101,25 @@ impl DecoratorKind {
             self,
             Self::HttpGet | Self::HttpPost | Self::HttpPut | Self::HttpDelete | Self::HttpPatch
         )
+    }
+
+    /// Returns the `axum::routing::*` constructor name for HTTP verb
+    /// decorators (e.g. `HttpGet` → `"get"`). Returns `None` for any
+    /// non-verb kind.
+    ///
+    /// This lives in `tyrus_decorator_kinds` (rather than the codegen crate)
+    /// because the mapping is a property of the decorator, not of the code
+    /// emission strategy — keeping it here means routing.rs and the registry
+    /// share the same source of truth.
+    pub fn axum_routing_fn_name(self) -> Option<&'static str> {
+        match self {
+            Self::HttpGet => Some("get"),
+            Self::HttpPost => Some("post"),
+            Self::HttpPut => Some("put"),
+            Self::HttpDelete => Some("delete"),
+            Self::HttpPatch => Some("patch"),
+            _ => None,
+        }
     }
 
     /// The original TypeScript name, for diagnostics.
@@ -117,6 +138,7 @@ impl DecoratorKind {
             Self::Body => "Body",
             Self::Param => "Param",
             Self::Query => "Query",
+            Self::Headers => "Headers",
         }
     }
 }
@@ -165,6 +187,23 @@ mod tests {
     }
 
     #[test]
+    fn axum_routing_fn_name_for_verbs() {
+        assert_eq!(DecoratorKind::HttpGet.axum_routing_fn_name(), Some("get"));
+        assert_eq!(DecoratorKind::HttpPost.axum_routing_fn_name(), Some("post"));
+        assert_eq!(DecoratorKind::HttpPut.axum_routing_fn_name(), Some("put"));
+        assert_eq!(
+            DecoratorKind::HttpDelete.axum_routing_fn_name(),
+            Some("delete")
+        );
+        assert_eq!(
+            DecoratorKind::HttpPatch.axum_routing_fn_name(),
+            Some("patch")
+        );
+        assert_eq!(DecoratorKind::HttpCode.axum_routing_fn_name(), None);
+        assert_eq!(DecoratorKind::Controller.axum_routing_fn_name(), None);
+    }
+
+    #[test]
     fn name_roundtrip() {
         for kind in [
             DecoratorKind::Module,
@@ -180,6 +219,7 @@ mod tests {
             DecoratorKind::Body,
             DecoratorKind::Param,
             DecoratorKind::Query,
+            DecoratorKind::Headers,
         ] {
             assert_eq!(DecoratorKind::from_name(kind.name()), Some(kind));
         }
