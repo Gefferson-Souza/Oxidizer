@@ -1,17 +1,15 @@
 #!/bin/sh
-# Pre-commit hook for Tyrus
+# Tyrus pre-commit hook.
+#
+# Delegates entirely to scripts/gates.sh — the single source of truth for
+# quality gate invocations. CI runs the same script with the same flags.
+# See docs/standards/POWER_OF_TEN.md Rule 9 (Local-First Validation Parity).
+#
 # Install: ./scripts/setup-hooks.sh
 
-echo "=== Pre-commit: cargo fmt ==="
-if ! cargo fmt -- --check; then
-    echo "ERROR: cargo fmt failed. Run 'cargo fmt' to fix."
-    exit 1
-fi
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 
-echo "=== Pre-commit: cargo clippy ==="
-if ! cargo clippy --workspace -- -D warnings; then
-    echo "ERROR: cargo clippy found warnings. Fix them before committing."
-    exit 1
-fi
-
-echo "=== Pre-commit: OK ==="
+# Run all gates. On first failure, the script exits non-zero and the commit
+# is aborted with a clear marker per gate. The hook deliberately runs the
+# `all` target so a contributor cannot push commits that would later break CI.
+"$REPO_ROOT/scripts/gates.sh" all
