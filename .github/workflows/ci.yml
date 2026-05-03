@@ -11,7 +11,11 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  # Fast checks — run in parallel, fail fast
+  # Fast checks — run in parallel, fail fast.
+  # All gate commands live in scripts/gates.sh — the single source of truth
+  # shared with the local pre-commit hook. See docs/standards/POWER_OF_TEN.md
+  # Rule 9 (Local-First Validation Parity) and ADR 0008.
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
@@ -20,7 +24,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo fmt -- --check
+      - run: ./scripts/gates.sh fmt
 
   clippy:
     name: Clippy
@@ -31,12 +35,11 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace -- -D warnings
+      - run: ./scripts/gates.sh clippy
 
   # Supply-chain & security checks — run in parallel with build, share cache.
-  # `cargo deny` enforces deny.toml (advisories, licenses, banned crates,
-  # source registries). `cargo audit` cross-checks against the RustSec
-  # advisory DB on every push/PR rather than relying on a periodic run.
+  # `cargo deny` enforces deny.toml; `cargo audit` cross-checks against the
+  # RustSec advisory DB on every push/PR rather than relying on a periodic run.
   security:
     name: Security & Supply-Chain
     runs-on: ubuntu-latest
@@ -49,13 +52,8 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny,cargo-audit
-      - name: cargo deny check
-        run: cargo deny check
-      - name: cargo audit
-        # Ignored advisories are tracked in deny.toml `[advisories].ignore`
-        # AND duplicated here because cargo-audit ignores deny.toml. See
-        # follow-up issue for upgrade plan.
-        run: cargo audit --ignore RUSTSEC-2025-0119 --ignore RUSTSEC-2026-0097 --deny warnings
+      - run: ./scripts/gates.sh deny
+      - run: ./scripts/gates.sh audit
 
   # Build + test in single job (shares compilation cache within job)
   build:
@@ -76,10 +74,10 @@ jobs:
         uses: taiki-e/install-action@nextest
 
       - name: Build
-        run: cargo build --workspace
+        run: cargo build --workspace --all-targets
 
-      - name: Test
-        run: cargo nextest run --workspace
+      - name: Test (gates.sh)
+        run: ./scripts/gates.sh test
 
       - name: Verify Real-World Demo
         run: |
