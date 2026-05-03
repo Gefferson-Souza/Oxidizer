@@ -51,6 +51,7 @@ pub enum DecoratorKind {
     Body,
     Param,
     Query,
+    Headers,
 }
 
 impl DecoratorKind {
@@ -72,6 +73,7 @@ impl DecoratorKind {
             "Body" => Some(Self::Body),
             "Param" => Some(Self::Param),
             "Query" => Some(Self::Query),
+            "Headers" => Some(Self::Headers),
             _ => None,
         }
     }
@@ -88,7 +90,7 @@ impl DecoratorKind {
             | Self::HttpDelete
             | Self::HttpPatch
             | Self::HttpCode => DecoratorScope::Method,
-            Self::Body | Self::Param | Self::Query => DecoratorScope::Param,
+            Self::Body | Self::Param | Self::Query | Self::Headers => DecoratorScope::Param,
         }
     }
 
@@ -136,6 +138,7 @@ impl DecoratorKind {
             Self::Body => "Body",
             Self::Param => "Param",
             Self::Query => "Query",
+            Self::Headers => "Headers",
         }
     }
 }
@@ -216,6 +219,7 @@ mod tests {
             DecoratorKind::Body,
             DecoratorKind::Param,
             DecoratorKind::Query,
+            DecoratorKind::Headers,
         ] {
             assert_eq!(DecoratorKind::from_name(kind.name()), Some(kind));
         }

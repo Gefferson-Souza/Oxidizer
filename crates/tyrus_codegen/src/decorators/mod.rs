@@ -215,10 +215,11 @@ pub(crate) fn default_registry() -> DecoratorRegistry {
         registry.register_method(Box::new(http_method::HttpMethodHandler::new(kind)));
     }
     registry.register_method(Box::new(http_code::HttpCodeHandler));
-    // Param-level — Body, Param (NestJS @Param == Axum Path), Query.
+    // Param-level — Body, Param (NestJS @Param == Axum Path), Query, Headers.
     registry.register_param(Box::new(params::BodyHandler));
     registry.register_param(Box::new(params::ParamHandler));
     registry.register_param(Box::new(params::QueryHandler));
+    registry.register_param(Box::new(params::HeadersHandler));
     registry
 }
 
@@ -266,6 +267,7 @@ mod tests {
             DecoratorKind::Body,
             DecoratorKind::Param,
             DecoratorKind::Query,
+            DecoratorKind::Headers,
         ] {
             assert!(r.param_handler(kind).is_some(), "{kind:?} not registered");
         }
