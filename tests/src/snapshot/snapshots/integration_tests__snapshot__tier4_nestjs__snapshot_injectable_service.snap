@@ -25,22 +25,27 @@ impl UsersService {
         }
     }
     pub fn find_all(&self) -> Vec<User> {
-        return self.users.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        return {
+            let __g = self.users.lock().unwrap_or_else(|e| e.into_inner());
+            __g.clone()
+        };
     }
     pub fn find_by_id(&self, id: f64) -> User {
-        return self
-            .users
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        return {
+            let __g = self.users.lock().unwrap_or_else(|e| e.into_inner());
+            __g.clone()
+        }
             .iter()
             .find(|item| (|user| user.id == id)(**item))
             .cloned();
     }
     pub fn create(&self, name: String, email: String) -> User {
         let user = User {
-            id: self.users.lock().unwrap_or_else(|e| e.into_inner()).clone().len() as f64
-                + 1f64,
+            id: {
+                let __g = self.users.lock().unwrap_or_else(|e| e.into_inner());
+                __g.clone()
+            }
+                .len() as f64 + 1f64,
             name: name,
             email: email,
         };
