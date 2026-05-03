@@ -10,5 +10,5 @@ repository.workspace = true
 tyrus_common = { path = "../tyrus_common" }
 tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 serde = { version = "1.0", features = ["derive"] }
-swc_ecma_ast = "18.0.0"
-swc_common = { version = "17.0.1", features = ["tty-emitter"] }
+swc_ecma_ast = "23.0.0"
+swc_common = { version = "21.0.1", features = ["tty-emitter"] }
