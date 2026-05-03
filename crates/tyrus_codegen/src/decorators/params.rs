@@ -75,6 +75,33 @@ impl ParamDecoratorHandler for QueryHandler {
     }
 }
 
+/// `@Headers()` — emits the entire `axum::http::HeaderMap` as the parameter
+/// binding. The user's TypeScript type annotation is ignored because Axum
+/// only exposes `HeaderMap` for full-headers extraction. Handlers can then
+/// query individual headers via `headers.get("name")`.
+///
+/// A name-scoped form (`@Headers('authorization') auth: string`) would
+/// require extending [`super::ParamDecoratorHandler`] with a body-prelude
+/// hook so the generated handler can extract the specific value before
+/// the user code runs. That extension is intentionally deferred — adding
+/// it here is independent of validating the registry pattern.
+pub(crate) struct HeadersHandler;
+
+impl ParamDecoratorHandler for HeadersHandler {
+    fn kind(&self) -> DecoratorKind {
+        DecoratorKind::Headers
+    }
+
+    fn emit_extractor(
+        &self,
+        _param: &Param,
+        param_name: &Ident,
+        _param_type: &TokenStream,
+    ) -> TokenStream {
+        quote! { #param_name: axum::http::HeaderMap }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,5 +151,21 @@ mod tests {
         assert!(token.contains("axum :: extract :: Query"));
         assert!(token.contains("page"));
         assert_eq!(h.kind(), DecoratorKind::Query);
+    }
+
+    #[test]
+    fn headers_handler_emits_header_map_param() {
+        let h = HeadersHandler;
+        let name = format_ident!("headers");
+        // The user's type annotation is ignored — HeaderMap is the only Axum form.
+        let ty = quote! { ThisShouldBeIgnored };
+        let token = h.emit_extractor(&dummy_param(), &name, &ty).to_string();
+        assert!(token.contains("axum :: http :: HeaderMap"));
+        assert!(token.contains("headers"));
+        assert!(
+            !token.contains("ThisShouldBeIgnored"),
+            "user's type annotation must NOT appear in the emitted extractor"
+        );
+        assert_eq!(h.kind(), DecoratorKind::Headers);
     }
 }
