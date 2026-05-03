@@ -7,9 +7,9 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-swc_ecma_parser = "27.0.7"
-swc_ecma_ast = "18.0.0"
-swc_common = { version = "17.0.1", features = ["tty-emitter"] }
+swc_ecma_parser = "39.0.2"
+swc_ecma_ast = "23.0.0"
+swc_common = { version = "21.0.1", features = ["tty-emitter"] }
 tyrus_ast = { path = "../tyrus_ast" }
 tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 miette = { version = "7.6.0", features = ["fancy"] }
