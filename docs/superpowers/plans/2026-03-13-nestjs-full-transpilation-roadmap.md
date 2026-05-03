@@ -10,18 +10,21 @@
 
 ---
 
-## Current State (2026-03-15)
+## Current State (2026-05-02)
 
 | Aspect | Status | Details |
 |--------|--------|---------|
-| Tests | **195 pass**, 1 skip | 81 equivalence, 49 unit, 20 snapshot, 21 IR, 9 compilation, 7 CLI, 5 E2E/build, 1 trybuild |
+| Tests | **235 pass**, 1 skip | 95 equivalence, 62 unit (incl. registry/handler isolation), 20 snapshot, 21 IR, 9 compilation, 7 CLI, 5 tier4 E2E, 1 trybuild |
+| Crates | **11** | Added `tyrus_decorator_kinds` (single source of truth for decorator name→kind classification) |
 | CLI | 4 commands | check, build, compile, run (branded, --quiet, --json) |
-| Analyzer | 7 lint + 11 API blocks | var, any, eval, for-in, delete, with, labeled (try-catch unblocked) |
-| Codegen | ~5040 lines, 32 modules | Expressions, statements, classes, stdlib, getters/setters, guards |
-| Stdlib | 51 methods | 16 string + 15 array + 15 math + 5 console |
-| NestJS | **Full Phase 7** | @Injectable, @Controller, @Get/@Post/@Put/@Delete/@Patch, @Param, @Query, @HttpCode, @UseGuards, constructor DI, Arc\<Mutex\<T\>\>, State\<Arc\<Self\>\> |
+| Analyzer | 7 lint + 11 API blocks | var, any, eval, for-in, delete, with, labeled (try-catch unblocked) — uses `DecoratorKind::from_name` not raw strings |
+| Codegen | ~6000 lines, 39 modules | Now includes `decorators/` registry (ADR 0007). Expressions, statements, classes, stdlib (incl. map_set), getters/setters, guards |
+| Stdlib | 51 methods | 16 string + 15 array + 15 math + 5 console + Map/Set + Date.now |
+| NestJS | **Full Phase 7 + 8** | @Injectable, @Controller, @Get/@Post/@Put/@Delete/@Patch, @Param, @Query, @Body, @HttpCode, @UseGuards, **@Headers** (registry-driven). Constructor DI, Arc\<Mutex\<T\>\>, State\<Arc\<Self\>\>, multi-module |
+| Decorator Registry | **DONE** (Caminho C, ADR 0007) | Trait-based dispatch via `DecoratorRegistry` in `tyrus_codegen::decorators`; replaces scattered match arms. Adding a new decorator now touches 4 files, zero in `convert/class/*` or `analyzer/*` (proven empirically by `@Headers` PR #119) |
 | IR | Foundation | TyrusType/Expr/Stmt/Decl defined, SWC→IR lowering started |
 | **E2E** | **VERIFIED** | Reference NestJS project transpiles → compiles → serves correct HTTP responses |
+| Latest commit | `3ee53e7` | refactor(codegen): decorator registry migration (Caminho C consolidated) (#120) |
 
 ## Gap Analysis: Current → Full NestJS Transpilation
 
