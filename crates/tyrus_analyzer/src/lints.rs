@@ -6,14 +6,14 @@ use swc_ecma_ast::{
 };
 use swc_ecma_visit::{Visit, VisitWith};
 
-pub struct LintVisitor {
-    pub errors: Vec<TyrusError>,
-    pub source_code: String,
-    pub file_name: String,
+pub(crate) struct LintVisitor {
+    pub(crate) errors: Vec<TyrusError>,
+    pub(crate) source_code: String,
+    pub(crate) file_name: String,
 }
 
 impl LintVisitor {
-    pub fn new(source_code: String, file_name: String) -> Self {
+    pub(crate) fn new(source_code: String, file_name: String) -> Self {
         Self {
             errors: Vec::new(),
             source_code,
