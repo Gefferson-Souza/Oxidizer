@@ -59,8 +59,9 @@ A dedicated crate for handling the application's dependency graph.
 | `tyrus_cli`         | CLI (clap). 4 commands: `check`/`build`/`compile`/`run`. Branded banner, progress pipeline, `--quiet`/`--json` flags. Installable globally via `cargo install --path crates/tyrus_cli`. |
 | `tyrus_parser`      | Wraps SWC parser. Input: `.ts` file. Output: `swc_ecma_ast::Program`. |
 | `tyrus_ast`         | Typed IR: `TyrusModule`, `TyrusExpr`, `TyrusStmt`, `TyrusDecl`, `TyrusType`. SWC→IR type lowering (`lower_type.rs`). |
-| `tyrus_analyzer`    | `LintVisitor` (8 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` (11 APIs). Structured `Diagnostic` output with JSON/pretty formatters. |
-| `tyrus_codegen`     | Core transpilation. `RustGenerator` visitor converts TS AST to Rust.  |
+| `tyrus_analyzer`    | `LintVisitor` (7 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` (11 APIs). Structured `Diagnostic` output with JSON/pretty formatters. Uses `tyrus_decorator_kinds::DecoratorKind::from_name` for decorator classification. |
+| `tyrus_codegen`     | Core transpilation. `RustGenerator` visitor converts TS AST to Rust. Hosts the `decorators` module — trait-based registry replacing the previous scattered match-arm dispatch. |
+| `tyrus_decorator_kinds` | **Single source of truth** for NestJS decorator name → `DecoratorKind` classification. Zero external dependencies; consumed by both the analyzer (DI graph extraction) and the codegen (handler dispatch). See [ADR 0007](architecture/decisions/0007-decorator-registry.md). |
 | `tyrus_di`          | NestJS-style DI engine. Uses `petgraph::DiGraph` for topo sort.       |
 | `tyrus_orchestrator`| Coordinates the full pipeline: parse → analyze → codegen.            |
 | `tyrus_diagnostics` | `TyrusError` variants with `miette` for rich error reporting.         |
@@ -71,48 +72,78 @@ A dedicated crate for handling the application's dependency graph.
 
 ## Code Generation Module Structure (`tyrus_codegen`)
 
-The `crates/tyrus_codegen/src/convert/` directory is decomposed into focused, single-responsibility modules:
+The `crates/tyrus_codegen/src/` tree is decomposed into focused, single-responsibility modules. The top-level split is `convert/` (AST → Rust translation) plus `decorators/` (registry-based NestJS decorator dispatch — see [ADR 0007](architecture/decisions/0007-decorator-registry.md)) plus `stdlib/` (built-in API mappings).
 
 ```
-convert/
-├── mod.rs          — module declarations and re-exports
-├── interface.rs    — RustGenerator struct definition + Visit impl (pipeline entry point)
-├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
-├── fn_decl.rs      — function declaration processing (process_fn_decl)
-├── module.rs       — module/import handling
-├── type_mapper.rs  — TypeScript → Rust type mapping (deduplicated map_type_core)
-├── stmt/           — statement conversion
-│   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
-│   ├── var_decl.rs     — variable declarations (ident, object/array destructuring)
-│   ├── loops.rs        — while, for-of, for-in, for, do-while
-│   ├── switch.rs       — switch → match
-│   └── try_catch.rs    — try-catch → Result matching
-├── class/          — class → struct+impl
-│   ├── mod.rs          — dispatcher + property conversion
-│   ├── constructor.rs  — constructor transpilation + DI
-│   ├── method.rs       — method transpilation + decorators
-│   ├── routing.rs      — Axum router generation + @UseGuards middleware
-│   └── mutation.rs     — self-mutation detection
-└── expr/
-    ├── mod.rs      — expression dispatcher (convert_expr)
-    ├── binary.rs   — binary operators (convert_bin_expr)
-    ├── call.rs     — function/method calls, axios/fetch/array methods (map/filter/forEach/find)
-    ├── member.rs   — property access, mutex state (convert_member_expr)
-    ├── arrow.rs    — arrow functions → closures (convert_arrow_expr)
-    ├── literal.rs  — literals, object/array/template expressions
-    └── misc.rs     — assignments, updates, optional chaining
+src/
+├── lib.rs              — public entry point, ControllerMetadata, generate()
+├── convert/
+│   ├── mod.rs          — module declarations and re-exports
+│   ├── interface.rs    — RustGenerator struct definition + Visit impl (pipeline entry point)
+│   ├── helpers.rs      — shared utilities: to_snake_case, to_pascal_case, is_string_expr
+│   ├── fn_decl.rs      — function declaration processing (process_fn_decl)
+│   ├── module.rs       — module/import handling
+│   ├── type_mapper.rs  — TypeScript → Rust type mapping (incl. Map/Set/Date)
+│   ├── stmt/           — statement conversion
+│   │   ├── mod.rs          — dispatcher + convert_stmt, convert_stmt_recursive
+│   │   ├── var_decl.rs     — variable declarations (ident, object/array destructuring)
+│   │   ├── loops.rs        — while, for-of, for, do-while  (for-in is analyzer-blocked)
+│   │   ├── switch.rs       — switch → match
+│   │   └── try_catch.rs    — try-catch → Result matching
+│   ├── class/          — class → struct+impl
+│   │   ├── mod.rs          — dispatcher + property conversion (decorator-driven, no name suffix heuristic)
+│   │   ├── constructor.rs  — constructor transpilation + DI
+│   │   ├── method.rs       — method transpilation; method/param decorators dispatched through registry
+│   │   ├── routing.rs      — Axum router generation + map_status_code (static STATUS_CODES table)
+│   │   ├── getter_setter.rs — get/set → method calls
+│   │   └── mutation.rs     — self-mutation detection
+│   └── expr/
+│       ├── mod.rs      — expression dispatcher (convert_expr)
+│       ├── binary.rs   — binary operators (convert_bin_expr)
+│       ├── call.rs     — function/method calls, axios/fetch/array methods
+│       ├── member.rs   — property access, mutex state (convert_member_expr)
+│       ├── arrow.rs    — arrow functions → closures (convert_arrow_expr)
+│       ├── literal.rs  — literals, object/array/template expressions (incl. object spread)
+│       └── misc.rs     — assignments (`=`/`-=`/`*=`/`/=`/`%=`/`&=`/`|=`/`^=`/`<<=`/`>>=`), updates, optional chaining
+├── decorators/         — Decorator registry (ADR 0007)
+│   ├── mod.rs          — DecoratorRegistry, ClassDecoratorHandler/MethodDecoratorHandler/ParamDecoratorHandler traits, default_registry(), shared_registry()
+│   ├── controller.rs   — @Controller("/path") handler
+│   ├── use_guards.rs   — @UseGuards(...) handler
+│   ├── http_method.rs  — @Get/@Post/@Put/@Delete/@Patch (one parameterized struct, 5 instances registered)
+│   ├── http_code.rs    — @HttpCode(N) handler
+│   └── params.rs       — @Body, @Param, @Query handlers (one file, 3 structs)
+└── stdlib/
+    ├── mod.rs, console.rs, array.rs, string.rs, math.rs,
+    └── json.rs, object.rs, map_set.rs   (Map<K,V>→HashMap, Set<T>→HashSet)
 ```
+
+### Decorator Dispatch Flow
+
+```
+class/method.rs::extract_method_decorators
+    → decorators::shared_registry().apply_method_decorators(method, &mut ctx)
+        → for each decorator on the method:
+            → DecoratorKind::from_name(ident) classifies the decorator
+            → registry.method_handler(kind) finds the handler
+            → handler.apply(method, call, &mut ctx) populates MethodDecoratorContext
+    → ctx.http_method (Option<DecoratorKind>) and ctx.http_code (Option<u16>) drive subsequent code emission
+```
+
+The same pattern applies to class-level (`apply_class_decorators` → `ClassDecoratorContext`) and param-level (`first_param_decorator_kind` + `param_handler.emit_extractor`) decorators. **No file in `convert/` matches on decorator names; all name-based decisions are concentrated in `tyrus_decorator_kinds::DecoratorKind::from_name`.**
 
 ### Key Transpilation Patterns
 
-- **Types:** `string→String`, `number→f64`, `boolean→bool`, `Promise<T>→Result<T, AppError>`, `Record<K,V>→HashMap<K,V>`
+- **Types:** `string→String`, `number→f64`, `boolean→bool`, `Promise<T>→Result<T, AppError>`, `Record<K,V>→HashMap<K,V>`, `Map<K,V>→HashMap<K,V>`, `Set<T>→HashSet<T>`
 - **Interfaces** → `#[derive(Serialize, Deserialize)] struct` with serde
 - **String union types** (`type Status = "open" | "closed"`) → Rust enums
 - **Array methods** (`.map`, `.filter`, `.forEach`, `.find`, `.some`, `.every`) → iterator chains with `.collect()`. Supports `(item, index)` callbacks via `.enumerate()`
 - **String methods** (`.includes→.contains`, `.replace→.replacen`, `.split→.split().collect()`, etc.)
-- **Classes** → structs with `impl` blocks. State fields use `Arc<Mutex<T>>` for interior mutability. Constructor-injected deps wrapped in `Arc<T>`.
-- **NestJS decorators** → Axum: `@Controller("/path")` → router, `@Get()` → `axum::routing::get`, `@Injectable()` → DI registration
+- **Classes** → structs with `impl` blocks. State fields use `Arc<Mutex<T>>` for interior mutability. Constructor-injected deps wrapped in `Arc<T>`. Controller detection is decorator-driven (presence of `@Controller(...)`), not by class-name suffix.
+- **NestJS decorators** → Axum, dispatched through the `decorators` registry: `@Controller("/path")` → `router()` + `FromRequestParts`, `@Get/@Post/@Put/@Delete/@Patch` → `axum::routing::get`/`post`/etc, `@HttpCode(N)` → `(StatusCode, Json<T>)` tuple return, `@Body/@Param/@Query` → `axum::Json<T>`/`Path<T>`/`Query<T>` extractors, `@UseGuards(...)` → `axum::middleware::from_fn` layer, `@Injectable()`/`@Module()` → DI graph (analyzer-side).
 - **Async/await** → `pub async fn` with tokio, `await` → `.await`
+- **Object spread (`{...base, field: v}`)** → struct update syntax
+- **Assignment operators (`=`/`-=`/`*=`/`/=`/`%=`/`&=`/`|=`/`^=`/`<<=`/`>>=`)** → equivalent Rust compound assignments
+- **`Date.now()`** → `chrono::Utc::now().timestamp_millis()`
 
 ---
 
@@ -121,9 +152,9 @@ convert/
 Four visitors traverse the SWC AST via `swc_ecma_visit::Visit`:
 
 1. `LintVisitor` — rejects `var`, `any`, `eval`, `for-in`, `delete`, `with`, labeled (in `tyrus_analyzer`)
-2. `DecoratorVisitor` — extracts `@Module`, `@Injectable`, `@Controller` metadata (in `tyrus_analyzer`)
+2. `DecoratorVisitor` — extracts `@Module`, `@Injectable`, `@Controller` metadata (in `tyrus_analyzer`); classifies decorator names via `tyrus_decorator_kinds::DecoratorKind::from_name`, never via raw string compare
 3. `UnsupportedApiVisitor` — detects DOM, browser, timer, CommonJS APIs (in `tyrus_analyzer`)
-4. `RustGenerator` — produces Rust token streams (entry point: `interface.rs`)
+4. `RustGenerator` — produces Rust token streams (entry point: `interface.rs`); delegates all NestJS decorator handling to the registry in `decorators/`
 
 ---
 
@@ -146,7 +177,7 @@ tests/
     └── tier4/         — framework integration (NestJS → Axum)
 ```
 
-179 tests across 7 categories: equivalence (71), unit (49), snapshot (20), IR (21), compilation (9), CLI (7), trybuild (1).
+230 tests across 7 categories: equivalence (95), unit (62 incl. registry/handler isolation), snapshot (20), IR (21), compilation (9), CLI (7), tier4 E2E (5), trybuild (1), plus 1 skipped. The HTTP-equivalence E2E test (`tier4_tests::test_http_equivalence_rust_server`) transpiles the reference NestJS project, compiles the generated Rust, starts both servers, and compares responses byte-for-byte.
 
 ---
 
