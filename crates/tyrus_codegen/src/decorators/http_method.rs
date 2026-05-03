@@ -39,3 +39,24 @@ impl MethodDecoratorHandler for HttpMethodHandler {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handler_carries_kind() {
+        for kind in [
+            DecoratorKind::HttpGet,
+            DecoratorKind::HttpPost,
+            DecoratorKind::HttpPut,
+            DecoratorKind::HttpDelete,
+            DecoratorKind::HttpPatch,
+        ] {
+            let h = HttpMethodHandler::new(kind);
+            assert_eq!(h.kind(), kind);
+            assert!(kind.is_http_method());
+            assert!(kind.axum_routing_fn_name().is_some());
+        }
+    }
+}
