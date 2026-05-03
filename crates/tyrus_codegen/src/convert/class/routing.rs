@@ -1,8 +1,9 @@
 use quote::{format_ident, quote};
-use swc_ecma_ast::{ClassDecl, Expr, Lit};
+use swc_ecma_ast::ClassDecl;
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
+use crate::decorators;
 
 /// Extracted controller decorator information.
 pub(crate) struct ControllerInfo {
@@ -12,40 +13,18 @@ pub(crate) struct ControllerInfo {
     pub guard_names: Vec<String>,
 }
 
-/// Extracts `@Controller("/path")` and `@UseGuards(...)` decorator info from a class.
+/// Extracts `@Controller("/path")` and `@UseGuards(...)` decorator info from
+/// a class via the shared [`crate::decorators::DecoratorRegistry`]. The
+/// per-decorator parsing logic lives in the handler files
+/// (`decorators/controller.rs`, `decorators/use_guards.rs`); this function
+/// is the bridge that exposes the registry's `ClassContext` to legacy callers.
 pub(crate) fn extract_controller_info(n: &ClassDecl) -> ControllerInfo {
-    let mut is_controller = false;
-    let mut controller_path = String::new();
-    let mut guard_names = Vec::new();
-
-    for decorator in &n.class.decorators {
-        if let Expr::Call(call) = &*decorator.expr {
-            if let swc_ecma_ast::Callee::Expr(expr) = &call.callee {
-                if let Expr::Ident(ident) = &**expr {
-                    match ident.sym.as_ref() {
-                        "Controller" => {
-                            is_controller = true;
-                            if let Some(arg) = call.args.first() {
-                                if let Expr::Lit(Lit::Str(s)) = &*arg.expr {
-                                    controller_path =
-                                        s.value.as_str().unwrap_or_default().to_string();
-                                }
-                            }
-                        }
-                        "UseGuards" => {
-                            extract_guard_args(call, &mut guard_names);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
+    let mut ctx = decorators::ClassContext::default();
+    decorators::shared_registry().apply_class_decorators(n, &mut ctx);
     ControllerInfo {
-        is_controller,
-        controller_path,
-        guard_names,
+        is_controller: ctx.is_controller,
+        controller_path: ctx.controller_path,
+        guard_names: ctx.guard_names,
     }
 }
 
@@ -61,15 +40,6 @@ fn find_can_activate_method(n: &ClassDecl) -> Option<&swc_ecma_ast::ClassMethod>
         }
         None
     })
-}
-
-/// Extracts guard class names from `@UseGuards(Guard1, Guard2)` arguments.
-fn extract_guard_args(call: &swc_ecma_ast::CallExpr, guard_names: &mut Vec<String>) {
-    for arg in &call.args {
-        if let Expr::Ident(ident) = &*arg.expr {
-            guard_names.push(ident.sym.to_string());
-        }
-    }
 }
 
 /// Generates the `FromRequestParts` implementation for a controller struct.

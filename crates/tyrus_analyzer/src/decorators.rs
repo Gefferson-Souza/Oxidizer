@@ -1,5 +1,6 @@
 use swc_ecma_ast::*;
 use swc_ecma_visit::{Visit, VisitWith};
+use tyrus_decorator_kinds::DecoratorKind;
 use tyrus_di::graph::DiGraph;
 use tyrus_di::module::Module;
 use tyrus_di::provider::{InjectionScope, Provider};
@@ -35,6 +36,69 @@ impl DecoratorVisitor {
         }
         None
     }
+
+    /// Parses an `@Module({ imports, providers, controllers, exports })`
+    /// decorator into a [`Module`] for the DI graph.
+    fn parse_module_metadata(&self, class_name: &str, decorator: &Decorator) -> Module {
+        let mut module = Module {
+            name: class_name.to_string(),
+            imports: vec![],
+            providers: vec![],
+            controllers: vec![],
+            exports: vec![],
+        };
+        let Some(obj) = self.extract_decorator_args(decorator) else {
+            return module;
+        };
+        for prop in obj.props {
+            let PropOrSpread::Prop(prop) = prop else {
+                continue;
+            };
+            let Prop::KeyValue(kv) = *prop else { continue };
+            let PropName::Ident(key) = kv.key else {
+                continue;
+            };
+            let Expr::Array(arr) = *kv.value else {
+                continue;
+            };
+            let values = collect_ident_array(&arr);
+            match key.sym.as_ref() {
+                "imports" => module.imports = values,
+                "providers" => module.providers = values_to_providers(values),
+                "controllers" => module.controllers = values,
+                "exports" => module.exports = values,
+                _ => {}
+            }
+        }
+        module
+    }
+}
+
+/// Collects ident expressions from an array literal, ignoring spreads/non-idents.
+fn collect_ident_array(arr: &ArrayLit) -> Vec<String> {
+    arr.elems
+        .iter()
+        .filter_map(|e| {
+            let ExprOrSpread { expr, .. } = e.as_ref()?;
+            if let Expr::Ident(i) = &**expr {
+                return Some(i.sym.to_string());
+            }
+            None
+        })
+        .collect()
+}
+
+/// Wraps each ident name in a `Provider` (singleton, deps filled later).
+fn values_to_providers(values: Vec<String>) -> Vec<Provider> {
+    values
+        .into_iter()
+        .map(|v| Provider {
+            token: v.clone(),
+            implementation: v,
+            scope: InjectionScope::Singleton,
+            dependencies: vec![],
+        })
+        .collect()
 }
 
 impl Visit for DecoratorVisitor {
@@ -43,73 +107,30 @@ impl Visit for DecoratorVisitor {
         let mut is_injectable = false;
 
         for decorator in &n.class.decorators {
-            if let Expr::Call(call_expr) = &*decorator.expr {
-                if let Callee::Expr(expr) = &call_expr.callee {
-                    if let Expr::Ident(ident) = &**expr {
-                        if ident.sym == *"Module" {
-                            // Extract Module Metadata
-                            let mut module = Module {
-                                name: class_name.clone(),
-                                imports: vec![],
-                                providers: vec![],
-                                controllers: vec![],
-                                exports: vec![],
-                            };
-
-                            if let Some(obj) = self.extract_decorator_args(decorator) {
-                                for prop in obj.props {
-                                    if let PropOrSpread::Prop(prop) = prop {
-                                        if let Prop::KeyValue(kv) = *prop {
-                                            if let PropName::Ident(key) = kv.key {
-                                                if let Expr::Array(arr) = *kv.value {
-                                                    let values: Vec<String> = arr
-                                                        .elems
-                                                        .iter()
-                                                        .filter_map(|e| {
-                                                            if let Some(ExprOrSpread {
-                                                                expr, ..
-                                                            }) = e
-                                                            {
-                                                                if let Expr::Ident(i) = &**expr {
-                                                                    return Some(i.sym.to_string());
-                                                                }
-                                                            }
-                                                            None
-                                                        })
-                                                        .collect();
-
-                                                    match key.sym.as_ref() {
-                                                        "imports" => module.imports = values,
-                                                        "providers" => {
-                                                            module.providers = values
-                                                                .into_iter()
-                                                                .map(|v| Provider {
-                                                                    token: v.clone(),
-                                                                    implementation: v,
-                                                                    scope:
-                                                                        InjectionScope::Singleton,
-                                                                    dependencies: vec![], // Will be filled later
-                                                                })
-                                                                .collect();
-                                                        }
-                                                        "controllers" => {
-                                                            module.controllers = values
-                                                        }
-                                                        "exports" => module.exports = values,
-                                                        _ => {}
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            self.graph.add_module(module);
-                        } else if ident.sym == *"Injectable" || ident.sym == *"Controller" {
-                            is_injectable = true;
-                        }
-                    }
+            let Expr::Call(call_expr) = &*decorator.expr else {
+                continue;
+            };
+            let Callee::Expr(callee_expr) = &call_expr.callee else {
+                continue;
+            };
+            let Expr::Ident(ident) = &**callee_expr else {
+                continue;
+            };
+            // Single source of truth for decorator name → kind classification.
+            // Adding a new decorator requires extending tyrus_decorator_kinds,
+            // not this match arm.
+            let Some(kind) = DecoratorKind::from_name(ident.sym.as_ref()) else {
+                continue;
+            };
+            match kind {
+                DecoratorKind::Module => {
+                    let module = self.parse_module_metadata(&class_name, decorator);
+                    self.graph.add_module(module);
                 }
+                DecoratorKind::Injectable | DecoratorKind::Controller => {
+                    is_injectable = true;
+                }
+                _ => {}
             }
         }
 

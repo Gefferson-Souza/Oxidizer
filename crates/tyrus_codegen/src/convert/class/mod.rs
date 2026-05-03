@@ -23,11 +23,13 @@ impl RustGenerator {
             self.code.push('\n');
         }
 
-        self.is_controller = class_name.ends_with("Controller");
+        // Decorator-driven detection — replaces the previous heuristic
+        // `class_name.ends_with("Controller")`. The Service heuristic stays
+        // until all fixtures gain `@Injectable` (tracked separately).
+        let controller_info = routing::extract_controller_info(n);
+        self.is_controller = controller_info.is_controller;
 
-        let is_service_or_controller = class_name.ends_with("Service")
-            || class_name.ends_with("Controller")
-            || self.is_controller;
+        let is_service_or_controller = self.is_controller || class_name.ends_with("Service");
 
         // Extract generic params early
         let mut generic_params = std::collections::HashSet::new();
@@ -301,7 +303,7 @@ impl RustGenerator {
         }
 
         // Generate controller routing if applicable
-        let controller_info = routing::extract_controller_info(n);
+        // (controller_info was extracted at the start of this function)
         if controller_info.is_controller {
             self.emit_controller_routing(
                 &struct_name,
