@@ -1,0 +1,23 @@
+# GitHub CODEOWNERS — see https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Every PR is automatically routed to the owner(s) below. The owner of
+# `*` catches anything not matched by a more-specific rule.
+
+* @Gefferson-Souza
+
+# Compiler core — extra scrutiny for codegen / analyzer / DI changes.
+/crates/tyrus_codegen/         @Gefferson-Souza
+/crates/tyrus_analyzer/        @Gefferson-Souza
+/crates/tyrus_decorator_kinds/ @Gefferson-Souza
+/crates/tyrus_di/              @Gefferson-Souza
+
+# Architecture decisions and the grammar specification — public contract.
+/docs/architecture/decisions/  @Gefferson-Souza
+/docs/specs/                   @Gefferson-Souza
+
+# CI / release / supply-chain — anything that changes the gates.
+/.github/                      @Gefferson-Souza
+/.cargo/                       @Gefferson-Souza
+/clippy.toml                   @Gefferson-Souza
+/deny.toml                     @Gefferson-Souza
+/release-plz.toml              @Gefferson-Souza
