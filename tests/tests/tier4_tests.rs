@@ -1,3 +1,7 @@
+// Tier-4 NestJS E2E tests. Test code uses .expect() and panic! for clear
+// failure diagnostics — permitted by docs/standards/POWER_OF_TEN.md Rule 6
+// (Total Error Handling) when accompanied by an explicit module-level allow.
+#![allow(clippy::expect_used, clippy::panic)]
 // use std::path::PathBuf;
 // use tyrus_common::fs::FilePath;
 
