@@ -4,9 +4,13 @@ use swc_ecma_ast::{Expr, Lit, Pat};
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
 use crate::convert::type_mapper::{is_optional_type, map_ts_type};
+use crate::decorators;
 
 /// Extracted decorator metadata from a class method.
 struct MethodDecorators {
+    /// HTTP verb decorator name (`"Get"`, `"Post"`, ...) if any.
+    /// Carried as a `String` for legacy callers; the canonical type is
+    /// [`tyrus_decorator_kinds::DecoratorKind`].
     http_method: Option<String>,
     route_path: String,
     http_code: Option<u16>,
@@ -21,56 +25,22 @@ struct MethodContext {
     returns_option: bool,
 }
 
-/// Scans method decorators for @Get/@Post/@Put/@Delete/@Patch and @HttpCode.
+/// Scans method decorators for `@Get`/`@Post`/`@Put`/`@Delete`/`@Patch` and
+/// `@HttpCode` via the shared [`crate::decorators::DecoratorRegistry`].
+/// Per-decorator parsing logic lives in `decorators/http_method.rs` and
+/// `decorators/http_code.rs`. This function bridges the registry's
+/// [`crate::decorators::MethodDecoratorContext`] to legacy callers that
+/// expect `MethodDecorators` with a stringy `http_method`.
 fn extract_method_decorators(method: &swc_ecma_ast::ClassMethod) -> MethodDecorators {
-    let mut http_method = None;
-    let mut route_path = String::new();
-    let mut http_code: Option<u16> = None;
-
-    for decorator in &method.function.decorators {
-        if let Expr::Call(call) = &*decorator.expr {
-            if let swc_ecma_ast::Callee::Expr(expr) = &call.callee {
-                if let Expr::Ident(ident) = &**expr {
-                    extract_single_decorator(
-                        ident.sym.as_str(),
-                        call,
-                        &mut http_method,
-                        &mut route_path,
-                        &mut http_code,
-                    );
-                }
-            }
-        }
-    }
-
+    let mut ctx = decorators::MethodDecoratorContext::default();
+    decorators::shared_registry().apply_method_decorators(method, &mut ctx);
     MethodDecorators {
-        http_method,
-        route_path,
-        http_code,
-    }
-}
-
-/// Processes a single decorator call to extract HTTP method or status code.
-fn extract_single_decorator(
-    name: &str,
-    call: &swc_ecma_ast::CallExpr,
-    http_method: &mut Option<String>,
-    route_path: &mut String,
-    http_code: &mut Option<u16>,
-) {
-    if matches!(name, "Get" | "Post" | "Put" | "Delete" | "Patch") {
-        *http_method = Some(name.to_string());
-        if let Some(arg) = call.args.first() {
-            if let Expr::Lit(Lit::Str(s)) = &*arg.expr {
-                *route_path = s.value.as_str().unwrap_or_default().to_string();
-            }
-        }
-    } else if name == "HttpCode" {
-        if let Some(arg) = call.args.first() {
-            if let Expr::Lit(Lit::Num(num)) = &*arg.expr {
-                *http_code = Some(num.value as u16);
-            }
-        }
+        // Convert canonical DecoratorKind back to its TypeScript name for
+        // legacy consumers (build_doc_comment, route tuples). The full
+        // strong-typing lives inside the registry.
+        http_method: ctx.http_method.map(|k| k.name().to_string()),
+        route_path: ctx.route_path,
+        http_code: ctx.http_code,
     }
 }
 
@@ -108,7 +78,12 @@ fn build_self_param(
     }
 }
 
-/// Converts a single method parameter, handling @Body/@Param/@Query decorators.
+/// Converts a single method parameter. Decorator-driven extractor selection
+/// is delegated to the [`crate::decorators::DecoratorRegistry`]: the registry
+/// classifies the decorator (if any) and the matching
+/// [`ParamDecoratorHandler::emit_extractor`] produces the Axum binding token.
+/// Plain (undecorated) parameters fall through to a generic
+/// `name: Type` binding.
 fn convert_single_param(param: &swc_ecma_ast::Param) -> Option<proc_macro2::TokenStream> {
     let Pat::Ident(ident) = &param.pat else {
         return None;
@@ -116,40 +91,15 @@ fn convert_single_param(param: &swc_ecma_ast::Param) -> Option<proc_macro2::Toke
 
     let param_name = format_ident!("{}", to_snake_case(ident.sym.as_ref()));
     let param_type = map_ts_type(ident.type_ann.as_ref());
-    let decorator = find_param_decorator(param);
+    let registry = decorators::shared_registry();
 
-    let tokens = match decorator.as_deref() {
-        Some("Body") => {
-            quote! { axum::Json(#param_name): axum::Json<#param_type> }
-        }
-        Some("Param") => {
-            quote! { axum::extract::Path(#param_name): axum::extract::Path<#param_type> }
-        }
-        Some("Query") => {
-            quote! { axum::extract::Query(#param_name): axum::extract::Query<#param_type> }
-        }
-        _ => {
-            quote! { #param_name: #param_type }
-        }
-    };
+    let tokens = registry
+        .first_param_decorator_kind(param)
+        .and_then(|kind| registry.param_handler(kind))
+        .map(|handler| handler.emit_extractor(param, &param_name, &param_type))
+        .unwrap_or_else(|| quote! { #param_name: #param_type });
+
     Some(tokens)
-}
-
-/// Finds the first NestJS parameter decorator (@Body, @Param, @Query) on a param.
-fn find_param_decorator(param: &swc_ecma_ast::Param) -> Option<String> {
-    for decorator in &param.decorators {
-        if let Expr::Call(call) = &*decorator.expr {
-            if let swc_ecma_ast::Callee::Expr(expr) = &call.callee {
-                if let Expr::Ident(dec_ident) = &**expr {
-                    let dec_name = dec_ident.sym.as_ref();
-                    if matches!(dec_name, "Body" | "Param" | "Query") {
-                        return Some(dec_name.to_string());
-                    }
-                }
-            }
-        }
-    }
-    None
 }
 
 /// Builds the full parameter list including self and method params.

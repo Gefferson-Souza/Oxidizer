@@ -77,8 +77,9 @@ cargo bench --bench runtime_comparison # Node.js vs Rust runtime comparison
 | `tyrus_cli` | ~430 | CLI (clap). 4 commands: `check`/`build`/`compile`/`run`. Branded output, progress pipeline. |
 | `tyrus_parser` | ~55 | Wraps SWC parser. `.ts` → `Program` |
 | `tyrus_ast` | ~730 | Typed IR: `TyrusModule`/`TyrusExpr`/`TyrusStmt`/`TyrusDecl`. SWC→IR lowering. |
-| `tyrus_analyzer` | ~580 | `LintVisitor` (8 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` + JSON reports |
-| `tyrus_codegen` | ~5040 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*`. |
+| `tyrus_analyzer` | ~580 | `LintVisitor` (7 rules) + `DecoratorVisitor` + `UnsupportedApiVisitor` + JSON reports. Uses `tyrus_decorator_kinds` for name → kind classification. |
+| `tyrus_codegen` | ~6000 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*/decorators/*/stdlib/*`. |
+| `tyrus_decorator_kinds` | ~225 | **Single source of truth** for NestJS decorator name → `DecoratorKind` classification. Zero deps; shared by analyzer + codegen. See `docs/architecture/decisions/0007-decorator-registry.md`. |
 | `tyrus_di` | ~200 | DI graph (petgraph). Topological sort. |
 | `tyrus_orchestrator` | ~650 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
 | `tyrus_diagnostics` | ~69 | `TyrusError` + miette |
@@ -99,14 +100,15 @@ crates/tyrus_codegen/src/
 │   ├── stmt/             # Statement conversion
 │   │   ├── mod.rs         # Dispatcher + convert_stmt, convert_stmt_recursive
 │   │   ├── var_decl.rs    # Variable declarations (ident, object/array destructuring)
-│   │   ├── loops.rs       # while, for-of, for-in, for, do-while
+│   │   ├── loops.rs       # while, for-of, for, do-while  (for-in is analyzer-blocked)
 │   │   ├── switch.rs      # switch → match
 │   │   └── try_catch.rs   # try-catch → Result matching
 │   ├── class/            # Class → struct+impl
-│   │   ├── mod.rs         # Class dispatcher + property conversion
+│   │   ├── mod.rs         # Class dispatcher + property conversion (decorator-driven)
 │   │   ├── constructor.rs # Constructor transpilation + DI
-│   │   ├── method.rs      # Method transpilation + decorators
-│   │   ├── routing.rs     # Axum router generation + @UseGuards middleware
+│   │   ├── method.rs      # Method transpilation; param/method decorators via registry
+│   │   ├── routing.rs     # Axum router generation + @UseGuards middleware + map_status_code
+│   │   ├── getter_setter.rs # get/set → method calls
 │   │   └── mutation.rs    # Self-mutation detection
 │   └── expr/             # Expression conversion
 │       ├── mod.rs         # Expression dispatcher (convert_expr)
@@ -114,10 +116,18 @@ crates/tyrus_codegen/src/
 │       ├── call.rs        # Function/method calls, axios/fetch/array methods
 │       ├── member.rs      # Property access, mutex state (convert_member_expr)
 │       ├── arrow.rs       # Arrow functions → closures
-│       ├── literal.rs     # Object/array/template literals
-│       └── misc.rs        # Assignments, updates, optional chaining
+│       ├── literal.rs     # Object/array/template literals (incl. object spread)
+│       └── misc.rs        # Assignments (=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=), updates, optional chaining
+├── decorators/           # Decorator registry (ADR 0007)
+│   ├── mod.rs             # DecoratorRegistry + Class/Method/ParamDecoratorHandler traits + default_registry()
+│   ├── controller.rs      # @Controller("/path") handler
+│   ├── use_guards.rs      # @UseGuards(...) handler
+│   ├── http_method.rs     # @Get/@Post/@Put/@Delete/@Patch (one parameterized struct, 5 instances)
+│   ├── http_code.rs       # @HttpCode(N) handler
+│   └── params.rs          # @Body, @Param, @Query handlers (one file, 3 structs)
 └── stdlib/               # Standard library mappings
-    ├── mod.rs, console.rs, array.rs, string.rs, math.rs, json.rs, object.rs
+    ├── mod.rs, console.rs, array.rs, string.rs, math.rs,
+    ├── json.rs, object.rs, map_set.rs   (Map<K,V>→HashMap, Set<T>→HashSet)
 ```
 
 ## Type Mappings (TS → Rust)
@@ -131,6 +141,9 @@ crates/tyrus_codegen/src/
 | `T[]` / `Array<T>` | `Vec<T>` |
 | `Promise<T>` | `Result<T, AppError>` |
 | `Record<K,V>` | `HashMap<K,V>` |
+| `Map<K,V>` | `HashMap<K,V>` (`new Map()` → `HashMap::new()`) |
+| `Set<T>` | `HashSet<T>` (`new Set()` → `HashSet::new()`) |
+| `Date` | `String` (TODO: chrono); `Date.now()` → `chrono::Utc::now().timestamp_millis()` |
 | `T \| undefined` | `Option<T>` |
 | `interface` | `#[derive(Serialize, Deserialize)] struct` |
 | `type Status = "a" \| "b"` | `enum Status { A, B }` |
@@ -177,7 +190,13 @@ tests/
 
 See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
 
-**Completed:** Phase 1-8 complete. Full NestJS → Rust transpilation with HTTP equivalence verified.
+**Completed:**
+- Phase 1-8: full NestJS → Rust transpilation with HTTP equivalence verified
+- Sprint 1 quick wins: assignment ops (`-=`/`*=`/`/=`/`%=`/`&=`/`|=`/`^=`/`<<=`/`>>=`), `Map<K,V>`/`Set<T>`, `this.method()`, object shorthand, `Date.now()`, object spread
+- **Decorator Registry migration (Caminho C, ADR 0007):** PR #1-#3 stacked — class/method/param decorators now flow through `DecoratorRegistry`. `find_param_decorator` deleted, `extract_single_decorator` deleted, `class_name.ends_with("Controller")` heuristic deleted, `unwrap_or` removed from generated status-code emission.
+
 **Milestone:** Multi-module NestJS project transpiles, compiles, and serves correct HTTP responses.
-**Status:** 195 tests (81 equivalence + 49 unit + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 5 E2E/build + 1 trybuild + 1 skipped)
+**Status:** 230 tests (95 equivalence + 49 unit + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 5 E2E/build + 1 trybuild + 1 skipped + new registry/handler isolation tests)
 **E2E:** `test_http_equivalence_rust_server` — transpile → compile → start server → verify GET responses
+
+**In flight (PR #5 of decorator registry):** empirical proof — implement `@Headers` purely via `decorators/params.rs` + one `register_param` line; touching zero legacy files.
