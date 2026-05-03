@@ -127,7 +127,7 @@ import { Controller, Get, Headers } from "@nestjs/common";
 @Controller("/echo")
 class EchoController {
     @Get("/")
-    echo(@Headers() headers: any): string {
+    echo(@Headers() headers: Record<string, string>): string {
         return "ok";
     }
 }
@@ -153,7 +153,7 @@ import { Controller, Get, Headers, Param } from "@nestjs/common";
 @Controller("/echo")
 class EchoController {
     @Get("/:id")
-    echo(@Param("id") id: string, @Headers() headers: any): string {
+    echo(@Param("id") id: string, @Headers() headers: Record<string, string>): string {
         return id;
     }
 }
