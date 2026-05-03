@@ -3,13 +3,15 @@ mod getter_setter;
 mod method;
 mod mutation;
 mod routing;
+mod state_field;
 
 use quote::{format_ident, quote};
 use swc_ecma_ast::{ClassDecl, ClassMember, Constructor};
 
 use super::helpers::to_snake_case;
 use super::interface::RustGenerator;
-use super::type_mapper::{is_optional_type, map_ts_type};
+use super::type_mapper::map_ts_type;
+use state_field::wrap_state_field_type;
 
 impl RustGenerator {
     pub fn process_class_decl(&mut self, n: &ClassDecl) {
@@ -75,7 +77,7 @@ impl RustGenerator {
         for member in &n.class.body {
             if let ClassMember::ClassProp(prop) = member {
                 if let Some((field_tokens, name, is_opt, is_dep, type_str)) =
-                    self.convert_prop(prop, &generic_params, is_service_or_controller)
+                    state_field::convert_prop(self, prop, &generic_params, is_service_or_controller)
                 {
                     fields.push(field_tokens);
                     class_fields_meta.push((name.clone(), is_opt));
@@ -136,8 +138,8 @@ impl RustGenerator {
                         let field_name = format_ident!("{}", to_snake_case(&field_name_str));
 
                         let type_ann = ident.type_ann.as_ref();
-                        let mut field_type = map_ts_type(type_ann);
-                        let raw_type_str = field_type.to_string();
+                        let inner_type = map_ts_type(type_ann);
+                        let raw_type_str = inner_type.to_string();
 
                         // Only wrap in Arc for NestJS service/controller DI
                         let is_dependency = is_service_or_controller
@@ -147,16 +149,17 @@ impl RustGenerator {
                             );
 
                         if is_dependency {
-                            field_type = quote! { std::sync::Arc<#field_type> };
                             dependency_fields.insert(field_name_str.clone());
                         } else if is_service_or_controller {
-                            // State field: Wrap in Arc<Mutex<T>> for Interior Mutability
-                            field_type = quote! { std::sync::Arc<std::sync::Mutex<#field_type>> };
                             self.current_class_state_fields
                                 .insert(field_name_str.clone(), raw_type_str);
-                        } else {
-                            // DTO field: Raw type, no mutex
                         }
+
+                        let field_type = wrap_state_field_type(
+                            &inner_type,
+                            is_dependency,
+                            is_service_or_controller,
+                        );
 
                         fields.push(quote! { pub #field_name: #field_type });
                     }
@@ -322,56 +325,5 @@ impl RustGenerator {
 
         self.code.push_str(&impl_block.to_string());
         self.code.push('\n');
-    }
-
-    fn convert_prop(
-        &self,
-        prop: &swc_ecma_ast::ClassProp,
-        generic_params: &std::collections::HashSet<String>,
-        is_service_or_controller: bool,
-    ) -> Option<(proc_macro2::TokenStream, String, bool, bool, String)> {
-        let field_name_str = if let Some(ident) = prop.key.as_ident() {
-            ident.sym.to_string()
-        } else {
-            return None;
-        };
-        let field_name = format_ident!("{}", to_snake_case(&field_name_str));
-        let mut field_type = map_ts_type(prop.type_ann.as_ref());
-
-        // Capture the raw inner type string before wrapping in Option/Arc
-        let raw_type_str = field_type.to_string();
-
-        let is_dependency = is_service_or_controller
-            && super::class::constructor::is_dependency_type(
-                prop.type_ann.as_deref(),
-                generic_params,
-            );
-
-        if is_dependency {
-            field_type = quote! { std::sync::Arc<#field_type> };
-        } else if is_service_or_controller {
-            // State field: Wrap in Arc<Mutex<T>> ONLY for services/controllers
-            field_type = quote! { std::sync::Arc<std::sync::Mutex<#field_type>> };
-        } else {
-            // DTO/Entity field: Keep raw type (or map type normally)
-        }
-
-        let is_optional_union = is_optional_type(prop.type_ann.as_deref());
-        let is_effectively_optional = prop.is_optional || is_optional_union;
-
-        if prop.is_optional {
-            // If it's optional via `?`, we wrap in Option.
-            field_type = quote! { Option<#field_type> };
-        }
-
-        Some((
-            quote! {
-                pub #field_name: #field_type
-            },
-            field_name_str,
-            is_effectively_optional,
-            is_dependency,
-            raw_type_str,
-        ))
     }
 }
