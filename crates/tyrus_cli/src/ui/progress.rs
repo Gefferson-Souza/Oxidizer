@@ -45,6 +45,9 @@ impl Pipeline {
     }
 }
 
+// Why allowed: spinner helper exported for the upcoming parallel-task
+// progress surface. Sibling of progress() / success() / failure(); removing
+// would force re-introducing it on first user of indeterminate progress.
 #[allow(dead_code)]
 pub(crate) fn spinner(msg: &str) -> ProgressBar {
     let pb = ProgressBar::new_spinner();
