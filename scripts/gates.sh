@@ -23,7 +23,9 @@
 #   TYRUS_SKIP_DENY=1      Skip cargo deny check (use only when tool unavailable).
 #   TYRUS_SKIP_AUDIT=1     Skip cargo audit (use only when tool unavailable).
 #   TYRUS_SKIP_COVERAGE=1  Skip cargo llvm-cov coverage check (e.g. fast pre-commit path).
-#   TYRUS_COVERAGE_MIN     Override the minimum line-coverage % (default: 80).
+#   TYRUS_COVERAGE_MIN     Override the minimum line-coverage %
+#                          (default: 73 — the 2026-05-03 baseline floor;
+#                           ramp-up to 80 tracked in issue #163).
 #
 # Exit code: 0 on all gates pass, non-zero on first failure.
 
@@ -64,30 +66,46 @@ gate_coverage() {
         return 0
     fi
     echo "=== gate: coverage ==="
-    # Rule 5 enforcement (POWER_OF_TEN.md): workspace line coverage threshold.
-    # Threshold is configurable via TYRUS_COVERAGE_MIN (default 73, the
-    # 2026-05-03 baseline floor; ramp-up to 80 is tracked alongside the
-    # equivalence-test sprint #154). Test harness, benchmarks, and
-    # test-utils crates are excluded from the denominator — they are
-    # infrastructure, not product code.
+    if ! command -v cargo-llvm-cov >/dev/null 2>&1; then
+        echo "ERROR: cargo-llvm-cov is not installed."
+        echo "Install with: cargo install cargo-llvm-cov"
+        echo "Or skip this gate locally with: TYRUS_SKIP_COVERAGE=1"
+        return 1
+    fi
+    # Rule 5 enforcement (POWER_OF_TEN.md): workspace line coverage
+    # threshold. Configurable via TYRUS_COVERAGE_MIN (default tracks the
+    # 2026-05-03 baseline floor — see issue #163 for ramp-up to 80%).
+    # Benchmarks and `tyrus_test_utils` are excluded from the
+    # denominator. The `--ignore-filename-regex` matches against the
+    # *absolute path* of each source file (NOT the relative path
+    # displayed in the report), so each fragment is anchored on `/`
+    # rather than on a leading `^`.
     #
-    # Multi-step invocation rationale: integration tests in `tests/src/cli.rs`
-    # use `assert_cmd::Command::cargo_bin("tyrus")`, which expects the
-    # `tyrus` binary inside `target/llvm-cov-target/debug/`. A plain
-    # `cargo llvm-cov nextest` builds test binaries but not the bin —
-    # CLI tests then fail with NotFoundError. Splitting the run into
-    # (1) clean profraw, (2) `--no-report run --bin tyrus` to populate
-    # the binary, (3) `--no-report nextest --workspace` for tests, and
-    # (4) a final `report` for threshold enforcement keeps both worlds
-    # consistent.
+    # Multi-step invocation rationale: integration tests in
+    # `tests/src/cli.rs` use `assert_cmd::Command::cargo_bin("tyrus")`,
+    # which expects the `tyrus` binary inside
+    # `target/llvm-cov-target/debug/`. A plain `cargo llvm-cov nextest`
+    # builds test binaries but not the bin — CLI tests then fail with
+    # NotFoundError. Splitting the run into
+    # (1) clean profraw,
+    # (2) `--no-report run --bin tyrus` to populate the binary,
+    # (3) `--no-report nextest --workspace` for tests, and
+    # (4) a final `report` for threshold enforcement
+    # keeps both worlds consistent.
     threshold="${TYRUS_COVERAGE_MIN:-73}"
-    cargo llvm-cov clean --workspace --profraw-only
+    # `--profraw-only` is incompatible with `--workspace` (cargo-llvm-cov
+    # warns and ignores the latter). Cleaning at the workspace target
+    # is implicit, so `--profraw-only` alone is correct.
+    cargo llvm-cov clean --profraw-only
     cargo llvm-cov --no-report run --bin tyrus -- --version > /dev/null
     cargo llvm-cov --no-report nextest --workspace
+    # `--summary-only` only takes effect with structured output
+    # (--json/--lcov/--cobertura). For the human-readable text report
+    # we rely on `--fail-under-lines` for the gate signal; the per-file
+    # table is informative for the contributor and forwarded by CI.
     cargo llvm-cov report \
         --fail-under-lines "$threshold" \
-        --ignore-filename-regex '^tests/|^crates/.*test_utils/|^crates/.*/benches/' \
-        --summary-only
+        --ignore-filename-regex '/tyrus_test_utils/|/benches/'
 }
 
 gate_deny() {
