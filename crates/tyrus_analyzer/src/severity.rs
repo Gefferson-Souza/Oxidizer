@@ -47,6 +47,8 @@ impl Diagnostic {
         }
     }
 
+    // Why allowed: API surface companion to Self::error / Self::warning.
+    // Kept public for future Info-level diagnostics; no callers yet.
     #[allow(dead_code)]
     pub fn info(code: &str, message: &str) -> Self {
         Self {

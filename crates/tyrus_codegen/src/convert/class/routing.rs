@@ -271,6 +271,11 @@ impl RustGenerator {
 
     /// Emits controller-specific code: `FromRequestParts` impl, router method,
     /// and records the controller metadata.
+    // Why allowed: Axum router emission threads multiple unrelated context
+    // inputs (struct ident, class metadata, controller info, route table,
+    // impl-items accumulator). Rule 4 trade-off explicitly acknowledged;
+    // refactor to a `RoutingCtx` struct is tracked in #153 (file split of
+    // routing.rs). Until then, the override is the smaller compromise.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn emit_controller_routing(
         &mut self,
