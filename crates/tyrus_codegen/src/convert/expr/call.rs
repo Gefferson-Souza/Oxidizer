@@ -12,6 +12,8 @@ use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
 
 impl RustGenerator {
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth via convert_expr on
+    // callee + args (Rule 1, POWER_OF_TEN.md).
     pub(crate) fn convert_call_expr(&self, call: &CallExpr) -> TokenStream {
         // Try stdlib handlers first
         if let Some(stdlib_code) =

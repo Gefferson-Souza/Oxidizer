@@ -39,6 +39,7 @@ fn ensure_block(stmt: &Stmt, tokens: TokenStream) -> TokenStream {
 }
 
 impl RustGenerator {
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub(crate) fn convert_while_stmt(&self, while_stmt: &WhileStmt) -> TokenStream {
         let test = self.convert_expr(&while_stmt.test);
         let body = self.convert_stmt(&while_stmt.body);
@@ -46,6 +47,7 @@ impl RustGenerator {
         quote! { while #test #body_block }
     }
 
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub(crate) fn convert_for_of_stmt(&self, for_of: &ForOfStmt) -> TokenStream {
         let body = self.convert_stmt(&for_of.body);
         let right = self.convert_expr(&for_of.right);
@@ -54,6 +56,7 @@ impl RustGenerator {
         quote! { for #var_ident in #right #body_block }
     }
 
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub(crate) fn convert_for_in_stmt(&self, for_in: &ForInStmt) -> TokenStream {
         let body = self.convert_stmt(&for_in.body);
         let right = self.convert_expr(&for_in.right);
@@ -62,6 +65,7 @@ impl RustGenerator {
         quote! { for #var_ident in #right.keys() #body_block }
     }
 
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub(crate) fn convert_for_stmt(&self, for_stmt: &ForStmt) -> TokenStream {
         let init = match &for_stmt.init {
             Some(swc_ecma_ast::VarDeclOrExpr::VarDecl(var_decl)) => {
@@ -106,6 +110,7 @@ impl RustGenerator {
         }
     }
 
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub(crate) fn convert_do_while_stmt(&self, do_while: &DoWhileStmt) -> TokenStream {
         let test = self.convert_expr(&do_while.test);
         let body = self.convert_stmt(&do_while.body);
