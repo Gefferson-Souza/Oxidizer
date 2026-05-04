@@ -5,6 +5,7 @@
 mod arrow;
 mod binary;
 mod call;
+mod call_array;
 mod literal;
 mod member;
 mod misc;
