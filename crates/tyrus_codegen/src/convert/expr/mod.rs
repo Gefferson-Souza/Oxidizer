@@ -32,6 +32,7 @@ use super::interface::RustGenerator;
 
 impl RustGenerator {
     /// Main expression dispatcher — routes each expression type to its handler.
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub fn convert_expr(&self, expr: &Expr) -> TokenStream {
         match expr {
             Expr::Bin(bin) => self.convert_bin_expr(bin),

@@ -31,6 +31,7 @@ fn nestjs_exception_to_app_error(class_name: &str) -> Option<&'static str> {
 impl RustGenerator {
     /// Recursively convert statements with a custom return handler.
     /// Used by process_fn_decl to inject Result wrapping for async functions.
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub fn convert_stmt_recursive<F>(&self, stmt: &Stmt, return_handler: &mut F) -> TokenStream
     where
         F: FnMut(&swc_ecma_ast::ReturnStmt) -> TokenStream,
@@ -73,6 +74,7 @@ impl RustGenerator {
     }
 
     /// Convert a single TypeScript statement to Rust tokens.
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub fn convert_stmt(&self, stmt: &Stmt) -> TokenStream {
         match stmt {
             Stmt::Return(ret_stmt) => {
