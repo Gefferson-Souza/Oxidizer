@@ -16,6 +16,7 @@
 #   ./scripts/gates.sh clippy      # cargo clippy --workspace --all-targets -D warnings
 #   ./scripts/gates.sh test        # cargo nextest run --workspace --all-targets
 #   ./scripts/gates.sh coverage    # cargo llvm-cov nextest --workspace --fail-under-lines <threshold>
+#   ./scripts/gates.sh filesize    # enforce Rule 4 file ceiling (≤ 400 lines per .rs)
 #   ./scripts/gates.sh deny        # cargo deny check
 #   ./scripts/gates.sh audit       # cargo audit --deny warnings
 #
@@ -23,7 +24,10 @@
 #   TYRUS_SKIP_DENY=1      Skip cargo deny check (use only when tool unavailable).
 #   TYRUS_SKIP_AUDIT=1     Skip cargo audit (use only when tool unavailable).
 #   TYRUS_SKIP_COVERAGE=1  Skip cargo llvm-cov coverage check (e.g. fast pre-commit path).
-#   TYRUS_COVERAGE_MIN     Override the minimum line-coverage % (default: 80).
+#   TYRUS_SKIP_FILESIZE=1  Skip the Rule 4 file ceiling check.
+#   TYRUS_COVERAGE_MIN     Override the minimum line-coverage %
+#                          (default: 73 — the 2026-05-03 baseline floor;
+#                           ramp-up to 80 tracked in issue #163).
 #
 # Exit code: 0 on all gates pass, non-zero on first failure.
 
@@ -90,6 +94,63 @@ gate_coverage() {
         --summary-only
 }
 
+gate_filesize() {
+    if [ "${TYRUS_SKIP_FILESIZE:-0}" = "1" ]; then
+        echo "=== gate: filesize (SKIPPED via TYRUS_SKIP_FILESIZE=1) ==="
+        return 0
+    fi
+    echo "=== gate: filesize ==="
+    # Rule 4 (POWER_OF_TEN.md) file ceiling: ≤ 400 lines per `.rs` file
+    # under `crates/`. ADR 0008 also names a 800-line hard cap. Pre-existing
+    # soft-cap violations are allowlisted (tracked in issue #153 — refactor);
+    # they still fail if they cross the hard cap. New files must respect
+    # the soft cap.
+    soft_cap=400
+    hard_cap=800
+
+    # Allowlisted soft-cap violators (tracked in #153). Files in this
+    # set may exceed the 400-line soft cap but never the 800-line hard cap.
+    allowlist_pattern='/convert/class/constructor\.rs$|/convert/interface\.rs$'
+
+    # "<lines> <path>" for every .rs file under crates/, descending.
+    all=$(find crates -type f -name '*.rs' -print0 \
+        | xargs -0 wc -l \
+        | awk '$2 != "total" {print $1, $2}' \
+        | sort -rn)
+
+    fail=0
+
+    # Hard cap violations are always fatal.
+    hard=$(echo "$all" | awk -v cap="$hard_cap" '$1 > cap')
+    if [ -n "$hard" ]; then
+        echo "FAIL: Rule 4 hard cap (> $hard_cap lines) violations:"
+        echo "$hard" | sed 's/^/  /'
+        fail=1
+    fi
+
+    # Soft cap violations: fatal unless the file is on the allowlist.
+    soft=$(echo "$all" | awk -v lo="$soft_cap" -v hi="$hard_cap" '$1 > lo && $1 <= hi')
+    if [ -n "$soft" ]; then
+        non_allowed=$(echo "$soft" | grep -vE "$allowlist_pattern" || true)
+        allowed=$(echo "$soft" | grep -E "$allowlist_pattern" || true)
+        if [ -n "$non_allowed" ]; then
+            echo "FAIL: Rule 4 soft cap (> $soft_cap lines) violations:"
+            echo "$non_allowed" | sed 's/^/  /'
+            fail=1
+        fi
+        if [ -n "$allowed" ]; then
+            echo "Allowlisted soft-cap warnings (tracked in #153):"
+            echo "$allowed" | sed 's/^/  /'
+        fi
+    fi
+
+    if [ "$fail" -eq 0 ] && [ -z "$soft" ]; then
+        echo "All .rs files under crates/ are at or below $soft_cap lines."
+    fi
+
+    return "$fail"
+}
+
 gate_deny() {
     if [ "${TYRUS_SKIP_DENY:-0}" = "1" ]; then
         echo "=== gate: deny (SKIPPED via TYRUS_SKIP_DENY=1) ==="
@@ -122,11 +183,13 @@ case "$cmd" in
     clippy)   gate_clippy ;;
     test)     gate_test ;;
     coverage) gate_coverage ;;
+    filesize) gate_filesize ;;
     deny)     gate_deny ;;
     audit)    gate_audit ;;
     all)
         gate_fmt
         gate_clippy
+        gate_filesize
         gate_test
         gate_coverage
         gate_deny
