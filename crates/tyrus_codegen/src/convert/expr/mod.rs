@@ -75,10 +75,12 @@ impl RustGenerator {
         }
     }
 
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub fn convert_expr_or_spread(&self, arg: &ExprOrSpread) -> TokenStream {
         self.convert_expr(&arg.expr)
     }
 
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     fn convert_cond_expr(&self, cond: &swc_ecma_ast::CondExpr) -> TokenStream {
         let test = self.convert_expr(&cond.test);
         let cons = self.convert_expr(&cond.cons);
@@ -86,6 +88,7 @@ impl RustGenerator {
         quote! { if #test { #cons } else { #alt } }
     }
 
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     fn convert_new_expr(&self, new_expr: &NewExpr) -> TokenStream {
         if let Expr::Ident(ident) = &*new_expr.callee {
             match ident.sym.as_ref() {
