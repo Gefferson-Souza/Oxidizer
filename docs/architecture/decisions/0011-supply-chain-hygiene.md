@@ -44,24 +44,33 @@ The list is duplicated between `deny.toml` (`[advisories].ignore`) and `scripts/
 
 Adding an entry requires: (a) a comment explaining the analysis, (b) a tracking issue or this ADR, (c) a planned upgrade path (not "indefinitely ignored"). Zero-justification ignores are forbidden.
 
-### Policy 3 — Dependabot grouping
+### Policy 3 — Dependabot grouping and cadence
 
-`dependabot.yml` groups updates to reduce PR noise:
+`.github/dependabot.yml` runs three update streams:
 
-- **`cargo`** ecosystem — weekly schedule, all path-internal cargo deps grouped, all external cargo deps grouped separately.
-- **`github-actions`** — weekly, single group.
-- **`npm`** (test fixtures only) — weekly, single group.
+- **`cargo`** — weekly (Monday), max 5 open PRs. Two groups:
+  - `swc` — pattern `swc_*` (the SWC family version-locks, so a single grouped bump reviews better than per-crate noise).
+  - `dev-dependencies` — `dependency-type: development` (test/bench-only updates do not affect runtime).
+  - Everything else (production dependencies outside the SWC family) updates as individual PRs so semver-incompatible bumps are reviewed in isolation.
+- **`github-actions`** — weekly (Monday), max 3 PRs, **no grouping** (the action ecosystem changes slowly enough that single-PR review is fine).
+- **`npm`** — **monthly**, max 2 PRs, scoped to `tests/fixtures/reference_nestjs/` (the reference NestJS fixture, used for E2E equivalence). Slower cadence because the fixture pins a stable NestJS surface intentionally.
 
-Rationale: ungrouped Dependabot floods with one PR per dep per week, masking semver-incompatible bumps in noise. Grouping cuts review surface ~10×. CI re-runs catch the regressions; the grouping is review-side, not gate-side.
+Rationale: ungrouped weekly Dependabot floods with one PR per dep, masking semver-incompatible bumps in noise. Targeted grouping (SWC family + dev-deps) cuts cargo review surface meaningfully without hiding production bumps. The npm monthly cadence keeps the test fixture tracking the broader ecosystem without thrashing it.
 
 ### Policy 4 — CODEOWNERS membership
 
-`CODEOWNERS` routes review approval per path:
+`CODEOWNERS` (at the repo root) routes review approval per path. The current rule set:
 
-- Root + `docs/standards/` + `docs/architecture/decisions/` → maintainer (current solo).
-- Per-crate ownership inherits from root until a contributor demonstrates sustained ownership of a crate (≥ 3 reviewed PRs, ≥ 6 months active).
+- `*` → maintainer (catch-all).
+- `/crates/tyrus_codegen/`, `/crates/tyrus_analyzer/`, `/crates/tyrus_decorator_kinds/`, `/crates/tyrus_di/` → maintainer (compiler-core extra scrutiny).
+- `/docs/architecture/decisions/`, `/docs/specs/` → maintainer (public-contract documents).
+- `/.github/`, `/.cargo/`, `/clippy.toml`, `/deny.toml`, `/release-plz.toml` → maintainer (anything that changes the gates).
 
-Rationale: as Tyrus accepts ML-agent and external contributions, gated review is the simplest enforcement of the strict rules. CODEOWNERS membership is itself an architectural decision (who can sign off on architectural changes) and changes via separate ADR.
+Per-crate ownership inherits from `*` until a contributor demonstrates sustained ownership of a crate (≥ 3 reviewed PRs, ≥ 6 months active). At that point, CODEOWNERS gains an additional reviewer for that crate via separate ADR.
+
+Rationale: as Tyrus accepts ML-agent and external contributions, gated review is the simplest enforcement of the strict rules. The compiler-core and gates-changing surfaces are explicitly carved out so they can never be approved by a less-scoped contributor accidentally.
+
+> **Note.** `docs/standards/POWER_OF_TEN.md` is not currently routed via CODEOWNERS — it lives under `/docs/standards/` which has no rule. The `*` catch-all covers it. A follow-up could add an explicit `/docs/standards/` rule to mirror the `/docs/architecture/decisions/` carve-out, but that is a CODEOWNERS edit, not an ADR-level decision.
 
 ## Consequences
 
