@@ -38,15 +38,36 @@ We use [Conventional Commits](https://www.conventionalcommits.org/).
 ## 🚀 Pull Request Process
 
 1.  Create a branch complying with the strategy above.
-2.  Ensure tests pass locally: `cargo nextest run --workspace`
-3.  Run the full clippy suite and fix all warnings:
+2.  Run **all** local gates (single command — same script CI runs):
     ```bash
-    cargo clippy --workspace -- -D warnings -W clippy::unwrap_used -W clippy::expect_used -W clippy::panic
+    ./scripts/gates.sh all
     ```
-4.  Run formatter: `cargo fmt -- --check`
-5.  Open a PR to `main`.
-6.  Fill out the **PR Template** completely.
-7.  Wait for CI checks to pass and request review.
+    This covers fmt, clippy, tests, coverage (≥ 80%), `cargo deny`, and `cargo audit`. See `docs/standards/POWER_OF_TEN.md` Rule 9 (Local-First Validation Parity).
+3.  Open a PR to `main`.
+4.  Fill out the **PR Template** completely.
+5.  Wait for CI checks to pass and request review.
+
+### Local coverage check (Rule 5)
+
+The `coverage` gate uses `cargo-llvm-cov` to enforce the workspace line-coverage threshold. The current default is **73%** (the 2026-05-03 baseline floor); ramp-up to 80% is tracked with the equivalence-test sprint (#154).
+
+Install once:
+
+```bash
+cargo install cargo-llvm-cov
+```
+
+Then run on demand:
+
+```bash
+./scripts/gates.sh coverage                          # uses default 73% threshold
+TYRUS_COVERAGE_MIN=80 ./scripts/gates.sh coverage    # one-off stricter check
+TYRUS_SKIP_COVERAGE=1 ./scripts/gates.sh all         # skip in slow paths only
+```
+
+Test infrastructure (`tests/`, `crates/*/test_utils`, `crates/*/benches`) is excluded from the denominator so the threshold reflects product code coverage only.
+
+Internally, `gate_coverage` runs as four steps (`clean` → `run --bin tyrus` → `nextest --workspace` → `report`) because CLI integration tests under `tests/src/cli.rs` use `assert_cmd::cargo_bin("tyrus")` and need the binary present inside the llvm-cov target dir.
 
 ## 🧪 Test Infrastructure
 

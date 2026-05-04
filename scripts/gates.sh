@@ -10,17 +10,20 @@
 # mandates this single-source design. Adopted via ADR 0008.
 #
 # Usage:
-#   ./scripts/gates.sh           # run all gates
-#   ./scripts/gates.sh all       # same as above
-#   ./scripts/gates.sh fmt       # cargo fmt --check
-#   ./scripts/gates.sh clippy    # cargo clippy --workspace --all-targets -D warnings
-#   ./scripts/gates.sh test      # cargo nextest run --workspace --all-targets
-#   ./scripts/gates.sh deny      # cargo deny check
-#   ./scripts/gates.sh audit     # cargo audit --deny warnings
+#   ./scripts/gates.sh             # run all gates
+#   ./scripts/gates.sh all         # same as above
+#   ./scripts/gates.sh fmt         # cargo fmt --check
+#   ./scripts/gates.sh clippy      # cargo clippy --workspace --all-targets -D warnings
+#   ./scripts/gates.sh test        # cargo nextest run --workspace --all-targets
+#   ./scripts/gates.sh coverage    # cargo llvm-cov nextest --workspace --fail-under-lines <threshold>
+#   ./scripts/gates.sh deny        # cargo deny check
+#   ./scripts/gates.sh audit       # cargo audit --deny warnings
 #
 # Environment variables:
-#   TYRUS_SKIP_DENY=1   Skip cargo deny check (use only when tool unavailable).
-#   TYRUS_SKIP_AUDIT=1  Skip cargo audit (use only when tool unavailable).
+#   TYRUS_SKIP_DENY=1      Skip cargo deny check (use only when tool unavailable).
+#   TYRUS_SKIP_AUDIT=1     Skip cargo audit (use only when tool unavailable).
+#   TYRUS_SKIP_COVERAGE=1  Skip cargo llvm-cov coverage check (e.g. fast pre-commit path).
+#   TYRUS_COVERAGE_MIN     Override the minimum line-coverage % (default: 80).
 #
 # Exit code: 0 on all gates pass, non-zero on first failure.
 
@@ -55,6 +58,38 @@ gate_test() {
     cargo nextest run --workspace
 }
 
+gate_coverage() {
+    if [ "${TYRUS_SKIP_COVERAGE:-0}" = "1" ]; then
+        echo "=== gate: coverage (SKIPPED via TYRUS_SKIP_COVERAGE=1) ==="
+        return 0
+    fi
+    echo "=== gate: coverage ==="
+    # Rule 5 enforcement (POWER_OF_TEN.md): workspace line coverage threshold.
+    # Threshold is configurable via TYRUS_COVERAGE_MIN (default 73, the
+    # 2026-05-03 baseline floor; ramp-up to 80 is tracked alongside the
+    # equivalence-test sprint #154). Test harness, benchmarks, and
+    # test-utils crates are excluded from the denominator — they are
+    # infrastructure, not product code.
+    #
+    # Multi-step invocation rationale: integration tests in `tests/src/cli.rs`
+    # use `assert_cmd::Command::cargo_bin("tyrus")`, which expects the
+    # `tyrus` binary inside `target/llvm-cov-target/debug/`. A plain
+    # `cargo llvm-cov nextest` builds test binaries but not the bin —
+    # CLI tests then fail with NotFoundError. Splitting the run into
+    # (1) clean profraw, (2) `--no-report run --bin tyrus` to populate
+    # the binary, (3) `--no-report nextest --workspace` for tests, and
+    # (4) a final `report` for threshold enforcement keeps both worlds
+    # consistent.
+    threshold="${TYRUS_COVERAGE_MIN:-73}"
+    cargo llvm-cov clean --workspace --profraw-only
+    cargo llvm-cov --no-report run --bin tyrus -- --version > /dev/null
+    cargo llvm-cov --no-report nextest --workspace
+    cargo llvm-cov report \
+        --fail-under-lines "$threshold" \
+        --ignore-filename-regex '^tests/|^crates/.*test_utils/|^crates/.*/benches/' \
+        --summary-only
+}
+
 gate_deny() {
     if [ "${TYRUS_SKIP_DENY:-0}" = "1" ]; then
         echo "=== gate: deny (SKIPPED via TYRUS_SKIP_DENY=1) ==="
@@ -83,15 +118,17 @@ gate_audit() {
 
 cmd="${1:-all}"
 case "$cmd" in
-    fmt)    gate_fmt ;;
-    clippy) gate_clippy ;;
-    test)   gate_test ;;
-    deny)   gate_deny ;;
-    audit)  gate_audit ;;
+    fmt)      gate_fmt ;;
+    clippy)   gate_clippy ;;
+    test)     gate_test ;;
+    coverage) gate_coverage ;;
+    deny)     gate_deny ;;
+    audit)    gate_audit ;;
     all)
         gate_fmt
         gate_clippy
         gate_test
+        gate_coverage
         gate_deny
         gate_audit
         echo ""
