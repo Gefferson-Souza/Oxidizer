@@ -12,6 +12,7 @@ use crate::convert::helpers::is_string_expr;
 use crate::convert::interface::RustGenerator;
 
 impl RustGenerator {
+    // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
     pub(crate) fn convert_bin_expr(&self, bin: &BinExpr) -> TokenStream {
         match bin.op {
             BinaryOp::Add => {
@@ -59,6 +60,7 @@ impl RustGenerator {
 /// `a + b + c + d` → [convert(a), convert(b), convert(c), convert(d)]
 /// instead of nested format!("{}{}", format!("{}{}", ...), d)
 /// Once we know we're inside a string concat chain, ALL child Add nodes are string parts.
+// Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
 fn collect_string_concat_parts(gen: &RustGenerator, expr: &Expr, parts: &mut Vec<TokenStream>) {
     if let Expr::Bin(bin) = expr {
         if bin.op == BinaryOp::Add {

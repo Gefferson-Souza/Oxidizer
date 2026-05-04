@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Documentation
+
+- **ADR 0009 — Mutex Re-entrance Protocol.** Backfill for PR #141. Documents the block-scoped read pattern and read-then-write split used in generated `@Injectable` state-field code.
+- **ADR 0010 — Formatter Contract.** Backfill for PR #142. Specifies idempotence, error-propagation, and no-bypass guarantees for `tyrus_orchestrator::format::format_code`.
+- **ADR 0011 — Supply-Chain Hygiene Policy.** Backfill for PR #126. Numbered policies for license allowlist, advisory ignore list, dependabot grouping, and CODEOWNERS.
+- **POWER_OF_TEN.md Rule 10** — added backfill footnote referencing ADRs 0009/0010/0011.
+- **ARCHITECTURE.md** — new "Architectural Decision Records" index section.
+
 ## [0.1.0] — 2026-05-02
 
 ### Added — Decorator Registry (Caminho C, ADR 0007)
