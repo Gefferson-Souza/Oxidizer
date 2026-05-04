@@ -9,6 +9,9 @@ fn workspace_root() -> &'static Path {
 }
 
 fn tyrus_cmd() -> Command {
+    // Why allowed: `assert_cmd` 2.x deprecates `Command::cargo_bin` but the
+    // suggested replacement (`cargo_bin_str`) is not yet stable on our pinned
+    // version. Test-only call; migration tracked alongside `assert_cmd` bump.
     #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("tyrus").expect("tyrus binary not found");
     cmd.current_dir(workspace_root());
