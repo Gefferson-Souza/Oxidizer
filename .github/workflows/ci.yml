@@ -87,9 +87,10 @@ jobs:
   # Coverage — Rule 5 (POWER_OF_TEN.md) enforcement via cargo-llvm-cov.
   # Runs in parallel with `bench` after `build` succeeds. Workspace line
   # coverage must stay at or above the threshold configured in
-  # `scripts/gates.sh::gate_coverage` (default 80%, override via
-  # TYRUS_COVERAGE_MIN). The coverage gate ignores test/bench infra so the
-  # denominator only counts product code.
+  # `scripts/gates.sh::gate_coverage` (default 73%, override via
+  # TYRUS_COVERAGE_MIN). Ramp-up to 80% tracked in issue #163. The
+  # coverage gate ignores test/bench infra (`tyrus_test_utils`,
+  # `*/benches/`) so the denominator only counts product code.
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
@@ -99,7 +100,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
+      # Namespace the rust-cache key so coverage-instrumented artifacts
+      # don't share storage with the regular `build`/`test` jobs.
+      # Mixing instrumented and non-instrumented `target/` confuses
+      # incremental builds and silently invalidates the cache.
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: coverage
+          cache-directories: target/llvm-cov-target
 
       - name: Setup Node.js 22 (for semantic equivalence tests)
         uses: actions/setup-node@v4
@@ -114,10 +122,10 @@ jobs:
       - name: Run coverage gate (gates.sh)
         run: ./scripts/gates.sh coverage
         env:
-          # Initial threshold = 2026-05-03 baseline floor (73.61% rounded
-          # down to 73). Ramp-up to 80 tracked with the Sprint 3
-          # equivalence-test work (#154); raise this number in the PR
-          # that closes the gap.
+          # Threshold pinned to the 2026-05-03 baseline floor.
+          # Ramp-up to 80 is tracked in issue #163 alongside the
+          # Sprint 3 equivalence-test work (#154); raise this number
+          # in the PR that closes the gap.
           TYRUS_COVERAGE_MIN: '73'
 
   # Benchmarks — run after tests pass, upload criterion HTML reports
