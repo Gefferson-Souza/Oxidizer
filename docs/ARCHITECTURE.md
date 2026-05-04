@@ -187,8 +187,27 @@ The project enforces strict correctness via:
 
 - **`.cargo/config.toml`:** `-Dwarnings` plus `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::todo`, `clippy::unimplemented` as hard errors.
 - **`clippy.toml`:** Cognitive complexity threshold 15, function lines threshold 50, max 5 parameters.
-- **`deny.toml`:** Dependency license and security audit via `cargo-deny`.
+- **`deny.toml`:** Dependency license and security audit via `cargo-deny` (see [ADR 0011](architecture/decisions/0011-supply-chain-hygiene.md)).
 - **CI:** GitHub Actions with `actions/checkout@v4`, `Swatinem/rust-cache@v2`, `cargo nextest`, and end-to-end demo compilation verification.
+
+---
+
+## Architectural Decision Records
+
+Numbered ADRs under [`docs/architecture/decisions/`](architecture/decisions/) are the binding record of architectural choices. Most-recent-first:
+
+- [ADR 0011 — Supply-Chain Hygiene Policy](architecture/decisions/0011-supply-chain-hygiene.md) — license allowlist, advisory ignore list, dependabot grouping, CODEOWNERS (PR #126 backfill).
+- [ADR 0010 — Formatter Contract](architecture/decisions/0010-formatter-contract.md) — idempotence, error-propagation, no-bypass guarantees for `tyrus_orchestrator::format` (PR #142 backfill).
+- [ADR 0009 — Mutex Re-entrance Protocol](architecture/decisions/0009-mutex-re-entrance-protocol.md) — block-scoped read + read-then-write split for `@Injectable` state fields (PR #141 backfill).
+- [ADR 0008 — Tyrus Strict Rules (Power of Ten)](architecture/decisions/0008-tyrus-strict-rules.md) — adoption of the 12-rule contribution standard.
+- [ADR 0007 — Decorator Registry](architecture/decisions/0007-decorator-registry.md) — trait-based handler registry replacing scattered string-compare match arms.
+- [ADR 0006 — Safe Transpilation Infrastructure](architecture/decisions/0006-safe-transpilation-infrastructure.md)
+- [ADR 0005 — Codegen Module Decomposition](architecture/decisions/0005-codegen-module-decomposition.md)
+- [ADR 0004 — NestJS to Axum Mapping](architecture/decisions/0004-nestjs-to-axum.md)
+- [ADR 0003 — Generics Mapping](architecture/decisions/0003-generics-mapping.md)
+- [ADR 0002 — Async Transpilation](architecture/decisions/0002-async-transpilation.md)
+- [ADR 0001 — Stack and Monorepo](architecture/decisions/0001-stack-and-monorepo.md)
+- [ADR 0000 — Use Markdown ADR](architecture/decisions/0000-use-markdown-adr.md)
 
 ---
 

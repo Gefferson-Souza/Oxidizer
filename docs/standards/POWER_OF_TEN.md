@@ -159,6 +159,8 @@ cargo audit --deny warnings
 
 **Severity.** HIGH.
 
+> **Backfill 2026-05-03.** The `audit-2026-05-03` review identified three retroactive ADR gaps (PRs #126, #141, #142). Backfilled by ADRs [0009](../architecture/decisions/0009-mutex-re-entrance-protocol.md) (Mutex Protocol), [0010](../architecture/decisions/0010-formatter-contract.md) (Formatter Contract), [0011](../architecture/decisions/0011-supply-chain-hygiene.md) (Supply-Chain Hygiene). Going forward, ADRs are written *before* the implementation PR per this rule, not after.
+
 ---
 
 ### Rule 11 — One Branch = One Concern
