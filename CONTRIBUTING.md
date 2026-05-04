@@ -49,7 +49,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Local coverage check (Rule 5)
 
-The `coverage` gate uses `cargo-llvm-cov` to enforce the workspace line-coverage threshold. The current default is **73%** (the 2026-05-03 baseline floor); ramp-up to 80% is tracked with the equivalence-test sprint (#154).
+The `coverage` gate uses `cargo-llvm-cov` to enforce the workspace line-coverage threshold. The current default is **73%** (the 2026-05-03 baseline floor at 73.25% with test-infra excluded); ramp-up to 80% is tracked in [issue #163](https://github.com/Gefferson-Souza/Tyrus/issues/163) alongside the equivalence-test sprint (#154).
 
 Install once:
 
@@ -65,9 +65,16 @@ TYRUS_COVERAGE_MIN=80 ./scripts/gates.sh coverage    # one-off stricter check
 TYRUS_SKIP_COVERAGE=1 ./scripts/gates.sh all         # skip in slow paths only
 ```
 
-Test infrastructure (`tests/`, `crates/*/test_utils`, `crates/*/benches`) is excluded from the denominator so the threshold reflects product code coverage only.
+`tyrus_test_utils` and any `*/benches/` are excluded from the denominator (they are infrastructure, not product code). Integration tests under `tests/` do not appear in the coverage report at all (they are test runners, not target code).
 
-Internally, `gate_coverage` runs as four steps (`clean` → `run --bin tyrus` → `nextest --workspace` → `report`) because CLI integration tests under `tests/src/cli.rs` use `assert_cmd::cargo_bin("tyrus")` and need the binary present inside the llvm-cov target dir.
+Internally, `gate_coverage` runs as four steps:
+
+1. `cargo llvm-cov clean --profraw-only` — clear stale instrumentation
+2. `cargo llvm-cov --no-report run --bin tyrus -- --version` — build the `tyrus` binary into `target/llvm-cov-target/debug/` so CLI integration tests (`tests/src/cli.rs::assert_cmd::cargo_bin`) can find it
+3. `cargo llvm-cov --no-report nextest --workspace` — collect coverage data
+4. `cargo llvm-cov report --fail-under-lines $TYRUS_COVERAGE_MIN ...` — render report and enforce threshold
+
+`cargo-llvm-cov` must be installed locally (`cargo install cargo-llvm-cov`) — `gate_coverage` preflight-checks for it and prints an install hint if missing.
 
 ## 🧪 Test Infrastructure
 
