@@ -17,35 +17,49 @@ PR #141 (`b5af050`) closed both bugs by establishing a uniform emission protocol
 
 ## Decision
 
-Generated Rust for `@Injectable` state fields obeys two emission patterns. Both are implemented in `crates/tyrus_codegen/src/convert/expr/`:
+Generated Rust for `@Injectable` state fields obeys two emission patterns. Both are implemented in `crates/tyrus_codegen/src/convert/expr/`.
+
+The receiver token is selected by the codegen flag `RustGenerator::use_state_for_this`: handler bodies emitted under axum's `State<Arc<Self>>` pattern use `state.field`, while regular methods use `self.field`. Both paths obey the protocols below; the snippets show `self` for brevity.
+
+Every `.lock()` call uses `.unwrap_or_else(|e| e.into_inner())`, never `.unwrap()`. This is **poisoning-safe**: a panic on another thread that left the mutex poisoned is recovered (the inner value is still consistent because the codegen never holds a guard across a fallible operation). Rule 6 (no `.unwrap()` in production code) is satisfied while preserving the lock semantics.
 
 ### Pattern A — Block-scoped read
 
-Every read of `this.field` where `field` is a state-field expands to:
+Every read of `this.field` where `field` is a tracked state field expands to one of two forms, depending on whether the payload type is `Copy`:
 
 ```rust
-{ let __g = self.field.lock().unwrap(); *__g }
+// Copy payload (f64, bool, i32, usize, u64, i64): deref the guard.
+{ let __g = self.field.lock().unwrap_or_else(|e| e.into_inner()); *__g }
+
+// Non-Copy payload (String, Vec, etc.): clone via the guard.
+{ let __g = self.field.lock().unwrap_or_else(|e| e.into_inner()); __g.clone() }
 ```
 
-(or `.clone()` for non-`Copy` payloads). The guard `__g` is bound in an **inner block**, so Rust's drop scope ends at the closing `}` of that block — *before* the consuming expression evaluates the next subexpression. Two reads in the same statement therefore release each guard between reads.
+The guard `__g` is bound in an **inner block**, so Rust's drop scope ends at the closing `}` of that block — *before* the consuming expression evaluates the next subexpression. Two reads in the same statement therefore release each guard between reads.
 
-This is implemented in `convert_this_member` and propagated through `convert_member_expr` for every `Expr::Member` whose object resolves to `self` and whose property is registered in `current_class_state_fields`.
+This is implemented in `convert_this_member` (`convert/expr/member.rs`) and reached via `convert_member_expr` for every `Expr::Member` whose object resolves to `self`/`state` and whose property is registered in `current_class_state_fields`.
 
 ### Pattern B — Read-then-write split for compound writes
 
-Compound assignments and update expressions (`+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`, prefix/postfix `++`/`--`) on state fields expand into two statements:
+Compound assignments and update expressions (`+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`, prefix/postfix `++`/`--`) on state fields expand into a block holding two statements:
 
 ```rust
-let __cur = { let __g = self.field.lock().unwrap(); *__g };
-let __new = __cur <op> rhs;
-{ let mut __g = self.field.lock().unwrap(); *__g = __new; }
+{
+    let __new_val = #guarded_read <op> #rhs;
+    *self.field.lock().unwrap_or_else(|e| e.into_inner()) = __new_val;
+}
 ```
 
-The read guard drops at the `;` of its own `let`. The write guard drops at the `;` of the assign block. The operator is preserved (no silent reduction to `=`). Update expressions (`this.x++`) route through the same helper (`emit_state_field_assign`) for uniform semantics.
+`#guarded_read` is the inline form `{ let __g = self.field.lock().unwrap_or_else(|e| e.into_inner()); *__g }` (Pattern A's Copy form, since compound assigns operate on numeric state).
+
+The read guard drops at the `;` of the `let __new_val = …` line. The write guard drops at the `;` of the assignment line. The two locks therefore never coexist. The operator is preserved (no silent reduction to `=`). Update expressions (`this.x++`, `this.x--`) route through the same helper (`emit_state_field_assign`) for uniform semantics.
 
 ### Invariant
 
-For any generated function body emitted from a `&mut self` method on an `@Injectable` class, **at most one `MutexGuard` for any given state field is alive at any program point**. The compiler does not enforce this — codegen does. Any new emission path that touches state fields **must** route through the existing helpers (`emit_state_field_read`, `emit_state_field_assign`) or replicate the patterns above explicitly.
+For any generated function body emitted from a method on an `@Injectable` class, **at most one `MutexGuard` for any given state field is alive at any program point**. The compiler does not enforce this — codegen does. Any new emission path that touches state fields **must** either:
+
+- route through the existing helpers (`convert_this_member` for reads; `emit_state_field_assign` for compound writes), or
+- replicate the inline form (block-scoped guard + `.unwrap_or_else(|e| e.into_inner())`) explicitly, including the receiver dispatch on `use_state_for_this`.
 
 ## Consequences
 
@@ -57,9 +71,9 @@ For any generated function body emitted from a `&mut self` method on an `@Inject
 
 ### Negative
 
-- **Slight overhead.** Every state-field read costs a block scope and a deref vs the naive `self.field.lock().unwrap().clone()`. In practice negligible (the same guard acquisition is the dominant cost). Atomic state (#143) eliminates the overhead for `Copy` payloads.
+- **Slight overhead.** Every state-field read costs a block scope and a deref/clone vs the naive `self.field.lock()…`. In practice negligible (the lock acquisition is the dominant cost). Atomic state (#143) eliminates the overhead for `Copy` payloads.
 - **Snapshot churn.** PR #141 updated the tier4 NestJS controller and injectable-service snapshots to the guarded-block form. Future codegen tweaks affecting state reads will keep producing snapshot diffs.
-- **Codegen complexity.** The path from `Expr::Member { obj: This, prop: Ident }` to emitted tokens passes through three helpers and one tracked HashSet (`current_class_state_fields`). Anyone adding a new mutating expression (e.g., a hypothetical `Math.atomic_add`) must explicitly handle the state-field branch.
+- **Codegen complexity.** The path from `Expr::Member { obj: This, prop: Ident }` to emitted tokens passes through `convert_member_expr` → `convert_this_member` and consults a tracked HashMap (`current_class_state_fields`) plus a flag (`use_state_for_this`). Anyone adding a new mutating expression (e.g., a hypothetical `Math.atomic_add`) must explicitly handle the state-field branch and propagate the receiver dispatch.
 
 ## Alternatives rejected
 
@@ -70,6 +84,10 @@ For any generated function body emitted from a `&mut self` method on an `@Inject
 ## References
 
 - Originating PR: [#141](https://github.com/Gefferson-Souza/Tyrus/pull/141) (`b5af050`) — `fix(codegen): prevent mutex re-entrance on compound assigns and dual reads`. Closes #129.
-- Implementation: `crates/tyrus_codegen/src/convert/expr/member.rs`, `crates/tyrus_codegen/src/convert/expr/misc.rs`.
-- Regression tests: `tests/src/unit/state_mutation.rs` (8 tests).
+- Implementation:
+  - `crates/tyrus_codegen/src/convert/expr/member.rs::convert_this_member` (read path).
+  - `crates/tyrus_codegen/src/convert/expr/misc.rs::emit_state_field_assign` (compound write path).
+- Receiver dispatch: `RustGenerator::use_state_for_this: Cell<bool>` toggled around handler-body codegen.
+- State-field tracking: `RustGenerator::current_class_state_fields: HashMap<String, String>` (field name → Rust type name; populated in `class/state_field.rs`).
+- Regression tests: `tests/src/unit/state_mutation.rs` (covers compound `+=`/`-=`, update `++`/`--`, dual read in struct literal, dual read in fn args).
 - Related: ADR 0008 (Tyrus Strict Rules — this ADR satisfies Rule 10's retroactive requirement); future ADR for #143 (atomic state) supersedes Pattern B for `Copy` payloads.
