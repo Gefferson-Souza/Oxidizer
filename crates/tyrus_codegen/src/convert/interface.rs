@@ -2,6 +2,7 @@ use quote::{format_ident, quote};
 use swc_ecma_ast::{TsInterfaceDecl, TsTypeElement};
 use swc_ecma_visit::{Visit, VisitWith};
 
+use super::integer_heuristic::integer_serde_attr;
 use super::type_decl;
 use super::type_mapper::map_ts_type;
 
@@ -34,6 +35,10 @@ pub struct RustGenerator {
     pub(crate) map_vars: std::cell::RefCell<std::collections::HashSet<String>>,
     /// Variables with Set type annotation (stdlib disambiguation)
     pub(crate) set_vars: std::cell::RefCell<std::collections::HashSet<String>>,
+    /// Set when at least one struct field has been emitted with the
+    /// integer-shape serde attribute. Triggers `lib.rs` to emit the
+    /// `__tyrus_int_serde` helper module so the path resolves. See #130.
+    pub(crate) needs_int_serde: std::cell::Cell<bool>,
 }
 
 impl RustGenerator {
@@ -55,11 +60,15 @@ impl RustGenerator {
             setter_names: std::collections::HashSet::new(),
             map_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
             set_vars: std::cell::RefCell::new(std::collections::HashSet::new()),
+            needs_int_serde: std::cell::Cell::new(false),
         }
     }
 }
 
-fn convert_interface_fields(body: &[TsTypeElement]) -> Vec<proc_macro2::TokenStream> {
+fn convert_interface_fields(
+    body: &[TsTypeElement],
+    gen: &RustGenerator,
+) -> Vec<proc_macro2::TokenStream> {
     body.iter()
         .filter_map(|member| {
             if let TsTypeElement::TsPropertySignature(prop) = member {
@@ -69,7 +78,11 @@ fn convert_interface_fields(body: &[TsTypeElement]) -> Vec<proc_macro2::TokenStr
                 if prop.optional {
                     field_type = quote! { Option<#field_type> };
                 }
-                Some(quote! { pub #field_name: #field_type })
+                let int_attr = integer_serde_attr(prop.type_ann.as_ref(), &name_str);
+                if !int_attr.is_empty() {
+                    gen.needs_int_serde.set(true);
+                }
+                Some(quote! { #int_attr pub #field_name: #field_type })
             } else {
                 None
             }
@@ -97,7 +110,7 @@ fn convert_interface_generics(
 impl Visit for RustGenerator {
     fn visit_ts_interface_decl(&mut self, n: &TsInterfaceDecl) {
         let struct_name = format_ident!("{}", n.id.sym.to_string());
-        let fields = convert_interface_fields(&n.body.body);
+        let fields = convert_interface_fields(&n.body.body, self);
         let generics = convert_interface_generics(n.type_params.as_deref());
 
         let struct_def = quote! {
