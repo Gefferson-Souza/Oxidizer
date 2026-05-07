@@ -66,7 +66,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Setup Node.js 22 (for semantic equivalence tests)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -110,7 +110,7 @@ jobs:
           cache-directories: target/llvm-cov-target
 
       - name: Setup Node.js 22 (for semantic equivalence tests)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -139,7 +139,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Setup Node.js 22 (for runtime comparison)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
