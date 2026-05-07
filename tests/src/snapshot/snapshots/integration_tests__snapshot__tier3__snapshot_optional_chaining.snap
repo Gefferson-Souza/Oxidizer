@@ -2,6 +2,16 @@
 source: tests/src/snapshot/tier3.rs
 expression: rust
 ---
+mod __tyrus_int_serde {
+    use serde::{Deserialize, Deserializer, Serializer};
+    pub fn serialize<S: Serializer>(value: &f64, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_i64(*value as i64)
+    }
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<f64, D::Error> {
+        let v = serde_json::Value::deserialize(d)?;
+        v.as_f64().ok_or_else(|| serde::de::Error::custom("expected a number"))
+    }
+}
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
@@ -11,6 +21,7 @@ pub struct Profile {
 #[derive(Default, Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
+    #[serde(with = "__tyrus_int_serde")]
     pub id: f64,
     pub profile: Option<Profile>,
 }
