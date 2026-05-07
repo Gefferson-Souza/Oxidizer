@@ -55,6 +55,20 @@ pub enum TyrusError {
         span: SourceSpan,
     },
 
+    #[error(
+        "Lint Error: Ambiguous main entrypoint — file declares `function main()` AND \
+         contains top-level executable statements. Tyrus would either drop the \
+         statements or duplicate the main function. Choose one: either move the \
+         statements inside `main()`, or remove the user-declared `main` function."
+    )]
+    #[diagnostic(code(tyrus::lint::ambiguous_main_entrypoint))]
+    AmbiguousMainEntrypoint {
+        #[source_code]
+        src: NamedSource<String>,
+        #[label("first top-level statement here")]
+        span: SourceSpan,
+    },
+
     #[error("Formatting Error: {0}")]
     #[diagnostic(code(tyrus::fmt_error))]
     FormattingError(String),

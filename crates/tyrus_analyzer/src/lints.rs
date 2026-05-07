@@ -1,8 +1,10 @@
 use miette::{NamedSource, SourceSpan};
 use tyrus_diagnostics::TyrusError;
 
+use swc_common::Spanned;
 use swc_ecma_ast::{
-    CallExpr, Callee, Expr, TsKeywordType, TsKeywordTypeKind, VarDecl, VarDeclKind,
+    CallExpr, Callee, Decl, DefaultDecl, Expr, FnDecl, Module, ModuleDecl, ModuleItem, Script,
+    Stmt, TsKeywordType, TsKeywordTypeKind, VarDecl, VarDeclKind,
 };
 use swc_ecma_visit::{Visit, VisitWith};
 
@@ -27,9 +29,115 @@ impl LintVisitor {
         let len = end - start;
         SourceSpan::new(start.into(), len)
     }
+
+    /// D1 — emit `AmbiguousMainEntrypoint` when the file both declares a
+    /// user-level `function main()` AND contains top-level non-decl statements.
+    /// Either alone is fine; combined, the codegen at `tyrus_codegen::generate`
+    /// (lib.rs `!has_declared_main` gate) would either drop the statements or
+    /// duplicate `fn main()`. Mirrors codegen's `has_declared_main` detection
+    /// across all three TS forms: bare, `export`, and `export default`.
+    fn check_ambiguous_main(&mut self, items: &ModuleItemsView<'_>) {
+        let (has_user_main, first_top_stmt_span) = items.classify();
+        if let (true, Some(span)) = (has_user_main, first_top_stmt_span) {
+            self.errors.push(TyrusError::AmbiguousMainEntrypoint {
+                src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
+                span: self.create_span(span),
+            });
+        }
+    }
+}
+
+/// Wraps either `&Module` or `&Script` items so D1 can scan a single uniform
+/// API. `Module` items may carry an `export function main()` decl (under
+/// `ModuleDecl::ExportDecl` or `ModuleDecl::ExportDefaultDecl`) — codegen
+/// recognises both, so D1 must mirror that.
+enum ModuleItemsView<'a> {
+    Module(&'a [ModuleItem]),
+    Script(&'a [Stmt]),
+}
+
+impl ModuleItemsView<'_> {
+    fn classify(&self) -> (bool, Option<swc_common::Span>) {
+        let mut has_user_main = false;
+        let mut first_top_stmt_span: Option<swc_common::Span> = None;
+        match self {
+            ModuleItemsView::Module(items) => {
+                for item in *items {
+                    match item {
+                        ModuleItem::Stmt(stmt) => {
+                            classify_stmt(stmt, &mut has_user_main, &mut first_top_stmt_span);
+                        }
+                        ModuleItem::ModuleDecl(decl) => {
+                            classify_module_decl(decl, &mut has_user_main);
+                        }
+                    }
+                }
+            }
+            ModuleItemsView::Script(stmts) => {
+                for stmt in *stmts {
+                    classify_stmt(stmt, &mut has_user_main, &mut first_top_stmt_span);
+                }
+            }
+        }
+        (has_user_main, first_top_stmt_span)
+    }
+}
+
+fn classify_stmt(
+    stmt: &Stmt,
+    has_user_main: &mut bool,
+    first_top_stmt_span: &mut Option<swc_common::Span>,
+) {
+    match stmt {
+        Stmt::Decl(Decl::Fn(fn_decl)) if is_main_fn(fn_decl) => {
+            *has_user_main = true;
+        }
+        Stmt::Decl(_) => {}
+        other => {
+            if first_top_stmt_span.is_none() {
+                *first_top_stmt_span = Some(other.span());
+            }
+        }
+    }
+}
+
+fn classify_module_decl(decl: &ModuleDecl, has_user_main: &mut bool) {
+    match decl {
+        ModuleDecl::ExportDecl(export) => {
+            if let Decl::Fn(fn_decl) = &export.decl {
+                if is_main_fn(fn_decl) {
+                    *has_user_main = true;
+                }
+            }
+        }
+        ModuleDecl::ExportDefaultDecl(default) => {
+            if let DefaultDecl::Fn(fn_expr) = &default.decl {
+                if let Some(ident) = &fn_expr.ident {
+                    if ident.sym == "main" {
+                        *has_user_main = true;
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_main_fn(fn_decl: &FnDecl) -> bool {
+    fn_decl.ident.sym == "main"
 }
 
 impl Visit for LintVisitor {
+    fn visit_module(&mut self, n: &Module) {
+        self.check_ambiguous_main(&ModuleItemsView::Module(&n.body));
+        n.visit_children_with(self);
+    }
+
+    fn visit_script(&mut self, n: &Script) {
+        self.check_ambiguous_main(&ModuleItemsView::Script(&n.body));
+        n.visit_children_with(self);
+    }
+
     fn visit_var_decl(&mut self, n: &VarDecl) {
         if n.kind == VarDeclKind::Var {
             self.errors.push(TyrusError::UseOfVar {
@@ -107,139 +215,4 @@ impl Visit for LintVisitor {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
-mod tests {
-    use super::*;
-    use swc_common::sync::Lrc;
-    use swc_common::{FileName, SourceMap};
-    use swc_ecma_ast::Program;
-    use swc_ecma_parser::{Parser, StringInput, Syntax, TsSyntax};
-
-    fn run_lints(source: &str) -> Vec<TyrusError> {
-        let cm: Lrc<SourceMap> = Default::default();
-        let fm = cm.new_source_file(FileName::Anon.into(), source.to_string());
-        let mut parser = Parser::new(
-            Syntax::Typescript(TsSyntax::default()),
-            StringInput::from(&*fm),
-            None,
-        );
-        let module = parser.parse_module().expect("parse_module");
-        let program = Program::Module(module);
-        let mut visitor = LintVisitor::new(source.to_string(), "test.ts".to_string());
-        program.visit_with(&mut visitor);
-        visitor.errors
-    }
-
-    #[test]
-    fn rejects_var_declaration() {
-        let errors = run_lints("var x: number = 1;");
-        assert!(
-            errors
-                .iter()
-                .any(|e| matches!(e, TyrusError::UseOfVar { .. })),
-            "expected UseOfVar, got: {errors:?}"
-        );
-    }
-
-    #[test]
-    fn rejects_any_type() {
-        let errors = run_lints("function f(x: any): any { return x; }");
-        assert!(
-            errors
-                .iter()
-                .any(|e| matches!(e, TyrusError::UseOfAny { .. })),
-            "expected UseOfAny, got: {errors:?}"
-        );
-    }
-
-    #[test]
-    fn rejects_eval_call() {
-        let errors = run_lints(r#"const x = eval("1 + 1");"#);
-        assert!(
-            errors
-                .iter()
-                .any(|e| matches!(e, TyrusError::UseOfEval { .. })),
-            "expected UseOfEval, got: {errors:?}"
-        );
-    }
-
-    #[test]
-    fn rejects_for_in() {
-        let errors = run_lints(
-            r#"
-const obj = { a: 1 };
-for (const k in obj) { console.log(k); }
-"#,
-        );
-        let has = errors.iter().any(|e| {
-            matches!(
-                e,
-                TyrusError::UnsupportedFeature { feature, .. } if feature == "for-in loops"
-            )
-        });
-        assert!(has, "expected for-in unsupported, got: {errors:?}");
-    }
-
-    #[test]
-    fn rejects_delete_operator() {
-        let errors = run_lints("const obj: { [k: string]: number } = {}; delete obj.a;");
-        let has = errors.iter().any(|e| {
-            matches!(
-                e,
-                TyrusError::UnsupportedFeature { feature, .. } if feature == "delete operator"
-            )
-        });
-        assert!(has, "expected delete unsupported, got: {errors:?}");
-    }
-
-    #[test]
-    fn rejects_with_statement() {
-        // `with` requires non-strict mode; SWC parser may emit it under
-        // appropriate config. Confirm the visitor reports it.
-        let errors = run_lints("function f() { with({}) { /* body */ } }");
-        let has = errors.iter().any(|e| {
-            matches!(
-                e,
-                TyrusError::UnsupportedFeature { feature, .. } if feature == "with statement"
-            )
-        });
-        // Some parser configs reject `with` syntactically; if no error is
-        // present the test is moot. Either outcome is acceptable.
-        let _ = has;
-    }
-
-    #[test]
-    fn rejects_labeled_statement() {
-        let errors = run_lints(
-            r#"
-outer: for (let i = 0; i < 3; i++) {
-    if (i === 1) break outer;
-}
-"#,
-        );
-        let has = errors.iter().any(|e| {
-            matches!(
-                e,
-                TyrusError::UnsupportedFeature { feature, .. } if feature == "labeled statements"
-            )
-        });
-        assert!(has, "expected labeled stmt unsupported, got: {errors:?}");
-    }
-
-    #[test]
-    fn clean_program_has_no_errors() {
-        let errors = run_lints(
-            r#"
-function add(a: number, b: number): number {
-    return a + b;
-}
-const result = add(1, 2);
-console.log(result);
-"#,
-        );
-        assert!(
-            errors.is_empty(),
-            "clean program should have no errors, got: {errors:?}"
-        );
-    }
-}
+mod tests;
