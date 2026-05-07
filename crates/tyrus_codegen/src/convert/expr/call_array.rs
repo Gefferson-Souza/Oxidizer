@@ -25,13 +25,17 @@ impl RustGenerator {
         let method_name = method_ident.sym.as_ref();
         let obj = self.convert_expr(&member.obj);
 
+        // Owned here: array methods needing IR-aware emission (TS callback
+        // closures, state-field detection in push, replacen overload). Pure
+        // Vec-op methods (find, join, slice, includes, indexOf, concat,
+        // reverse, pop, sort, shift, flat, flatMap) live in
+        // `crate::stdlib::array`. See ADR 0012 for the ownership boundary.
         match method_name {
             "map" => self.convert_map_call(&obj, call),
             "filter" => self.convert_filter_call(&obj, call),
             "forEach" => self.convert_for_each_call(&obj, call),
             "some" => Some(self.convert_iter_adaptor_call(&obj, call, "any")),
             "every" => Some(self.convert_iter_adaptor_call(&obj, call, "all")),
-            "find" => Some(self.convert_iter_adaptor_call(&obj, call, "find")),
             "reduce" => self.convert_reduce_call(&obj, call),
             "push" => Some(self.convert_push_call(member, call)),
             "replace" => Some(self.convert_replace_call(member, call)),
