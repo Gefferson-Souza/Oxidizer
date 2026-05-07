@@ -2,6 +2,7 @@ pub mod class;
 pub(crate) mod expr;
 pub(crate) mod fn_decl;
 pub mod helpers;
+pub(crate) mod integer_heuristic;
 pub mod interface;
 pub mod module;
 pub(crate) mod stmt;
