@@ -1,5 +1,5 @@
 use swc_ecma_ast::{ImportSpecifier, ModuleDecl, ModuleItem};
-use swc_ecma_visit::VisitWith;
+use swc_ecma_visit::{Visit, VisitWith};
 
 use super::interface::RustGenerator;
 
@@ -59,7 +59,10 @@ impl RustGenerator {
     pub(crate) fn process_module_item(&mut self, n: &ModuleItem) {
         match n {
             ModuleItem::ModuleDecl(decl) => self.process_module_decl(decl),
-            ModuleItem::Stmt(stmt) => stmt.visit_with(self),
+            // `visit_with` traverses children only — bypassing the custom
+            // `visit_stmt` override at `interface.rs`. Direct dispatch ensures
+            // top-level statements route into `main_body` instead of being dropped.
+            ModuleItem::Stmt(stmt) => self.visit_stmt(stmt),
         }
     }
 
