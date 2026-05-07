@@ -17,6 +17,7 @@ tokio = { version = "1.52", features = ["full"] }
 tyrus_orchestrator = { path = "../tyrus_orchestrator" }
 tyrus_common = { path = "../tyrus_common" }
 tyrus_analyzer = { path = "../tyrus_analyzer" }
+tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 console = "0.15"
 indicatif = "0.17"
 tracing = "0.1.41"

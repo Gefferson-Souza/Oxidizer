@@ -2014,6 +2014,7 @@ dependencies = [
  "tracing-subscriber",
  "tyrus_analyzer",
  "tyrus_common",
+ "tyrus_diagnostics",
  "tyrus_orchestrator",
  "walkdir",
 ]
