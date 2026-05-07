@@ -150,7 +150,8 @@ impl Visit for RustGenerator {
     }
 
     fn visit_stmt(&mut self, n: &swc_ecma_ast::Stmt) {
-        // This is called for top-level statements via process_module_item -> visit_with(self)
+        // Called directly from process_module_item via self.visit_stmt(stmt)
+        // (also fires from visit_children_with in nested function/class bodies).
         match n {
             swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::Fn(_))
             | swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::Class(_))
