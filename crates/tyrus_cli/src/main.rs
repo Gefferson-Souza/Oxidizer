@@ -28,9 +28,13 @@ enum Commands {
     Check {
         /// Input file path
         path: PathBuf,
-        /// Output diagnostics as JSON (for tooling integration)
+        /// Output diagnostics as JSON (stable envelope with schemaVersion)
         #[arg(long)]
         json: bool,
+        /// Promote diagnostics (warnings) to errors. Default: only hard
+        /// errors (UseOfVar/UseOfAny/UseOfEval/etc.) cause non-zero exit.
+        #[arg(long)]
+        strict: bool,
     },
     /// Transpile TypeScript to Rust source code
     Build {
@@ -72,7 +76,7 @@ async fn main() -> Result<()> {
     }
 
     match cli.command {
-        Commands::Check { path, json } => commands::check::execute(&path, json),
+        Commands::Check { path, json, strict } => commands::check::execute(&path, json, strict),
         Commands::Build { path, output } => commands::build::execute(&path, output),
         Commands::Compile {
             path,

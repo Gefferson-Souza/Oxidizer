@@ -74,3 +74,55 @@ impl Diagnostic {
         self
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn error_constructor_sets_severity() {
+        let d = Diagnostic::error("tyrus::test", "boom");
+        assert_eq!(d.severity, Severity::Error);
+        assert_eq!(d.code, "tyrus::test");
+        assert_eq!(d.message, "boom");
+        assert!(d.span.is_none());
+        assert!(d.suggestion.is_none());
+    }
+
+    #[test]
+    fn warning_constructor_sets_severity() {
+        let d = Diagnostic::warning("tyrus::test", "soft");
+        assert_eq!(d.severity, Severity::Warning);
+    }
+
+    #[test]
+    fn info_constructor_sets_severity() {
+        let d = Diagnostic::info("tyrus::test", "fyi");
+        assert_eq!(d.severity, Severity::Info);
+    }
+
+    #[test]
+    fn with_span_attaches_location() {
+        let d = Diagnostic::error("c", "m").with_span(10, 20, "test.ts");
+        let span = d.span.expect("span set");
+        assert_eq!(span.start, 10);
+        assert_eq!(span.end, 20);
+        assert_eq!(span.file, "test.ts");
+    }
+
+    #[test]
+    fn with_suggestion_attaches_hint() {
+        let d = Diagnostic::warning("c", "m").with_suggestion("try X");
+        assert_eq!(d.suggestion.as_deref(), Some("try X"));
+    }
+
+    #[test]
+    fn builders_chain() {
+        let d = Diagnostic::error("c", "m")
+            .with_span(0, 5, "f.ts")
+            .with_suggestion("hint");
+        assert!(d.span.is_some());
+        assert!(d.suggestion.is_some());
+    }
+}
