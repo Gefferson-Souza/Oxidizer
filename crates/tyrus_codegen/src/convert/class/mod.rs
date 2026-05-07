@@ -1,280 +1,289 @@
 mod constructor;
+mod frame;
 mod getter_setter;
 mod method;
 mod mutation;
 mod routing;
 mod state_field;
 
+use std::collections::HashSet;
+
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::{ClassDecl, ClassMember, Constructor};
+use swc_ecma_ast::{ClassDecl, ClassMember, ClassMethod, Constructor};
 
 use super::helpers::to_snake_case;
 use super::interface::RustGenerator;
 use super::type_mapper::map_ts_type;
+use frame::{
+    compute_class_generics, extract_class_meta, struct_derives, ClassFields, ClassFrame,
+    ClassMembers, ClassMeta,
+};
 use state_field::wrap_state_field_type;
 
 impl RustGenerator {
     pub fn process_class_decl(&mut self, n: &ClassDecl) {
-        let class_name = n.ident.sym.to_string();
-        let struct_name = format_ident!("{}", class_name);
+        let meta = extract_class_meta(n);
+        let struct_name = format_ident!("{}", &meta.class_name);
 
-        // Guard class detection: if class has canActivate(), emit middleware
-        // (still continue with normal class processing for DI/struct)
-        if let Some(middleware) = self.try_emit_guard_middleware(n, &class_name) {
+        self.emit_guard_middleware_if_any(n, &meta.class_name);
+        self.is_controller = meta.is_controller;
+        self.current_class_state_fields.clear();
+
+        let members = self.categorize_members(n);
+        let mut fields = self.collect_class_fields(n, &meta, &members);
+        let generics = compute_class_generics(n, &mut fields.fields);
+        let frame = ClassFrame {
+            decl: n,
+            struct_name,
+            meta,
+            members,
+            fields,
+            generics,
+        };
+
+        self.emit_class_struct(&frame);
+        self.store_class_metadata(&frame);
+        self.emit_class_impl(&frame);
+    }
+
+    fn emit_guard_middleware_if_any(&mut self, n: &ClassDecl, class_name: &str) {
+        if let Some(middleware) = self.try_emit_guard_middleware(n, class_name) {
             self.code.push_str(&middleware.to_string());
             self.code.push('\n');
         }
+    }
 
-        // Decorator-driven detection — replaces the previous heuristic
-        // `class_name.ends_with("Controller")`. The Service heuristic stays
-        // until all fixtures gain `@Injectable` (tracked separately).
-        let controller_info = routing::extract_controller_info(n);
-        self.is_controller = controller_info.is_controller;
+    fn categorize_members<'a>(&mut self, n: &'a ClassDecl) -> ClassMembers<'a> {
+        let mut acc = ClassMembers {
+            methods: Vec::new(),
+            getters: Vec::new(),
+            setters: Vec::new(),
+            constructor: None,
+            static_method_names: HashSet::new(),
+        };
 
-        let is_service_or_controller = self.is_controller || class_name.ends_with("Service");
-
-        // Extract generic params early
-        let mut generic_params = std::collections::HashSet::new();
-        if let Some(type_params) = &n.class.type_params {
-            for param in &type_params.params {
-                generic_params.insert(param.name.sym.to_string());
-            }
-        }
-
-        // Detect inheritance: class Dog extends Animal
-        let parent_class_name = n.class.super_class.as_ref().and_then(|expr| {
-            if let swc_ecma_ast::Expr::Ident(ident) = &**expr {
-                Some(ident.sym.to_string())
-            } else {
-                None
-            }
-        });
-
-        // 1. Generate Struct (Properties)
-        let mut fields = Vec::new();
-        let mut methods = Vec::new();
-        let mut constructor: Option<&Constructor> = None;
-        let mut class_fields_meta = Vec::new();
-        let mut own_field_names: Vec<(String, proc_macro2::TokenStream, bool)> = Vec::new();
-
-        // If extending a parent, include parent fields first
-        if let Some(ref parent) = parent_class_name {
-            if let Some(parent_fields) = self.class_fields.get(parent) {
-                for (field_name, field_type, is_opt) in parent_fields {
-                    let fname = format_ident!("{}", to_snake_case(field_name));
-                    let ftype = field_type.clone();
-                    fields.push(quote! { pub #fname: #ftype });
-                    class_fields_meta.push((field_name.clone(), *is_opt));
-                    own_field_names.push((field_name.clone(), ftype, *is_opt));
-                }
-            }
-        }
-
-        let mut dependency_fields = std::collections::HashSet::new();
-        self.current_class_state_fields.clear();
-
-        // Pass 1: Process Properties (to populate state fields map)
-        for member in &n.class.body {
-            if let ClassMember::ClassProp(prop) = member {
-                if let Some((field_tokens, name, is_opt, is_dep, type_str)) =
-                    state_field::convert_prop(self, prop, &generic_params, is_service_or_controller)
-                {
-                    fields.push(field_tokens);
-                    class_fields_meta.push((name.clone(), is_opt));
-                    // Store raw type as TokenStream for inheritance
-                    let raw_type_tokens = map_ts_type(prop.type_ann.as_ref());
-                    own_field_names.push((name.clone(), raw_type_tokens, is_opt));
-                    if is_dep {
-                        dependency_fields.insert(name);
-                    } else if is_service_or_controller {
-                        // Store the type string to check for primitives later
-                        self.current_class_state_fields.insert(name, type_str);
-                    }
-                }
-            }
-        }
-
-        // Pass 2: Process Methods, Getters/Setters, and Constructor
-        let mut static_method_names = std::collections::HashSet::new();
-        let mut getters = Vec::new();
-        let mut setters = Vec::new();
         for member in &n.class.body {
             match member {
-                ClassMember::Method(method) => match method.kind {
-                    swc_ecma_ast::MethodKind::Getter => {
-                        if let Some(ident) = method.key.as_ident() {
-                            self.getter_names.insert(ident.sym.to_string());
-                        }
-                        getters.push(method);
-                    }
-                    swc_ecma_ast::MethodKind::Setter => {
-                        if let Some(ident) = method.key.as_ident() {
-                            self.setter_names.insert(ident.sym.to_string());
-                        }
-                        setters.push(method);
-                    }
-                    swc_ecma_ast::MethodKind::Method => {
-                        if method.is_static {
-                            if let Some(ident) = method.key.as_ident() {
-                                static_method_names.insert(ident.sym.to_string());
-                            }
-                        }
-                        methods.push(method);
-                    }
-                },
-                ClassMember::Constructor(cons) => {
-                    constructor = Some(cons);
-                }
+                ClassMember::Method(method) => self.classify_method(method, &mut acc),
+                ClassMember::Constructor(cons) => acc.constructor = Some(cons),
                 _ => {}
             }
         }
+        acc
+    }
 
-        // Collect fields from constructor (private/public params)
-        if let Some(cons) = constructor {
-            for param in &cons.params {
-                if let swc_ecma_ast::ParamOrTsParamProp::TsParamProp(prop) = param {
-                    if let swc_ecma_ast::TsParamPropParam::Ident(ident) = &prop.param {
-                        let field_name_str = ident.sym.to_string();
-                        let field_name = format_ident!("{}", to_snake_case(&field_name_str));
-
-                        let type_ann = ident.type_ann.as_ref();
-                        let inner_type = map_ts_type(type_ann);
-                        let raw_type_str = inner_type.to_string();
-
-                        // Only wrap in Arc for NestJS service/controller DI
-                        let is_dependency = is_service_or_controller
-                            && super::class::constructor::is_dependency_type(
-                                type_ann.map(std::convert::AsRef::as_ref),
-                                &generic_params,
-                            );
-
-                        if is_dependency {
-                            dependency_fields.insert(field_name_str.clone());
-                        } else if is_service_or_controller {
-                            self.current_class_state_fields
-                                .insert(field_name_str.clone(), raw_type_str);
-                        }
-
-                        let field_type = wrap_state_field_type(
-                            &inner_type,
-                            is_dependency,
-                            is_service_or_controller,
-                        );
-
-                        fields.push(quote! { pub #field_name: #field_type });
+    fn classify_method<'a>(&mut self, method: &'a ClassMethod, acc: &mut ClassMembers<'a>) {
+        match method.kind {
+            swc_ecma_ast::MethodKind::Getter => {
+                if let Some(ident) = method.key.as_ident() {
+                    self.getter_names.insert(ident.sym.to_string());
+                }
+                acc.getters.push(method);
+            }
+            swc_ecma_ast::MethodKind::Setter => {
+                if let Some(ident) = method.key.as_ident() {
+                    self.setter_names.insert(ident.sym.to_string());
+                }
+                acc.setters.push(method);
+            }
+            swc_ecma_ast::MethodKind::Method => {
+                if method.is_static {
+                    if let Some(ident) = method.key.as_ident() {
+                        acc.static_method_names.insert(ident.sym.to_string());
                     }
                 }
+                acc.methods.push(method);
             }
         }
+    }
 
-        // All structs are pub — needed for main.rs to reference controllers/services
-        let vis = quote! { pub };
-
-        let (generics_struct_decl, generics_impl_decl, generics_use) = if let Some(type_params) =
-            &n.class.type_params
-        {
-            let params_struct: Vec<_> = type_params
-                .params
-                .iter()
-                .map(|p| {
-                    let name = p.name.sym.to_string();
-                    format_ident!("{}", name)
-                })
-                .collect();
-
-            let params_impl: Vec<_> = type_params
-                .params
-                .iter()
-                .map(|p| {
-                    let name = p.name.sym.to_string();
-                    let ident = format_ident!("{}", name);
-                    quote! { #ident: serde::de::DeserializeOwned + serde::Serialize + Clone + Default + std::fmt::Debug }
-                })
-                .collect();
-
-            let params_use: Vec<_> = type_params
-                .params
-                .iter()
-                .map(|p| format_ident!("{}", p.name.sym.to_string()))
-                .collect();
-
-            // Add PhantomData to usage to avoid unused type parameter error
-            if !params_use.is_empty() {
-                let phantom_type = if params_use.len() == 1 {
-                    quote! { #(#params_use)* }
-                } else {
-                    quote! { (#(#params_use),*) }
-                };
-                fields.push(quote! {
-                    #[serde(skip)]
-                    pub _marker: std::marker::PhantomData<#phantom_type>
-                });
-            }
-
-            (
-                quote! { <#(#params_struct),*> },
-                quote! { <#(#params_impl),*> },
-                quote! { <#(#params_use),*> },
-            )
-        } else {
-            (quote! {}, quote! {}, quote! {})
+    fn collect_class_fields(
+        &mut self,
+        n: &ClassDecl,
+        meta: &ClassMeta,
+        members: &ClassMembers<'_>,
+    ) -> ClassFields {
+        let mut acc = ClassFields {
+            fields: Vec::new(),
+            class_fields_meta: Vec::new(),
+            own_field_names: Vec::new(),
+            dependency_fields: HashSet::new(),
         };
 
-        let mut derives = vec![quote! { Default }, quote! { Debug }, quote! { Clone }];
-        if !is_service_or_controller {
-            derives.push(quote! { PartialEq });
-            derives.push(quote! { serde::Serialize });
-            derives.push(quote! { serde::Deserialize });
+        self.inherit_parent_fields(meta, &mut acc);
+        self.collect_property_fields(n, meta, &mut acc);
+        if let Some(cons) = members.constructor {
+            self.collect_constructor_fields(cons, meta, &mut acc);
+        }
+        acc
+    }
+
+    fn inherit_parent_fields(&self, meta: &ClassMeta, acc: &mut ClassFields) {
+        let Some(parent) = meta.parent_class_name.as_deref() else {
+            return;
+        };
+        let Some(parent_fields) = self.class_fields.get(parent) else {
+            return;
+        };
+        for (field_name, field_type, is_opt) in parent_fields {
+            let fname = format_ident!("{}", to_snake_case(field_name));
+            let ftype = field_type.clone();
+            acc.fields.push(quote! { pub #fname: #ftype });
+            acc.class_fields_meta.push((field_name.clone(), *is_opt));
+            acc.own_field_names
+                .push((field_name.clone(), ftype, *is_opt));
+        }
+    }
+
+    fn collect_property_fields(&mut self, n: &ClassDecl, meta: &ClassMeta, acc: &mut ClassFields) {
+        for member in &n.class.body {
+            let ClassMember::ClassProp(prop) = member else {
+                continue;
+            };
+            let Some((field_tokens, name, is_opt, is_dep, type_str)) = state_field::convert_prop(
+                self,
+                prop,
+                &meta.generic_params,
+                meta.is_service_or_controller,
+            ) else {
+                continue;
+            };
+            acc.fields.push(field_tokens);
+            acc.class_fields_meta.push((name.clone(), is_opt));
+            let raw_type_tokens = map_ts_type(prop.type_ann.as_ref());
+            acc.own_field_names
+                .push((name.clone(), raw_type_tokens, is_opt));
+            if is_dep {
+                acc.dependency_fields.insert(name);
+            } else if meta.is_service_or_controller {
+                self.current_class_state_fields.insert(name, type_str);
+            }
+        }
+    }
+
+    fn collect_constructor_fields(
+        &mut self,
+        cons: &Constructor,
+        meta: &ClassMeta,
+        acc: &mut ClassFields,
+    ) {
+        for param in &cons.params {
+            let swc_ecma_ast::ParamOrTsParamProp::TsParamProp(prop) = param else {
+                continue;
+            };
+            let swc_ecma_ast::TsParamPropParam::Ident(ident) = &prop.param else {
+                continue;
+            };
+            self.append_constructor_param_field(ident, meta, acc);
+        }
+    }
+
+    fn append_constructor_param_field(
+        &mut self,
+        ident: &swc_ecma_ast::BindingIdent,
+        meta: &ClassMeta,
+        acc: &mut ClassFields,
+    ) {
+        let field_name_str = ident.sym.to_string();
+        let field_name = format_ident!("{}", to_snake_case(&field_name_str));
+        let type_ann = ident.type_ann.as_ref();
+        let inner_type = map_ts_type(type_ann);
+        let raw_type_str = inner_type.to_string();
+
+        let is_dependency = meta.is_service_or_controller
+            && constructor::is_dependency_type(
+                type_ann.map(std::convert::AsRef::as_ref),
+                &meta.generic_params,
+            );
+
+        if is_dependency {
+            acc.dependency_fields.insert(field_name_str.clone());
+        } else if meta.is_service_or_controller {
+            self.current_class_state_fields
+                .insert(field_name_str, raw_type_str);
         }
 
-        let derive_attr = quote! {
-            #[derive(#( #derives ),*)]
-        };
+        let field_type =
+            wrap_state_field_type(&inner_type, is_dependency, meta.is_service_or_controller);
+        acc.fields.push(quote! { pub #field_name: #field_type });
+    }
 
-        let serde_attr = if !is_service_or_controller {
-            quote! { #[serde(rename_all = "camelCase")] }
-        } else {
+    fn emit_class_struct(&mut self, frame: &ClassFrame<'_>) {
+        let derives = struct_derives(frame.meta.is_service_or_controller);
+        let derive_attr = quote! { #[derive(#( #derives ),*)] };
+        let serde_attr = if frame.meta.is_service_or_controller {
             quote! {}
+        } else {
+            quote! { #[serde(rename_all = "camelCase")] }
         };
-
+        let struct_name = &frame.struct_name;
+        let struct_decl = &frame.generics.struct_decl;
+        let struct_field_tokens = &frame.fields.fields;
         let struct_def = quote! {
             #derive_attr
             #serde_attr
-            #vis struct #struct_name #generics_struct_decl {
-                #(#fields),*
+            pub struct #struct_name #struct_decl {
+                #(#struct_field_tokens),*
             }
         };
-
         self.code.push_str(&struct_def.to_string());
         self.code.push('\n');
+    }
 
-        // Store field map for potential child classes
-        self.class_fields
-            .insert(class_name.clone(), own_field_names);
+    fn store_class_metadata(&mut self, frame: &ClassFrame<'_>) {
+        self.class_fields.insert(
+            frame.meta.class_name.clone(),
+            frame.fields.own_field_names.clone(),
+        );
+        if !frame.members.static_method_names.is_empty() {
+            self.static_methods.insert(
+                frame.meta.class_name.clone(),
+                frame.members.static_method_names.clone(),
+            );
+        }
+    }
 
-        // Store static method names for call-site transformation
-        if !static_method_names.is_empty() {
-            self.static_methods
-                .insert(class_name.clone(), static_method_names);
+    fn emit_class_impl(&mut self, frame: &ClassFrame<'_>) {
+        let mut impl_items = Vec::new();
+        self.emit_constructor_item(frame, &mut impl_items);
+        let routes = self.emit_method_items(frame, &mut impl_items);
+        self.emit_accessor_items(&frame.members, &mut impl_items);
+
+        if frame.meta.is_controller {
+            self.emit_controller_routing(
+                &frame.struct_name,
+                &frame.meta.class_name,
+                &frame.meta.controller_info,
+                &routes,
+                &mut impl_items,
+            );
         }
 
-        // 2. Generate Impl (Methods)
-        let mut impl_items = Vec::new();
+        let impl_decl = &frame.generics.impl_decl;
+        let use_tokens = &frame.generics.use_tokens;
+        let struct_name = &frame.struct_name;
+        let impl_block = quote! {
+            impl #impl_decl #struct_name #use_tokens {
+                #(#impl_items)*
+            }
+        };
+        self.code.push_str(&impl_block.to_string());
+        self.code.push('\n');
+    }
 
-        // Constructor
-        if let Some(cons) = constructor {
+    fn emit_constructor_item(&mut self, frame: &ClassFrame<'_>, impl_items: &mut Vec<TokenStream>) {
+        if let Some(cons) = frame.members.constructor {
             let ctx = constructor::ConstructorCtx {
                 constructor: cons,
-                class_fields: &class_fields_meta,
-                has_generics: n.class.type_params.is_some(),
-                generic_params: &generic_params,
-                dependency_fields: &dependency_fields,
-                is_service_or_controller,
+                class_fields: &frame.fields.class_fields_meta,
+                has_generics: frame.decl.class.type_params.is_some(),
+                generic_params: &frame.meta.generic_params,
+                dependency_fields: &frame.fields.dependency_fields,
+                is_service_or_controller: frame.meta.is_service_or_controller,
             };
-            let constructor_tokens = self.convert_constructor(&struct_name, &ctx);
-            impl_items.push(constructor_tokens);
+            impl_items.push(self.convert_constructor(&frame.struct_name, &ctx));
         } else {
-            // Default constructor if none exists
             impl_items.push(quote! {
                 pub fn new() -> Self {
                     Self::default()
@@ -284,46 +293,35 @@ impl RustGenerator {
                 }
             });
         }
+    }
 
-        // Methods
-        let mut routes: Vec<(String, String, String)> = Vec::new();
-        for method in methods {
-            let (method_tokens, route_info) = self.convert_method(method, is_service_or_controller);
+    fn emit_method_items(
+        &mut self,
+        frame: &ClassFrame<'_>,
+        impl_items: &mut Vec<TokenStream>,
+    ) -> Vec<(String, String, String)> {
+        let mut routes = Vec::new();
+        for method in &frame.members.methods {
+            let (method_tokens, route_info) =
+                self.convert_method(method, frame.meta.is_service_or_controller);
             impl_items.push(method_tokens);
             if let Some(info) = route_info {
                 routes.push(info);
             }
         }
+        routes
+    }
 
-        // Getters
-        for getter in &getters {
+    fn emit_accessor_items(
+        &mut self,
+        members: &ClassMembers<'_>,
+        impl_items: &mut Vec<TokenStream>,
+    ) {
+        for getter in &members.getters {
             impl_items.push(self.convert_getter(getter));
         }
-
-        // Setters
-        for setter in &setters {
+        for setter in &members.setters {
             impl_items.push(self.convert_setter(setter));
         }
-
-        // Generate controller routing if applicable
-        // (controller_info was extracted at the start of this function)
-        if controller_info.is_controller {
-            self.emit_controller_routing(
-                &struct_name,
-                &class_name,
-                &controller_info,
-                &routes,
-                &mut impl_items,
-            );
-        }
-
-        let impl_block = quote! {
-            impl #generics_impl_decl #struct_name #generics_use {
-                #(#impl_items)*
-            }
-        };
-
-        self.code.push_str(&impl_block.to_string());
-        self.code.push('\n');
     }
 }
