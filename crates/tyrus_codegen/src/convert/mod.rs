@@ -5,4 +5,5 @@ pub mod helpers;
 pub mod interface;
 pub mod module;
 pub(crate) mod stmt;
+pub(crate) mod type_decl;
 pub mod type_mapper;
