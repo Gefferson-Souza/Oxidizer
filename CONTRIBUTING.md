@@ -151,3 +151,26 @@ The orchestrator (`crates/tyrus_orchestrator/src/`) coordinates multi-file build
 | `pipeline.rs` | Core multi-file build orchestration |
 | `scaffold.rs` | Project scaffolding (`main.rs`, `Cargo.toml`, `mod.rs`) |
 | `format.rs` | Code formatting + `AppError` generation |
+
+## 💾 Disk Hygiene
+
+The Tyrus build tree can reach **~22 GB** during heavy use. Two reasons:
+
+1. `target/` carries the standard Rust artefacts (debug ≈2.5 GB, llvm-cov-target ≈2 GB, tests ≈1.6 GB).
+2. `/tmp/tyrus_test_target/` is a **shared `CARGO_TARGET_DIR`** used by every `assert_rust_compiles` and `assert_output_equivalent` test (see `crates/tyrus_test_utils/src/lib.rs:18`). Each test compiles a generated Rust project that depends on `axum`, `tokio`, `serde`, `reqwest`, etc. Sharing the target dir avoids rebuilding those crates per test (≈10× speed-up); the cost is unbounded growth.
+
+**Cleanup:**
+
+```bash
+# See current footprint
+bash scripts/disk-clean.sh --report
+
+# Drop only stale artifacts (>14 days untouched in /tmp, >30 days
+# in cargo's incremental cache, >7 days .profraw files)
+bash scripts/disk-clean.sh
+
+# Full wipe — recover everything (requires next test run to rebuild deps)
+bash scripts/disk-clean.sh --all
+```
+
+The shared `/tmp` target is intentional. Do **not** redirect tests to a per-test target — the suite walltime jumps from ≈60 s to ≈10 min.
