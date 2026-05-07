@@ -30,3 +30,15 @@ target/
 
 # Agent configuration (local only)
 # .agent.claude/worktrees/
+
+# Assistant scratch — local planning + settings, never committed
+.claude/
+.agent/
+
+# Documentation scratch (assistant-only; not project source-of-truth)
+docs/superpowers/
+docs/CODEMAPS/
+
+# Common assistant artifacts
+**/CLAUDE.md.bak
+**/.cursor/
