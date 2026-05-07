@@ -10,6 +10,8 @@ use tyrus_diagnostics::TyrusError;
 use crate::format::{format_code, get_app_error_code};
 use crate::scaffold::{generate_cargo_toml, generate_main_rs, generate_mod_rs};
 
+mod analyze;
+
 /// Output of phase 1: every parsed `.ts` file plus the class metadata
 /// needed by phases 2-5.
 struct ParsedProject {
@@ -30,7 +32,7 @@ struct MainRsCtx<'a> {
 
 pub(crate) fn build_project_impl(input_dir: &Path, output_dir: &Path) -> Result<(), TyrusError> {
     let parsed = parse_and_collect(input_dir)?;
-    let (graph, init_order) = analyze_di_graph(&parsed)?;
+    let (graph, init_order) = analyze::analyze_di_graph(&parsed)?;
     let controllers = transpile_files(input_dir, output_dir, &parsed)?;
     finalize_module_tree(output_dir)?;
     write_main_rs(
@@ -175,33 +177,7 @@ fn insert_class(
     }
 }
 
-// ------- phase 2: build DI graph + topological order -------
-
-fn analyze_di_graph(parsed: &ParsedProject) -> Result<(DiGraph, Vec<String>), TyrusError> {
-    let mut graph = DiGraph::new();
-    for (i, program) in parsed.programs.iter().enumerate() {
-        let path = &parsed.file_paths[i];
-        let source_code = std::fs::read_to_string(path).map_err(TyrusError::IoError)?;
-        let file_name = path.to_string_lossy().to_string();
-
-        let analysis_result = tyrus_analyzer::Analyzer::analyze(program, source_code, file_name);
-        for error in analysis_result.errors {
-            println!("Warning: {:?}", miette::Report::new(error));
-        }
-        if !analysis_result.diagnostics.is_empty() {
-            eprintln!(
-                "{}",
-                tyrus_analyzer::report::format_pretty(&analysis_result.diagnostics)
-            );
-        }
-        graph.merge(analysis_result.graph);
-    }
-
-    let init_order = graph
-        .resolve()
-        .map_err(|e| TyrusError::Validation(e.to_string()))?;
-    Ok((graph, init_order))
-}
+// ------- phase 2: DI graph analysis → see pipeline/analyze.rs -------
 
 // ------- phase 3: codegen + write .rs files -------
 
