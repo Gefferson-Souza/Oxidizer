@@ -14,7 +14,7 @@ tyrus_decorator_kinds = { path = "../tyrus_decorator_kinds" }
 swc_ecma_ast = "23.0.0"
 swc_ecma_visit = "23.0.0"
 swc_common = { version = "21.0.1", features = ["tty-emitter"] }
-petgraph = "0.6"
+petgraph = "0.8"
 miette = { version = "7.6.0", features = ["fancy"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
