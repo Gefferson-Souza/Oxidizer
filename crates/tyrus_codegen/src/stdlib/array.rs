@@ -4,7 +4,15 @@ use swc_ecma_ast::*;
 
 use super::super::convert::interface::RustGenerator;
 
-/// Handle array method calls
+/// Handle array method calls.
+///
+/// Owns: pure Vec-op methods that take owned data (find, join, includes,
+/// indexOf, slice, concat, reverse, pop, sort, shift, flat, flatMap).
+///
+/// Returns `None` for methods owned by
+/// `crate::convert::expr::call_array::try_convert_array_method`, which
+/// handles TS-callback semantics (map/filter/forEach/some/every/reduce/
+/// push/replace). See ADR 0012 for the ownership boundary.
 pub(crate) fn handle(
     gen: &RustGenerator,
     obj: &Expr,
@@ -13,9 +21,8 @@ pub(crate) fn handle(
 ) -> Option<TokenStream> {
     let obj_tokens = gen.convert_expr(obj);
     match method {
-        "push" => None,
-        "map" => None,
-        "filter" => None,
+        // Defer to call_array.rs (TS-callback handlers).
+        "push" | "map" | "filter" | "forEach" | "some" | "every" | "reduce" | "replace" => None,
         "find" => handle_find(gen, &obj_tokens, args),
         "join" => handle_join(gen, &obj_tokens, args),
         "includes" => handle_includes(gen, &obj_tokens, args),
