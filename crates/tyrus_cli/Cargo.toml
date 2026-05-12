@@ -11,7 +11,7 @@ name = "tyrus"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 miette = { version = "7.6.0", features = ["fancy"] }
 tokio = { version = "1.52", features = ["full"] }
 tyrus_orchestrator = { path = "../tyrus_orchestrator" }
