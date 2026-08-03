@@ -49,7 +49,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-deny and cargo-audit
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-deny,cargo-audit
       - run: ./scripts/gates.sh deny
@@ -115,7 +115,7 @@ jobs:
           node-version: '22'
 
       - name: Install cargo-llvm-cov and nextest
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-llvm-cov,cargo-nextest
 
