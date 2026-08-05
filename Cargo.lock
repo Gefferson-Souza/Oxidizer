@@ -1920,6 +1920,7 @@ name = "tyrus_diagnostics"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "serde",
  "thiserror",
 ]
 
