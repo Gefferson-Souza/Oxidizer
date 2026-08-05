@@ -8,7 +8,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## STRICT RULES (NEVER VIOLATE)
 
-**Canonical authority:** [`docs/standards/POWER_OF_TEN.md`](docs/standards/POWER_OF_TEN.md) — 12 rules adapted from NASA/JPL Power of Ten. Adopted via [ADR 0008](docs/architecture/decisions/0008-tyrus-strict-rules.md). The table below is a quick reference; the doc is the binding spec.
+**Canonical authority:** [`docs/standards/POWER_OF_TEN.md`](docs/standards/POWER_OF_TEN.md) — 14 rules adapted from NASA/JPL Power of Ten. Adopted via [ADR 0008](docs/architecture/decisions/0008-tyrus-strict-rules.md), amended by [ADR 0013](docs/architecture/decisions/0013-power-of-ten-v2.md). Process rules live in [`docs/standards/DEVELOPMENT_FLOW.md`](docs/standards/DEVELOPMENT_FLOW.md) (F1–F10, ADR 0014). The table below is a quick reference; the docs are the binding spec.
 
 | # | Rule | Severity | Enforced by |
 |---|------|----------|-------------|
@@ -23,7 +23,9 @@ This file provides guidance to Claude Code when working with this repository.
 | 9 | Local-first validation parity (hook == CI via `scripts/gates.sh`) | CRITICAL | shared script |
 | 10 | ADR for architectural decisions | HIGH | PR template |
 | 11 | One branch = one concern + Conventional Commits | HIGH | PR title regex |
-| 12 | Warnings-clean + daily audited (`--all-targets`, `cargo deny`, `cargo audit`) | CRITICAL | CI workflow |
+| 12 | Warnings-clean + daily audited (`--all-targets`, `--locked`, `cargo deny`, `cargo audit`, `cargo machete`, MSRV job) | CRITICAL | CI workflow |
+| 13 | `#![forbid(unsafe_code)]` in every crate | CRITICAL | crate-root attribute + grep gate (wiring: #214) |
+| 14 | Stable error codes `TYRUS-EXXXX` + category per `TyrusError` variant | HIGH | exhaustiveness test + JSON contract (wiring: #216) |
 
 ## Build & Dev Commands
 

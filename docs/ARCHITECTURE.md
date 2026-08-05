@@ -197,6 +197,7 @@ The project enforces strict correctness via:
 Numbered ADRs under [`docs/architecture/decisions/`](architecture/decisions/) are the binding record of architectural choices. Most-recent-first:
 
 - [ADR 0014 — Development Flow Rules (F1–F10)](architecture/decisions/0014-development-flow-rules.md) — process standard companion to the Power of Ten; see [DEVELOPMENT_FLOW.md](standards/DEVELOPMENT_FLOW.md).
+- [ADR 0013 — Power of Ten v2](architecture/decisions/0013-power-of-ten-v2.md) — R13 (forbid unsafe), R14 (stable error codes), amendments to R4/R5/R6/R9/R12, Consortium traceability annex.
 - [ADR 0012 — Array Method Dispatch — Ownership](architecture/decisions/0012-array-method-dispatch-split.md) — boundary between IR-context array calls (`call_array.rs`) and pure Vec ops (`stdlib/array.rs`).
 - [ADR 0011 — Supply-Chain Hygiene Policy](architecture/decisions/0011-supply-chain-hygiene.md) — license allowlist, advisory ignore list, dependabot grouping, CODEOWNERS (PR #126 backfill).
 - [ADR 0010 — Formatter Contract](architecture/decisions/0010-formatter-contract.md) — idempotence, error-propagation, no-bypass guarantees for `tyrus_orchestrator::format` (PR #142 backfill).
