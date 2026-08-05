@@ -75,8 +75,12 @@ pub(crate) fn error_to_json_value(err: &TyrusError) -> Value {
     let code = err
         .code()
         .map_or_else(|| "tyrus::unknown".to_string(), |c| c.to_string());
+    // `errorCode`/`category` are the Rule 14 stable identifiers (additive
+    // fields, schemaVersion stays 1). `code` keeps the miette namespace path.
     json!({
         "code": code,
+        "errorCode": err.stable_code(),
+        "category": err.category(),
         "message": format!("{err}"),
     })
 }
@@ -165,6 +169,8 @@ mod tests {
         let errors = json["errors"].as_array().expect("errors array");
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0]["code"], "tyrus::lint::no_var");
+        assert_eq!(errors[0]["errorCode"], "TYRUS-E1001");
+        assert_eq!(errors[0]["category"], "analyze");
         assert!(errors[0]["message"].as_str().unwrap_or("").contains("var"));
     }
 
@@ -187,6 +193,7 @@ mod tests {
         let errors = json["errors"].as_array().expect("errors array");
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0]["code"], "tyrus::validation_error");
+        assert_eq!(errors[0]["errorCode"], "TYRUS-E3002");
     }
 
     #[test]
@@ -194,6 +201,8 @@ mod tests {
         let err = TyrusError::Validation("msg".into());
         let v = error_to_json_value(&err);
         assert_eq!(v["code"], "tyrus::validation_error");
+        assert_eq!(v["errorCode"], "TYRUS-E3002");
+        assert_eq!(v["category"], "io");
         assert!(v["message"].as_str().unwrap_or("").contains("msg"));
     }
 

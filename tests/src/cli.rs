@@ -143,6 +143,9 @@ fn test_cli_check_json_envelope_on_missing_file() {
         json["errors"].as_array().is_some_and(|a| !a.is_empty()),
         "envelope must include the IO error"
     );
+    // Rule 14: every error entry carries the stable identifiers.
+    assert_eq!(json["errors"][0]["errorCode"], "TYRUS-E3001");
+    assert_eq!(json["errors"][0]["category"], "io");
     assert!(!output.status.success());
 }
 
