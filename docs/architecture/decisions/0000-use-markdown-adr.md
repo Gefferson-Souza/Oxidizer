@@ -1,29 +1,29 @@
-# 0. Uso de Architecture Decision Records (ADR)
+# 0. Use of Architecture Decision Records (ADR)
 
-Data: 2025-11-22
-Status: Aceito
+Date: 2025-11-22
+Status: Accepted
 
-## Contexto
-Precisamos registrar decisões arquiteturais significativas para o projeto Tyrus.
-Como este projeto visa ser uma ferramenta de engenharia complexa (compilador) e um artefato acadêmico, é crucial manter um histórico do "porquê" e "como" as decisões foram tomadas.
-A falta de documentação sobre decisões de design pode levar a retrabalho, perda de contexto e dificuldade na defesa da tese de mestrado.
+## Context
+We need to record significant architectural decisions for the Tyrus project.
+Since this project aims to be both a complex engineering tool (compiler) and an academic artifact, it is crucial to keep a history of the "why" and "how" behind decisions.
+Lack of documentation about design decisions can lead to rework, loss of context, and difficulty defending the master's thesis.
 
-## Decisão
-Adotaremos o formato **Architecture Decision Records (ADR)**.
-Usaremos arquivos Markdown numerados sequencialmente na pasta `docs/architecture/decisions`.
+## Decision
+We will adopt the **Architecture Decision Records (ADR)** format.
+We will use sequentially numbered Markdown files in the `docs/architecture/decisions` folder.
 
-Cada ADR deve seguir esta estrutura:
-1. **Título:** Curto e descritivo.
-2. **Status:** Proposto, Aceito, Depreciado ou Rejeitado.
-3. **Contexto:** Qual é o problema que estamos tentando resolver? Quais são as restrições?
-4. **Decisão:** O que vamos fazer? (Tecnologia, Padrão, Algoritmo).
-5. **Consequências:** O que ganhamos (pros) e o que perdemos/pagamos (contras) com essa decisão.
+Each ADR must follow this structure:
+1. **Title:** Short and descriptive.
+2. **Status:** Proposed, Accepted, Deprecated, or Rejected.
+3. **Context:** What problem are we trying to solve? What are the constraints?
+4. **Decision:** What will we do? (Technology, Pattern, Algorithm).
+5. **Consequences:** What we gain (pros) and what we lose/pay (cons) with this decision.
 
-## Consequências
-### Positivas
-- Histórico claro da evolução do projeto.
-- Facilita o onboarding de novos contribuidores (Open Source).
-- Material pronto para a escrita da dissertação de mestrado.
+## Consequences
+### Positive
+- Clear history of the project's evolution.
+- Eases onboarding of new contributors (Open Source).
+- Ready-made material for writing the master's dissertation.
 
-### Negativas
-- Requer disciplina para escrever o documento antes ou durante a implementação.
+### Negative
+- Requires discipline to write the document before or during implementation.
