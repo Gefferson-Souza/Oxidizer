@@ -27,12 +27,15 @@ node_modules/
 target/
 **/*.rs.bk
 
+# Claude Code: session-private state stays ignored; the versioned harness
+# (settings.json, hooks/, rules/, agents/, skills/) is tracked.
+.claude/plan/
+.claude/worktrees/
+.claude/checkpoints.log
+.claude/settings.local.json
+.claude/CLAUDE.local.md
 
 # Agent configuration (local only)
-# .agent.claude/worktrees/
-
-# Assistant scratch — local planning + settings, never committed
-.claude/
 .agent/
 
 # Documentation scratch (assistant-only; not project source-of-truth)
