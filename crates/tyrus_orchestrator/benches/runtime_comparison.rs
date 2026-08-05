@@ -282,8 +282,9 @@ fn main() {
         // 2. Transpile TS → Rust
         let rust_code = transpile_ts(case.ts_code);
 
-        // 3. Ensure fn main() exists
-        let rust_code = if rust_code.contains("fn main()") {
+        // 3. Ensure fn main() exists. Raw quote! output spells it "fn main ()"
+        // (space before parens) — match without the parens to cover both forms.
+        let rust_code = if rust_code.contains("fn main") {
             rust_code
         } else {
             format!("{rust_code}\nfn main() {{}}\n")

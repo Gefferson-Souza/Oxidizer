@@ -140,15 +140,10 @@ impl RustGenerator {
         ts_type: &swc_ecma_ast::TsType,
         obj: &swc_ecma_ast::ObjectLit,
     ) -> Option<TokenStream> {
-        let type_name = if let swc_ecma_ast::TsType::TsTypeRef(type_ref) = ts_type {
-            if let Some(ident) = type_ref.type_name.as_ident() {
-                ident.sym.to_string()
-            } else {
-                return None;
-            }
-        } else {
+        let swc_ecma_ast::TsType::TsTypeRef(type_ref) = ts_type else {
             return None;
         };
+        let type_name = type_ref.type_name.as_ident()?.sym.to_string();
 
         let type_ident = format_ident!("{}", type_name);
         let mut fields = Vec::new();
