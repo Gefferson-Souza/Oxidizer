@@ -24,8 +24,8 @@ This file provides guidance to Claude Code when working with this repository.
 | 10 | ADR for architectural decisions | HIGH | PR template |
 | 11 | One branch = one concern + Conventional Commits | HIGH | PR title regex |
 | 12 | Warnings-clean + daily audited (`--all-targets`, `--locked`, `cargo deny`, `cargo audit`, `cargo machete`, MSRV job) | CRITICAL | CI workflow |
-| 13 | `#![forbid(unsafe_code)]` in every crate | CRITICAL | crate-root attribute + grep gate (wiring: #214) |
-| 14 | Stable error codes `TYRUS-EXXXX` + category per `TyrusError` variant | HIGH | exhaustiveness test + JSON contract (wiring: #216) |
+| 13 | `#![forbid(unsafe_code)]` in every crate | CRITICAL | crate-root attribute + `gates.sh unsafe` |
+| 14 | Stable error codes `TYRUS-EXXXX` + category per `TyrusError` variant | HIGH | exhaustiveness/uniqueness tests + JSON contract |
 
 ## Build & Dev Commands
 

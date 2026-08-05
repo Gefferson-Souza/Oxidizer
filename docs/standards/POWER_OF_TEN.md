@@ -93,7 +93,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Why.** Codified project rule. A `.unwrap()` in a transpiler is a denial-of-service vector when the input triggers it.
 
-**Enforce.** `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::todo`, `clippy::unimplemented` — all `-W` (effectively `-D` with `-Dwarnings`), verified by `cargo clippy --workspace --all-targets -- -D warnings`. The three indexing/slicing lints added by ADR 0013 (`indexing_slicing`, `string_slice`, `unwrap_in_result`) are wired by the `[workspace.lints]` migration tracked in issue #215; until that lands they bind new code at review time.
+**Enforce.** `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::todo`, `clippy::unimplemented`, plus the ADR 0013 additions `indexing_slicing`, `string_slice`, `unwrap_in_result` — all warn-level in `[workspace.lints]` with `warnings = "deny"` (#215), verified by `cargo clippy --workspace --all-targets --locked -- -D warnings`.
 
 **Severity.** CRITICAL.
 
@@ -129,7 +129,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 ### Rule 9 — Local-First Validation Parity
 
-**Rule.** The pre-commit hook and CI run *the same gates with the same flags*. Single source of truth: `scripts/gates.sh` — **every gate defined there has a corresponding CI step**, and any divergence between hook and CI is a CRITICAL bug (ADR 0013: this sentence exists because the `filesize` gate has run locally for months with no CI step — a live divergence being closed by issue #213). All CI cargo invocations pass `--locked` (also #213).
+**Rule.** The pre-commit hook and CI run *the same gates with the same flags*. Single source of truth: `scripts/gates.sh` — **every gate defined there has a corresponding CI step**, and any divergence between hook and CI is a CRITICAL bug (ADR 0013: this sentence exists because the `filesize` gate ran locally for months with no CI step — closed by #213). All CI cargo invocations pass `--locked`.
 
 The mandated gate set (as named in `gates.sh`):
 
@@ -203,7 +203,7 @@ When the monolithic `gates.sh all` run is impractical on a dev machine (resource
 
 **Why.** With zero `unsafe` in the workspace, whole classes of tooling (Miri, sanitizers) become unnecessary rather than merely passing — the strongest possible safety argument is structural absence, not audited presence. This also makes the safety posture legible to outside reviewers in one grep.
 
-**Enforce.** `#![forbid(unsafe_code)]` attribute in every crate root; grep gate in `scripts/gates.sh` failing if any crate root lacks the attribute or any production source contains `unsafe`. Wiring tracked in issue #214 — binding for new crates immediately.
+**Enforce.** `#![forbid(unsafe_code)]` attribute in every crate root (all 12 members, #214); the `unsafe` gate in `scripts/gates.sh` (with its 1:1 CI step) fails if any crate root lacks the attribute.
 
 **Severity.** CRITICAL.
 
@@ -217,7 +217,7 @@ When the monolithic `gates.sh all` run is impractical on a dev machine (resource
 
 **Why.** Message strings are presentation, not identity — they change with wording improvements and break every consumer that matched on them. Stable codes are what let the JSON envelope be a real contract (schemaVersion 1) and what make diagnostics documentable (`rustc --explain`-style) later.
 
-**Enforce.** Exhaustiveness unit test in `tyrus_diagnostics` (every variant has a code; codes are unique); `miette::Diagnostic::code()` wired for every variant; CLI tests assert codes. Implementation tracked in issue #216.
+**Enforce.** Compiler-enforced exhaustive matches plus uniqueness/format tests in `tyrus_diagnostics` (#216); `errorCode`/`category` exposed additively in the `--json` envelope (schemaVersion 1); CLI and analyzer tests assert codes, never messages.
 
 **Severity.** HIGH.
 
