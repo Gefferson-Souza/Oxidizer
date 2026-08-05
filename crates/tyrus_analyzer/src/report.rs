@@ -133,7 +133,7 @@ pub fn format_json_failure(error: &TyrusError) -> String {
 #[allow(clippy::expect_used)]
 #[expect(
     clippy::indexing_slicing,
-    reason = "serde_json::Value indexing is total: missing keys yield Value::Null"
+    reason = "Value key indexing is total (missing keys yield Null); array element access is guarded by len asserts immediately before"
 )]
 mod tests {
     use super::*;
