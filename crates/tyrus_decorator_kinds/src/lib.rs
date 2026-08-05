@@ -14,6 +14,8 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
+#![warn(clippy::missing_errors_doc)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::todo)]
 
 /// Where in the AST a decorator can appear.
@@ -34,24 +36,35 @@ pub enum DecoratorScope {
 /// in `tyrus_codegen::decorators`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DecoratorKind {
-    // Class-level
+    /// `@Module({...})` — DI module grouping providers/controllers.
     Module,
+    /// `@Injectable()` — provider registered in the DI graph.
     Injectable,
+    /// `@Controller("/path")` — HTTP controller with a route prefix.
     Controller,
+    /// `@UseGuards(...)` — middleware guard applied to a class or method.
     UseGuards,
 
-    // Method-level
+    /// `@Get("/path")` route handler.
     HttpGet,
+    /// `@Post("/path")` route handler.
     HttpPost,
+    /// `@Put("/path")` route handler.
     HttpPut,
+    /// `@Delete("/path")` route handler.
     HttpDelete,
+    /// `@Patch("/path")` route handler.
     HttpPatch,
+    /// `@HttpCode(n)` — overrides the response status code.
     HttpCode,
 
-    // Param-level
+    /// `@Body()` — deserialized request body parameter.
     Body,
+    /// `@Param("name")` — path parameter.
     Param,
+    /// `@Query("name")` — query-string parameter.
     Query,
+    /// `@Headers()` — request headers map.
     Headers,
 }
 

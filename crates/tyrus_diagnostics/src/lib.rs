@@ -1,4 +1,9 @@
+//! Central error type ([`TyrusError`]) and stable error taxonomy
+//! ([`ErrorCategory`], `TYRUS-EXXXX` codes — Rule 14) for the whole pipeline,
+//! rendered through `miette` for terminal diagnostics.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
+#![warn(clippy::missing_errors_doc)]
 #![allow(unused_assignments)]
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
@@ -8,14 +13,20 @@ use thiserror::Error;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ErrorCategory {
+    /// Lexing/parsing of the TypeScript source (SWC).
     Parse,
+    /// Semantic analysis: lint rules and unsupported-API detection.
     Analyze,
+    /// Rust code generation (reserved — no codegen-stage errors yet).
     Codegen,
+    /// Filesystem/input errors, including CLI input validation.
     Io,
+    /// Formatting of the generated Rust source.
     Format,
 }
 
 impl ErrorCategory {
+    /// Lowercase name used in the `--json` envelope.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -66,55 +77,75 @@ impl TyrusError {
     }
 }
 
+/// Every failure the Tyrus pipeline can produce. Each variant carries a
+/// stable code ([`Self::stable_code`]) and category ([`Self::category`]).
 #[derive(Error, Diagnostic, Debug)]
 pub enum TyrusError {
     #[error("IO Error: {0}")]
     #[diagnostic(code(tyrus::io_error))]
+    /// Underlying filesystem/IO failure (`TYRUS-E3001`).
     IoError(#[from] std::io::Error),
 
     #[error("Parsing Error: {message}")]
     #[diagnostic(code(tyrus::parse_error))]
+    /// SWC could not parse the input (`TYRUS-E0001`).
     ParserError {
+        /// Parser-provided description of the syntax problem.
         message: String,
+        /// Source file the diagnostic points into.
         #[source_code]
         src: NamedSource<String>,
+        /// Offending region within `src`.
         #[label("{message}")]
         span: SourceSpan,
     },
 
     #[error("Lint Error: Rust does not support 'var'. Use 'let' or 'const'.")]
     #[diagnostic(code(tyrus::lint::no_var))]
+    /// Lint: `var` declaration (`TYRUS-E1001`).
     UseOfVar {
+        /// Source file the diagnostic points into.
         #[source_code]
         src: NamedSource<String>,
+        /// Offending region within `src`.
         #[label("replace 'var' with 'let' or 'const'")]
         span: SourceSpan,
     },
 
     #[error("Lint Error: Rust requires strict typing. 'any' is not allowed.")]
     #[diagnostic(code(tyrus::lint::no_any))]
+    /// Lint: `any` type (`TYRUS-E1002`).
     UseOfAny {
+        /// Source file the diagnostic points into.
         #[source_code]
         src: NamedSource<String>,
+        /// Offending region within `src`.
         #[label("specify a concrete type")]
         span: SourceSpan,
     },
 
     #[error("Lint Error: Code injection via 'eval' is unsafe and not supported in Rust.")]
     #[diagnostic(code(tyrus::lint::no_eval))]
+    /// Lint: `eval` call (`TYRUS-E1003`).
     UseOfEval {
+        /// Source file the diagnostic points into.
         #[source_code]
         src: NamedSource<String>,
+        /// Offending region within `src`.
         #[label("remove 'eval' usage")]
         span: SourceSpan,
     },
 
     #[error("Unsupported Feature: {feature} is not yet supported in Tyrus.")]
     #[diagnostic(code(tyrus::unsupported))]
+    /// Construct outside the Oxidizable subset (`TYRUS-E1004`).
     UnsupportedFeature {
+        /// Human-readable name of the unsupported construct.
         feature: String,
+        /// Source file the diagnostic points into.
         #[source_code]
         src: NamedSource<String>,
+        /// Offending region within `src`.
         #[label("this feature is pending implementation")]
         span: SourceSpan,
     },
@@ -126,23 +157,29 @@ pub enum TyrusError {
          statements inside `main()`, or remove the user-declared `main` function."
     )]
     #[diagnostic(code(tyrus::lint::ambiguous_main_entrypoint))]
+    /// `function main()` plus top-level statements in one file (`TYRUS-E1005`).
     AmbiguousMainEntrypoint {
+        /// Source file the diagnostic points into.
         #[source_code]
         src: NamedSource<String>,
+        /// Offending region within `src`.
         #[label("first top-level statement here")]
         span: SourceSpan,
     },
 
     #[error("Formatting Error: {0}")]
     #[diagnostic(code(tyrus::fmt_error))]
+    /// `prettyplease`/`syn` rejected the generated source (`TYRUS-E4001`).
     FormattingError(String),
 
     #[error("Validation Error: {0}")]
     #[diagnostic(code(tyrus::validation_error))]
+    /// CLI/input validation failure (`TYRUS-E3002`).
     Validation(String),
 
     #[error("Unknown Error")]
     #[diagnostic(code(tyrus::unknown))]
+    /// Catch-all with no attributable stage (`TYRUS-E9999`).
     Unknown,
 }
 

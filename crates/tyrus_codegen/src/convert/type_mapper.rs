@@ -135,7 +135,7 @@ pub fn map_ts_type(type_ann: Option<&Box<TsTypeAnn>>) -> TokenStream {
     }
 }
 
-/// Unwraps Promise<T> to T for async function return types
+/// Unwraps `Promise<T>` to `T` for async function return types
 // Why allowed: same SWC-shaped signature as map_ts_type above; relaxing forces
 // Box-unwrapping at every call site.
 #[allow(clippy::borrowed_box)]
