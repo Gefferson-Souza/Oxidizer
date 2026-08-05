@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use miette::{NamedSource, SourceSpan};
 use std::path::Path;
 use tyrus_diagnostics::TyrusError;

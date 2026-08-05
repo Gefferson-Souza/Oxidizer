@@ -13,6 +13,7 @@
 //! assert_eq!(DecoratorKind::from_name("UnknownDecorator"), None);
 //! ```
 
+#![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::todo)]
 
 /// Where in the AST a decorator can appear.

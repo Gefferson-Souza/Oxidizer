@@ -20,6 +20,7 @@
 #   ./scripts/gates.sh deny        # cargo deny check
 #   ./scripts/gates.sh audit       # cargo audit --deny warnings
 #   ./scripts/gates.sh machete     # cargo machete (unused dependencies)
+#   ./scripts/gates.sh unsafe      # Rule 13: forbid(unsafe_code) in every crate root
 #
 # Environment variables:
 #   TYRUS_SKIP_DENY=1      Skip cargo deny check (use only when tool unavailable).
@@ -170,6 +171,27 @@ gate_filesize() {
     return "$fail"
 }
 
+gate_unsafe() {
+    echo "=== gate: unsafe ==="
+    # Rule 13 (POWER_OF_TEN.md, ADR 0013): every crate root must declare
+    # #![forbid(unsafe_code)]. `forbid` cannot be overridden by inner
+    # allows, so the compiler is the real enforcement — this gate only
+    # guarantees the attribute never silently disappears (or is missing
+    # from a newly added crate).
+    fail=0
+    for root in crates/*/src/lib.rs crates/*/src/main.rs tests/src/lib.rs; do
+        [ -f "$root" ] || continue
+        if ! grep -q '^#!\[forbid(unsafe_code)\]' "$root"; then
+            echo "FAIL: missing #![forbid(unsafe_code)] in $root"
+            fail=1
+        fi
+    done
+    if [ "$fail" -eq 0 ]; then
+        echo "All crate roots forbid unsafe_code."
+    fi
+    return "$fail"
+}
+
 gate_machete() {
     if [ "${TYRUS_SKIP_MACHETE:-0}" = "1" ]; then
         echo "=== gate: machete (SKIPPED via TYRUS_SKIP_MACHETE=1) ==="
@@ -223,10 +245,12 @@ case "$cmd" in
     deny)     gate_deny ;;
     audit)    gate_audit ;;
     machete)  gate_machete ;;
+    unsafe)   gate_unsafe ;;
     all)
         gate_fmt
         gate_clippy
         gate_filesize
+        gate_unsafe
         gate_test
         gate_coverage
         gate_deny

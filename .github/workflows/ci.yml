@@ -39,6 +39,8 @@ jobs:
       # Rule 4 file ceiling — same gate the pre-commit hook runs (Rule 9:
       # every gates.sh gate has a 1:1 CI step; this one was hook-only, #213).
       - run: ./scripts/gates.sh filesize
+      # Rule 13: every crate root declares #![forbid(unsafe_code)] (#214).
+      - run: ./scripts/gates.sh unsafe
 
   # MSRV — the workspace must keep compiling on the declared minimum
   # supported Rust version ([workspace.package] rust-version).

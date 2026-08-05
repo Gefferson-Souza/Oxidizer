@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 // Visitor modules are crate-private — only `Analyzer::analyze` should
 // instantiate them. `report` and `severity` are exposed because the CLI
 // and orchestrator format diagnostics for end users.

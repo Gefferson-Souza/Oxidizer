@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use std::fs;
 use std::path::PathBuf;
