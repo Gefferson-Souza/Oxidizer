@@ -1,44 +1,44 @@
-# 3. Mapeamento de Generics (TypeScript -> Rust)
+# 3. Generics Mapping (TypeScript -> Rust)
 
-Data: 2026-02-10
-Status: Aceito
+Date: 2026-02-10
+Status: Accepted
 
-## Contexto
+## Context
 
-TypeScript possui um sistema de tipos estrutural com generics muito flexíveis (`any`, restrições parciais). Rust possui um sistema nominal e monomorfização.
-Precisamos permitir que usuários definam classes e funções genéricas em TS que compilem em Rust.
+TypeScript has a structural type system with very flexible generics (`any`, partial constraints). Rust has a nominal system with monomorphization.
+We need to let users define generic classes and functions in TS that compile to Rust.
 
-## Decisão
+## Decision
 
-Mapearemos Generics do TS para Generics do Rust com Restrições de Trait (Trait Bounds) padrão.
+We will map TS Generics to Rust Generics with default Trait Bounds.
 
-### Regras de Mapeamento:
+### Mapping Rules:
 
-1.  **Declaração:**
+1.  **Declaration:**
     - TS: `class Box<T> { ... }`
     - Rust: `struct Box<T> { ... }`
 
-2.  **Trait Bounds Automáticos:**
-    - Todo parâmetro genérico `T` em Rust receberá automaticamente:
+2.  **Automatic Trait Bounds:**
+    - Every generic parameter `T` in Rust will automatically receive:
       `T: serde::Serialize + serde::Deserialize + Clone + Debug + Default`
-    - _Justificativa:_ Backends precisam serializar dados (JSON), clonar estados e debugar. Sem esses traits, o uso de `T` seria muito restrito.
+    - _Rationale:_ Backends need to serialize data (JSON), clone state, and debug. Without these traits, using `T` would be too restricted.
 
 3.  **PhantomData:**
-    - Se um parâmetro `T` é declarado mas não usado nos campos da struct:
-    - Rust: Adicionar campo `_phantom: std::marker::PhantomData<T>`.
-    - _Justificativa:_ O compilador Rust rejeita parâmetros genéricos não utilizados.
+    - If a `T` parameter is declared but not used in the struct's fields:
+    - Rust: Add a `_phantom: std::marker::PhantomData<T>` field.
+    - _Rationale:_ The Rust compiler rejects unused generic parameters.
 
-4.  **Herança de Generics:**
-    - Não suportaremos restrições complexas do TS (`T extends keyof U`) na v1. Elas serão tratadas como `T` simples.
+4.  **Generics Inheritance:**
+    - We will not support complex TS constraints (`T extends keyof U`) in v1. They will be treated as plain `T`.
 
-## Consequências
+## Consequences
 
-### Positivas
+### Positive
 
-- Permite criar DTOs reutilizáveis (`ApiResponse<T>`).
-- Garante que os tipos genéricos sejam úteis (serializáveis).
+- Enables reusable DTOs (`ApiResponse<T>`).
+- Ensures generic types are useful (serializable).
 
-### Negativas
+### Negative
 
-- Restrição excessiva: Nem todo `T` precisa ser `Default`, mas estamos forçando. Isso pode impedir o uso de tipos que não implementam `Default`.
-- _Mitigação:_ No futuro, podemos analisar o uso do tipo para relaxar os bounds.
+- Excessive restriction: not every `T` needs to be `Default`, but we are forcing it. This may prevent the use of types that don't implement `Default`.
+- _Mitigation:_ In the future, we could analyze type usage to relax the bounds.
