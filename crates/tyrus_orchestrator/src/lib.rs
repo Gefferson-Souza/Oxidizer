@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use std::path::Path;
 
 use tyrus_common::fs::FilePath;

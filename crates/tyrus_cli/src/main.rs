@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use clap::{Parser, Subcommand};
 use miette::Result;
 use std::path::PathBuf;

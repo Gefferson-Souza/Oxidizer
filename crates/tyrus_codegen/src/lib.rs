@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 pub mod convert;
 pub(crate) mod decorators;
 pub mod stdlib;
