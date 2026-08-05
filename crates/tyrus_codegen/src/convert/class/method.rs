@@ -17,6 +17,10 @@ struct MethodDecorators {
 }
 
 /// Context flags computed from decorators and method properties.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent orthogonal flags derived from the TS method signature"
+)]
 struct MethodContext {
     is_handler: bool,
     is_static: bool,
@@ -96,8 +100,10 @@ fn convert_single_param(param: &swc_ecma_ast::Param) -> Option<proc_macro2::Toke
     let tokens = registry
         .first_param_decorator_kind(param)
         .and_then(|kind| registry.param_handler(kind))
-        .map(|handler| handler.emit_extractor(param, &param_name, &param_type))
-        .unwrap_or_else(|| quote! { #param_name: #param_type });
+        .map_or_else(
+            || quote! { #param_name: #param_type },
+            |handler| handler.emit_extractor(param, &param_name, &param_type),
+        );
 
     Some(tokens)
 }
@@ -161,16 +167,16 @@ fn compute_base_return_type(
     }
 }
 
-/// Wraps a handler return type in Json<T> and optionally (StatusCode, T).
+/// Wraps a handler return type in Json<T> and optionally (`StatusCode`, T).
 fn wrap_handler_return_type(
     base: &proc_macro2::TokenStream,
     http_code: Option<u16>,
 ) -> proc_macro2::TokenStream {
     let return_type_str = base.to_string();
-    let inner_type = if return_type_str != "String" {
-        quote! { axum::Json<#base> }
-    } else {
+    let inner_type = if return_type_str == "String" {
         quote! { String }
+    } else {
+        quote! { axum::Json<#base> }
     };
 
     if http_code.is_some() {
@@ -182,7 +188,7 @@ fn wrap_handler_return_type(
 
 use super::routing::{build_doc_comment, map_status_code};
 
-/// Builds a handler return expression with Json wrapping and optional StatusCode.
+/// Builds a handler return expression with Json wrapping and optional `StatusCode`.
 fn build_handler_return(
     expr: &proc_macro2::TokenStream,
     return_type: &proc_macro2::TokenStream,
@@ -320,7 +326,8 @@ impl RustGenerator {
             quote! { fn }
         };
 
-        let doc_comment = build_doc_comment(&decorators.http_method, &decorators.route_path);
+        let doc_comment =
+            build_doc_comment(decorators.http_method.as_ref(), &decorators.route_path);
 
         let tokens = quote! {
             #doc_comment

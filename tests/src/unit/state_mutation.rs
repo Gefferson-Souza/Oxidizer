@@ -54,10 +54,10 @@ fn assert_no_inline_compound_on_lock(rust: &str) {
 #[test]
 fn compound_addassign_emits_read_then_write() {
     let ts = render_service(
-        r#"
+        r"
     bumpCounter(): void {
         this.counter += 7;
-    }"#,
+    }",
     );
     let rust = transpile(&ts);
 
@@ -80,10 +80,10 @@ fn compound_addassign_emits_read_then_write() {
 #[test]
 fn compound_subassign_emits_read_then_write() {
     let ts = render_service(
-        r#"
+        r"
     drain(amount: number): void {
         this.counter -= amount;
-    }"#,
+    }",
     );
     let rust = transpile(&ts);
     assert_no_inline_compound_on_lock(&rust);
@@ -96,10 +96,10 @@ fn compound_subassign_emits_read_then_write() {
 #[test]
 fn update_expr_postincrement_emits_safe_form() {
     let ts = render_service(
-        r#"
+        r"
     next(): void {
         this.counter++;
-    }"#,
+    }",
     );
     let rust = transpile(&ts);
     // The unsafe form would be `*self.counter.lock(...) += 1f64` (single statement,
@@ -133,10 +133,10 @@ fn dual_read_in_struct_literal_uses_guarded_blocks() {
 #[test]
 fn dual_read_in_call_args_uses_guarded_blocks() {
     let ts = render_service(
-        r#"
+        r"
     range(): number {
         return Math.max(this.counter, this.counter);
-    }"#,
+    }",
     );
     let rust = transpile(&ts);
 
@@ -153,12 +153,12 @@ fn dual_read_in_call_args_uses_guarded_blocks() {
 #[test]
 fn state_compound_assign_compiles() {
     let ts = render_service(
-        r#"
+        r"
     bumpCounter(): void {
         this.counter += 1;
         this.counter -= 1;
         this.counter *= 2;
-    }"#,
+    }",
     );
     let rust = transpile(&ts);
     assert_rust_compiles(&rust);
@@ -180,13 +180,13 @@ fn state_dual_read_compiles() {
 #[test]
 fn state_update_expr_compiles() {
     let ts = render_service(
-        r#"
+        r"
     next(): void {
         this.counter++;
     }
     prev(): void {
         this.counter--;
-    }"#,
+    }",
     );
     let rust = transpile(&ts);
     assert_rust_compiles(&rust);

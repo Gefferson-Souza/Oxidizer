@@ -27,7 +27,7 @@ fn convert_ident(ident: &swc_ecma_ast::Ident) -> TokenStream {
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{Expr, ExprOrSpread, NewExpr};
 
 use super::interface::RustGenerator;
 
@@ -45,7 +45,7 @@ impl RustGenerator {
                 }
             }
             Expr::Ident(ident) => convert_ident(ident),
-            Expr::Lit(lit) => self.convert_lit(lit),
+            Expr::Lit(lit) => Self::convert_lit(lit),
             Expr::Member(member) => self.convert_member_expr(member),
             Expr::Call(call) => self.convert_call_expr(call),
             Expr::Object(obj) => self.convert_object_lit(obj),
@@ -81,10 +81,10 @@ impl RustGenerator {
     }
 
     // Bound: SWC AST is finite; recursion depth ≤ AST depth (Rule 1, POWER_OF_TEN.md).
-    fn convert_cond_expr(&self, cond: &swc_ecma_ast::CondExpr) -> TokenStream {
-        let test = self.convert_expr(&cond.test);
-        let cons = self.convert_expr(&cond.cons);
-        let alt = self.convert_expr(&cond.alt);
+    fn convert_cond_expr(&self, ternary: &swc_ecma_ast::CondExpr) -> TokenStream {
+        let test = self.convert_expr(&ternary.test);
+        let cons = self.convert_expr(&ternary.cons);
+        let alt = self.convert_expr(&ternary.alt);
         quote! { if #test { #cons } else { #alt } }
     }
 

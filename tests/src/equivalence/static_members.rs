@@ -3,7 +3,7 @@ use crate::helpers::assert_output_equivalent;
 #[test]
 fn test_equivalence_static_method() {
     assert_output_equivalent(
-        r#"
+        r"
 class MathUtils {
     static add(a: number, b: number): number {
         return a + b;
@@ -18,14 +18,14 @@ function main(): void {
     console.log(MathUtils.multiply(5, 6));
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_static_and_instance() {
     assert_output_equivalent(
-        r#"
+        r"
 class Counter {
     count: number;
     constructor() {
@@ -46,6 +46,6 @@ function main(): void {
     console.log(c.increment());
 }
 main();
-"#,
+",
     );
 }

@@ -1,16 +1,5 @@
 # .cargo/config.toml
-# Strict linting rules for TypeRust workspace.
-# All violations are compile errors. No exceptions.
-
-[target.'cfg(all())']
-rustflags = [
-    "-Dwarnings",
-    "-Wclippy::unwrap_used",
-    "-Wclippy::expect_used",
-    "-Wclippy::panic",
-    "-Wclippy::todo",
-    "-Wclippy::unimplemented",
-    "-Wclippy::needless_pass_by_value",
-    "-Wclippy::redundant_closure_for_method_calls",
-    "-Wclippy::implicit_clone",
-]
+# Lint policy moved to `[workspace.lints]` in the root Cargo.toml (#215),
+# the idiomatic mechanism since Rust 1.74. This file intentionally keeps no
+# rustflags: duplicating lints here would apply them to third-party
+# dependencies too and fight the workspace tables.

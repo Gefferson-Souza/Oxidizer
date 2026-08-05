@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use swc_ecma_ast::*;
+use swc_ecma_ast::ExprOrSpread;
 
 use super::super::convert::interface::RustGenerator;
 

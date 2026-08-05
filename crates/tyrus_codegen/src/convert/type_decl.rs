@@ -246,6 +246,10 @@ fn emit_numeric_enum(enum_name: &Ident, decl: &TsEnumDecl, is_exporting: bool) -
     }
 }
 
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "pre-existing lossy cast: out-of-i32-range enum initializers wrap silently; range guard tracked in #223"
+)]
 fn numeric_enum_variant(m: &TsEnumMember, current_value: &mut i64) -> TokenStream {
     let variant_name_str = member_ident_string(&m.id);
     let variant_ident = format_ident!("{}", variant_name_str);

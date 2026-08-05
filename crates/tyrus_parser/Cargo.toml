@@ -13,3 +13,6 @@ swc_ecma_ast = "23.0.0"
 swc_common = { version = "21.0.1", features = ["tty-emitter"] }
 tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 miette = { version = "7.6.0", features = ["fancy"] }
+
+[lints]
+workspace = true

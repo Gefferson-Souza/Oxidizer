@@ -16,8 +16,7 @@ impl Pipeline {
     }
 
     pub(crate) fn start_step(&mut self, detail: &str) {
-        if self.current < self.steps.len() {
-            let label = &self.steps[self.current];
+        if let Some(label) = self.steps.get(self.current) {
             eprintln!(
                 "  {} {} {}",
                 style(format!("[{}/{}]", self.current + 1, self.steps.len())).dim(),
@@ -28,7 +27,7 @@ impl Pipeline {
         self.current += 1;
     }
 
-    pub(crate) fn finish_success(&self, msg: &str) {
+    pub(crate) fn finish_success(msg: &str) {
         eprintln!(
             "\n  {} {}\n",
             style("✓").green().bold(),
@@ -36,7 +35,7 @@ impl Pipeline {
         );
     }
 
-    pub(crate) fn finish_error(&self, msg: &str) {
+    pub(crate) fn finish_error(msg: &str) {
         eprintln!(
             "\n  {} {}\n",
             style("✗").red().bold(),

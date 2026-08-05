@@ -1,6 +1,6 @@
 use crate::helpers::assert_output_equivalent;
 
-/// Verifies that the service logic from the reference NestJS project
+/// Verifies that the service logic from the reference `NestJS` project
 /// produces identical output in both TypeScript and generated Rust.
 /// This is the REAL equivalence test — not just "does it compile".
 

@@ -21,3 +21,6 @@ serde_json = "1.0"
 trybuild = "1.0"
 
 [dev-dependencies]
+
+[lints]
+workspace = true

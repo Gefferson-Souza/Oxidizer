@@ -23,7 +23,7 @@ impl LintVisitor {
         }
     }
 
-    fn create_span(&self, span: swc_common::Span) -> SourceSpan {
+    fn create_span(span: swc_common::Span) -> SourceSpan {
         let start = span.lo.0 as usize - 1;
         let end = span.hi.0 as usize - 1;
         let len = end - start;
@@ -41,7 +41,7 @@ impl LintVisitor {
         if let (true, Some(span)) = (has_user_main, first_top_stmt_span) {
             self.errors.push(TyrusError::AmbiguousMainEntrypoint {
                 src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-                span: self.create_span(span),
+                span: Self::create_span(span),
             });
         }
     }
@@ -142,7 +142,7 @@ impl Visit for LintVisitor {
         if n.kind == VarDeclKind::Var {
             self.errors.push(TyrusError::UseOfVar {
                 src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-                span: self.create_span(n.span),
+                span: Self::create_span(n.span),
             });
         }
         n.visit_children_with(self);
@@ -152,7 +152,7 @@ impl Visit for LintVisitor {
         if n.kind == TsKeywordTypeKind::TsAnyKeyword {
             self.errors.push(TyrusError::UseOfAny {
                 src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-                span: self.create_span(n.span),
+                span: Self::create_span(n.span),
             });
         }
         n.visit_children_with(self);
@@ -164,7 +164,7 @@ impl Visit for LintVisitor {
                 if ident.sym == "eval" {
                     self.errors.push(TyrusError::UseOfEval {
                         src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-                        span: self.create_span(n.span),
+                        span: Self::create_span(n.span),
                     });
                 }
             }
@@ -179,7 +179,7 @@ impl Visit for LintVisitor {
         self.errors.push(TyrusError::UnsupportedFeature {
             feature: "for-in loops".to_string(),
             src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-            span: self.create_span(n.span),
+            span: Self::create_span(n.span),
         });
         n.visit_children_with(self);
     }
@@ -189,7 +189,7 @@ impl Visit for LintVisitor {
             self.errors.push(TyrusError::UnsupportedFeature {
                 feature: "delete operator".to_string(),
                 src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-                span: self.create_span(n.span),
+                span: Self::create_span(n.span),
             });
         }
         n.visit_children_with(self);
@@ -199,7 +199,7 @@ impl Visit for LintVisitor {
         self.errors.push(TyrusError::UnsupportedFeature {
             feature: "with statement".to_string(),
             src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-            span: self.create_span(n.span),
+            span: Self::create_span(n.span),
         });
         n.visit_children_with(self);
     }
@@ -208,7 +208,7 @@ impl Visit for LintVisitor {
         self.errors.push(TyrusError::UnsupportedFeature {
             feature: "labeled statements".to_string(),
             src: NamedSource::new(self.file_name.clone(), self.source_code.clone()),
-            span: self.create_span(n.span),
+            span: Self::create_span(n.span),
         });
         n.visit_children_with(self);
     }

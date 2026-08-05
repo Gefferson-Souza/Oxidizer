@@ -3,7 +3,7 @@ use crate::helpers::assert_output_equivalent;
 #[test]
 fn test_equivalence_for_loop() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let sum: number = 0;
     for (let i: number = 1; i <= 5; i++) {
@@ -12,14 +12,14 @@ function main(): void {
     console.log(sum);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_for_of_loop() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     const nums: number[] = [10, 20, 30];
     for (const n of nums) {
@@ -27,14 +27,14 @@ function main(): void {
     }
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_do_while_loop() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let i: number = 0;
     do {
@@ -43,7 +43,7 @@ function main(): void {
     console.log(i);
 }
 main();
-"#,
+",
     );
 }
 

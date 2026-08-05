@@ -34,15 +34,16 @@ pub(super) fn extract_field_inits(
     field_inits: &mut Vec<TokenStream>,
     initialized_fields: &mut HashSet<String>,
 ) {
-    let body = match &constructor.body {
-        Some(b) => b,
-        None => return,
+    let Some(body) = &constructor.body else {
+        return;
     };
 
     for stmt in &body.stmts {
-        let expr_stmt = match stmt {
-            Stmt::Expr(ExprStmt { expr, .. }) => expr,
-            _ => continue,
+        let Stmt::Expr(ExprStmt {
+            expr: expr_stmt, ..
+        }) = stmt
+        else {
+            continue;
         };
 
         if let Expr::Call(call) = &**expr_stmt {
@@ -77,14 +78,11 @@ fn extract_super_call(
         .map(|(n, _)| n)
         .collect();
 
-    for (idx, arg) in call.args.iter().enumerate() {
-        if idx < parent_fields.len() {
-            let field_name_str = parent_fields[idx];
-            let field_name = format_ident!("{}", to_snake_case(field_name_str));
-            let value = generator.convert_expr(&arg.expr);
-            field_inits.push(quote! { #field_name: #value });
-            initialized_fields.insert(field_name_str.clone());
-        }
+    for (arg, field_name_str) in call.args.iter().zip(parent_fields) {
+        let field_name = format_ident!("{}", to_snake_case(field_name_str));
+        let value = generator.convert_expr(&arg.expr);
+        field_inits.push(quote! { #field_name: #value });
+        initialized_fields.insert(field_name_str.clone());
     }
 }
 
@@ -95,17 +93,15 @@ fn extract_this_assign(
     field_inits: &mut Vec<TokenStream>,
     initialized_fields: &mut HashSet<String>,
 ) {
-    let simple = match &assign.left {
-        AssignTarget::Simple(s) => s,
-        _ => return,
+    let AssignTarget::Simple(simple) = &assign.left else {
+        return;
     };
     let member = match simple.as_member() {
         Some(m) if m.obj.is_this() => m,
         _ => return,
     };
-    let prop_ident = match member.prop.as_ident() {
-        Some(id) => id,
-        None => return,
+    let Some(prop_ident) = member.prop.as_ident() else {
+        return;
     };
 
     let field_name_str = prop_ident.sym.to_string();
@@ -116,8 +112,7 @@ fn extract_this_assign(
         .class_fields
         .iter()
         .find(|(n, _)| n == &field_name_str)
-        .map(|(_, opt)| *opt)
-        .unwrap_or(false);
+        .is_some_and(|(_, opt)| *opt);
 
     let value = if is_optional {
         quote! { Some(#value) }

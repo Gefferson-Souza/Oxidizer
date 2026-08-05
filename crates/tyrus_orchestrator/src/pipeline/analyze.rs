@@ -5,12 +5,16 @@ use tyrus_diagnostics::TyrusError;
 
 use super::ParsedProject;
 
+#[expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "user-facing analyzer warnings; orchestrator has no diagnostics sink yet"
+)]
 pub(super) fn analyze_di_graph(
     parsed: &ParsedProject,
 ) -> Result<(DiGraph, Vec<String>), TyrusError> {
     let mut graph = DiGraph::new();
-    for (i, program) in parsed.programs.iter().enumerate() {
-        let path = &parsed.file_paths[i];
+    for (program, path) in parsed.programs.iter().zip(&parsed.file_paths) {
         let source_code = fs::read_to_string(path).map_err(TyrusError::IoError)?;
         let file_name = path.to_string_lossy().to_string();
 

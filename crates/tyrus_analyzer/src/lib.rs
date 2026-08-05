@@ -17,8 +17,10 @@ use swc_ecma_visit::VisitWith;
 use tyrus_di::graph::DiGraph;
 use tyrus_diagnostics::TyrusError;
 
+#[derive(Debug)]
 pub struct Analyzer;
 
+#[derive(Debug)]
 pub struct AnalysisResult {
     pub errors: Vec<TyrusError>,
     pub diagnostics: Vec<severity::Diagnostic>,

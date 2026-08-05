@@ -21,17 +21,15 @@ fn map_type_ref(type_ref: &swc_ecma_ast::TsTypeRef) -> TokenStream {
     let name = ident.sym.as_str();
     match name {
         "Date" => quote! { String },
-        "Array" => map_array_type(&type_ref.type_params),
-        "Record" | "Map" => map_record_type(&type_ref.type_params),
-        "Set" => map_set_type(&type_ref.type_params),
-        _ => map_user_defined_type(name, &type_ref.type_params),
+        "Array" => map_array_type(type_ref.type_params.as_deref()),
+        "Record" | "Map" => map_record_type(type_ref.type_params.as_deref()),
+        "Set" => map_set_type(type_ref.type_params.as_deref()),
+        _ => map_user_defined_type(name, type_ref.type_params.as_deref()),
     }
 }
 
 /// Extracts the first generic param as `Vec<T>`, defaulting to `Vec<Value>`.
-fn map_array_type(
-    type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>,
-) -> TokenStream {
+fn map_array_type(type_params: Option<&swc_ecma_ast::TsTypeParamInstantiation>) -> TokenStream {
     if let Some(params) = type_params {
         if let Some(first) = params.params.first() {
             let inner = map_type_core(first);
@@ -41,22 +39,20 @@ fn map_array_type(
     quote! { Vec<serde_json::Value> }
 }
 
-/// Maps Record<K,V> to HashMap<K,V>, defaulting to HashMap<String, Value>.
-fn map_record_type(
-    type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>,
-) -> TokenStream {
+/// Maps Record<K,V> to `HashMap`<K,V>, defaulting to `HashMap`<String, Value>.
+fn map_record_type(type_params: Option<&swc_ecma_ast::TsTypeParamInstantiation>) -> TokenStream {
     if let Some(params) = type_params {
-        if params.params.len() >= 2 {
-            let key = map_type_core(&params.params[0]);
-            let value = map_type_core(&params.params[1]);
+        if let [key, value, ..] = params.params.as_slice() {
+            let key = map_type_core(key);
+            let value = map_type_core(value);
             return quote! { std::collections::HashMap<#key, #value> };
         }
     }
     quote! { std::collections::HashMap<String, serde_json::Value> }
 }
 
-/// Maps Set<T> to HashSet<T>, defaulting to HashSet<serde_json::Value>.
-fn map_set_type(type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>) -> TokenStream {
+/// Maps Set<T> to `HashSet`<T>, defaulting to `HashSet`<`serde_json::Value`>.
+fn map_set_type(type_params: Option<&swc_ecma_ast::TsTypeParamInstantiation>) -> TokenStream {
     if let Some(params) = type_params {
         if let Some(first) = params.params.first() {
             let inner = map_type_core(first);
@@ -69,7 +65,7 @@ fn map_set_type(type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>
 /// Maps a user-defined type reference, preserving generic parameters.
 fn map_user_defined_type(
     name: &str,
-    type_params: &Option<Box<swc_ecma_ast::TsTypeParamInstantiation>>,
+    type_params: Option<&swc_ecma_ast::TsTypeParamInstantiation>,
 ) -> TokenStream {
     let type_ident = proc_macro2::Ident::new(name, proc_macro2::Span::call_site());
     if let Some(params) = type_params {
@@ -212,7 +208,7 @@ pub fn is_void_or_promise_void(type_ann: Option<&TsTypeAnn>) -> bool {
     }
 }
 
-/// Maps a TsType directly to a Rust TokenStream.
+/// Maps a `TsType` directly to a Rust `TokenStream`.
 pub fn map_inner_type(ts_type: &swc_ecma_ast::TsType) -> TokenStream {
     map_type_core(ts_type)
 }

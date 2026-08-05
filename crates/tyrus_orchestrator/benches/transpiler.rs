@@ -26,7 +26,7 @@ fn ts_temp_file(source: &str) -> (NamedTempFile, FilePath) {
 // Tier 1: Basic TypeScript (primitives, functions, control flow)
 // ---------------------------------------------------------------------------
 
-const TIER1_FUNCTIONS: &str = r#"
+const TIER1_FUNCTIONS: &str = r"
 function square(x: number): number {
     return x * x;
 }
@@ -38,7 +38,7 @@ function isPositive(n: number): boolean {
 function formatUser(name: string, age: number): string {
     return `${name} is ${age} years old`;
 }
-"#;
+";
 
 const TIER1_CONTROL_FLOW: &str = r#"
 function max(a: number, b: number): number {
@@ -74,7 +74,7 @@ function classify(x: number): string {
 // Tier 2: Intermediate (interfaces, classes, arrays)
 // ---------------------------------------------------------------------------
 
-const TIER2_INTERFACES: &str = r#"
+const TIER2_INTERFACES: &str = r"
 interface User {
     name: string;
     age: number;
@@ -94,9 +94,9 @@ interface ApiResponse {
     total: number;
     success: boolean;
 }
-"#;
+";
 
-const TIER2_CLASS: &str = r#"
+const TIER2_CLASS: &str = r"
 class Calculator {
     private result: number;
 
@@ -117,9 +117,9 @@ class Calculator {
         this.result = 0;
     }
 }
-"#;
+";
 
-const TIER2_ARRAYS: &str = r#"
+const TIER2_ARRAYS: &str = r"
 function doubleAll(nums: number[]): number[] {
     return nums.map((n: number) => n * 2);
 }
@@ -135,13 +135,13 @@ function sum(nums: number[]): number {
     });
     return total;
 }
-"#;
+";
 
 // ---------------------------------------------------------------------------
 // Tier 3: Advanced (generics, stdlib, methods)
 // ---------------------------------------------------------------------------
 
-const TIER3_STDLIB: &str = r#"
+const TIER3_STDLIB: &str = r"
 function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
 }
@@ -162,7 +162,7 @@ function hasLarge(nums: number[]): boolean {
 function allPositive(nums: number[]): boolean {
     return nums.every((n: number) => n > 0);
 }
-"#;
+";
 
 // ---------------------------------------------------------------------------
 // Tier 4: NestJS / Enterprise (decorators, DI, controllers)
@@ -226,7 +226,7 @@ class UsersController {
 // Combined: all tiers in one file (scalability test)
 // ---------------------------------------------------------------------------
 
-const COMBINED_ALL_TIERS: &str = r#"
+const COMBINED_ALL_TIERS: &str = r"
 function square(x: number): number { return x * x; }
 function isPositive(n: number): boolean { return n > 0; }
 function formatUser(name: string, age: number): string {
@@ -270,7 +270,7 @@ function clamp(value: number, min: number, max: number): number {
 function roundToTwo(n: number): number {
     return Math.round(n * 100) / 100;
 }
-"#;
+";
 
 // ---------------------------------------------------------------------------
 // Benchmark Group 1: Full pipeline by tier (parse → analyze → codegen → format)
@@ -365,12 +365,10 @@ fn bench_scalability(c: &mut Criterion) {
     let sizes: &[usize] = &[1, 5, 10, 20];
 
     for &count in sizes {
-        let mut source = String::new();
-        for i in 0..count {
-            source.push_str(&format!(
-                "function func_{i}(x: number): number {{ return x * {i}; }}\n"
-            ));
-        }
+        let fns: Vec<String> = (0..count)
+            .map(|i| format!("function func_{i}(x: number): number {{ return x * {i}; }}"))
+            .collect();
+        let source = format!("{}\n", fns.join("\n"));
 
         let label = format!("{count}_functions");
         let (_tmp, path) = ts_temp_file(&source);

@@ -3,6 +3,8 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
+    clippy::indexing_slicing,
+    clippy::string_slice,
     dead_code,
     unused_imports
 )]

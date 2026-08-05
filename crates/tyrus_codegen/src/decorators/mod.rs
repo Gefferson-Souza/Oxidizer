@@ -1,7 +1,7 @@
 //! Decorator handler registry.
 //!
 //! This module is the architectural answer to the prior approach where every
-//! NestJS decorator required hardcoded match arms scattered across
+//! `NestJS` decorator required hardcoded match arms scattered across
 //! `class/mod.rs`, `class/method.rs`, `class/routing.rs`, and the analyzer.
 //!
 //! ## Design

@@ -1,4 +1,9 @@
 #![forbid(unsafe_code)]
+#![expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "the CLI's job is printing to the terminal"
+)]
 
 use clap::{Parser, Subcommand};
 use miette::Result;
@@ -42,7 +47,7 @@ enum Commands {
     Build {
         /// Input file or directory path
         path: PathBuf,
-        /// Output directory (default: ./tyrus_output)
+        /// Output directory (default: ./`tyrus_output`)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
@@ -50,7 +55,7 @@ enum Commands {
     Compile {
         /// Input file or directory path
         path: PathBuf,
-        /// Output directory (default: ./tyrus_output)
+        /// Output directory (default: ./`tyrus_output`)
         #[arg(short, long)]
         output: Option<PathBuf>,
         /// Build in release mode with optimizations
@@ -61,7 +66,7 @@ enum Commands {
     Run {
         /// Input file or directory path
         path: PathBuf,
-        /// Output directory (default: ./tyrus_output)
+        /// Output directory (default: ./`tyrus_output`)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },

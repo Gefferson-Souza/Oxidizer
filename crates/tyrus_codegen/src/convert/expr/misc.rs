@@ -5,7 +5,10 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{
+    AssignExpr, AssignOp, AssignTarget, Expr, MemberExpr, SimpleAssignTarget, UnaryExpr, UnaryOp,
+    UpdateExpr, UpdateOp,
+};
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
@@ -29,10 +32,10 @@ impl RustGenerator {
         let right = self.convert_expr(&assign.right);
         match self.resolve_assign_lhs(&assign.left, assign.op) {
             AssignLhs::StateField { receiver, field } => {
-                self.emit_state_field_assign(&receiver, &field, assign.op, &right)
+                Self::emit_state_field_assign(&receiver, &field, assign.op, &right)
             }
             AssignLhs::Setter { obj, setter } => quote! { #obj.#setter(#right) },
-            AssignLhs::Plain(lhs) => self.emit_assign_op(assign.op, &lhs, &right),
+            AssignLhs::Plain(lhs) => Self::emit_assign_op(assign.op, &lhs, &right),
             AssignLhs::Invalid(err) => err,
         }
     }
@@ -44,7 +47,6 @@ impl RustGenerator {
     /// is dropped at its statement's `;`, so the two locks never coexist —
     /// preventing `std::sync::Mutex` re-entrance deadlocks.
     fn emit_state_field_assign(
-        &self,
         receiver: &TokenStream,
         field: &Ident,
         op: AssignOp,
@@ -118,13 +120,10 @@ impl RustGenerator {
     }
 
     fn resolve_assign_lhs(&self, target: &AssignTarget, op: AssignOp) -> AssignLhs {
-        let simple = match target {
-            AssignTarget::Simple(simple) => simple,
-            _ => {
-                return AssignLhs::Invalid(
-                    quote! { compile_error!("Tyrus: unsupported assignment pattern") },
-                );
-            }
+        let AssignTarget::Simple(simple) = target else {
+            return AssignLhs::Invalid(
+                quote! { compile_error!("Tyrus: unsupported assignment pattern") },
+            );
         };
         match simple {
             SimpleAssignTarget::Member(member) => self.resolve_member_lhs(member, op),
@@ -142,13 +141,10 @@ impl RustGenerator {
         if member.obj.is_this() {
             return self.resolve_this_member_lhs(member);
         }
-        let prop_ident = match member.prop.as_ident() {
-            Some(ident) => ident,
-            None => {
-                return AssignLhs::Invalid(
-                    quote! { compile_error!("Tyrus: unsupported member assignment pattern") },
-                );
-            }
+        let Some(prop_ident) = member.prop.as_ident() else {
+            return AssignLhs::Invalid(
+                quote! { compile_error!("Tyrus: unsupported member assignment pattern") },
+            );
         };
         let prop_name = to_snake_case(prop_ident.sym.as_ref());
         let obj = self.convert_expr(&member.obj);
@@ -161,13 +157,10 @@ impl RustGenerator {
     }
 
     fn resolve_this_member_lhs(&self, member: &MemberExpr) -> AssignLhs {
-        let prop_ident = match member.prop.as_ident() {
-            Some(ident) => ident,
-            None => {
-                return AssignLhs::Invalid(
-                    quote! { compile_error!("Tyrus: unsupported self member assignment") },
-                );
-            }
+        let Some(prop_ident) = member.prop.as_ident() else {
+            return AssignLhs::Invalid(
+                quote! { compile_error!("Tyrus: unsupported self member assignment") },
+            );
         };
         let prop_name = to_snake_case(prop_ident.sym.as_ref());
         let field = format_ident!("{}", prop_name);
@@ -186,7 +179,7 @@ impl RustGenerator {
         }
     }
 
-    fn emit_assign_op(&self, op: AssignOp, lhs: &TokenStream, rhs: &TokenStream) -> TokenStream {
+    fn emit_assign_op(op: AssignOp, lhs: &TokenStream, rhs: &TokenStream) -> TokenStream {
         match op {
             AssignOp::Assign => quote! { #lhs = #rhs },
             AssignOp::AddAssign => quote! { #lhs += #rhs },
@@ -221,7 +214,7 @@ impl RustGenerator {
                 UpdateOp::PlusPlus => AssignOp::AddAssign,
                 UpdateOp::MinusMinus => AssignOp::SubAssign,
             };
-            return self.emit_state_field_assign(&receiver, &field, op, &quote! { 1.0 });
+            return Self::emit_state_field_assign(&receiver, &field, op, &quote! { 1.0 });
         }
 
         let arg = self.convert_expr(&update.arg);

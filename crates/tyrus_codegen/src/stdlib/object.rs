@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use swc_ecma_ast::*;
+use swc_ecma_ast::ExprOrSpread;
 
 use super::super::convert::interface::RustGenerator;
 
@@ -12,8 +12,8 @@ pub(crate) fn handle(
 ) -> Option<TokenStream> {
     match method {
         "keys" => {
-            if args.len() == 1 {
-                let obj = gen.convert_expr_or_spread(&args[0]);
+            if let [arg] = args {
+                let obj = gen.convert_expr_or_spread(arg);
                 Some(quote! {
                     #obj.keys().cloned().collect::<Vec<_>>()
                 })
@@ -22,8 +22,8 @@ pub(crate) fn handle(
             }
         }
         "values" => {
-            if args.len() == 1 {
-                let obj = gen.convert_expr_or_spread(&args[0]);
+            if let [arg] = args {
+                let obj = gen.convert_expr_or_spread(arg);
                 Some(quote! {
                     #obj.values().cloned().collect::<Vec<_>>()
                 })
@@ -32,8 +32,8 @@ pub(crate) fn handle(
             }
         }
         "entries" => {
-            if args.len() == 1 {
-                let obj = gen.convert_expr_or_spread(&args[0]);
+            if let [arg] = args {
+                let obj = gen.convert_expr_or_spread(arg);
                 Some(quote! {
                     #obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()
                 })

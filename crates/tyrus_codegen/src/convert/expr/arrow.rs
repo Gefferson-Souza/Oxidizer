@@ -4,7 +4,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{ArrowExpr, BlockStmtOrExpr, Pat};
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;

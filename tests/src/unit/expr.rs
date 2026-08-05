@@ -75,7 +75,7 @@ fn test_division() {
 
 #[test]
 fn test_string_template_literal() {
-    let rust = transpile(r#"function greet(name: string): string { return `Hello, ${name}!`; }"#);
+    let rust = transpile(r"function greet(name: string): string { return `Hello, ${name}!`; }");
     assert!(rust.contains("format!"), "Expected 'format!' in: {rust}");
     assert!(
         rust.contains("Hello, {}!"),

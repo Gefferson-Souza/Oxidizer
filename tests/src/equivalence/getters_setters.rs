@@ -15,7 +15,7 @@ use crate::helpers::assert_output_equivalent;
 #[test]
 fn test_equivalence_getter_setter_basic() {
     assert_output_equivalent(
-        r#"
+        r"
 class Temperature {
     private _celsius: number;
     constructor(celsius: number) {
@@ -41,7 +41,7 @@ function main(): void {
     console.log(temp.fahrenheit);
 }
 main();
-"#,
+",
     );
 }
 
@@ -57,7 +57,7 @@ main();
 #[test]
 fn test_equivalence_getter_only_computed() {
     assert_output_equivalent(
-        r#"
+        r"
 class Circle {
     radius: number;
     constructor(radius: number) {
@@ -73,7 +73,7 @@ function main(): void {
     console.log(c.area);
 }
 main();
-"#,
+",
     );
 }
 
@@ -90,7 +90,7 @@ main();
 #[test]
 fn test_equivalence_setter_with_validation() {
     assert_output_equivalent(
-        r#"
+        r"
 class Percentage {
     private _value: number;
     constructor(value: number) {
@@ -119,6 +119,6 @@ function main(): void {
     console.log(p.value);
 }
 main();
-"#,
+",
     );
 }

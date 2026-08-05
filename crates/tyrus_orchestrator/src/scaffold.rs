@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
 use std::fs;
 use std::path::Path;
 
@@ -5,11 +7,11 @@ use tyrus_diagnostics::TyrusError;
 
 pub(crate) fn generate_main_rs(
     init_order: &[String],
-    class_module_map: &std::collections::HashMap<String, String>,
+    class_module_map: &HashMap<String, String>,
     controllers: &[String],
     graph: &tyrus_di::graph::DiGraph,
-    generic_classes: &std::collections::HashSet<String>,
-) -> Result<String, TyrusError> {
+    generic_classes: &HashSet<String>,
+) -> String {
     let mut main_content = String::new();
     main_content.push_str("#![allow(unused)]\n\n");
     main_content.push_str("use axum::Router;\n");
@@ -20,8 +22,42 @@ pub(crate) fn generate_main_rs(
     main_content.push_str("#[tokio::main]\n");
     main_content.push_str("async fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
 
-    // Instantiate components in order
-    let mut instantiated_vars = std::collections::HashMap::new();
+    let mut instantiated_vars = emit_di_instantiations(
+        &mut main_content,
+        init_order,
+        class_module_map,
+        graph,
+        generic_classes,
+    );
+
+    // Fallback: if no DI graph but controllers exist, instantiate all classes
+    if instantiated_vars.is_empty() && !controllers.is_empty() {
+        emit_fallback_instantiations(
+            &mut main_content,
+            class_module_map,
+            controllers,
+            &mut instantiated_vars,
+        );
+    }
+
+    emit_router_and_serve(
+        &mut main_content,
+        class_module_map,
+        controllers,
+        &instantiated_vars,
+    );
+    main_content
+}
+
+/// Instantiates components in DI topological order; returns `class -> var` map.
+fn emit_di_instantiations(
+    main_content: &mut String,
+    init_order: &[String],
+    class_module_map: &HashMap<String, String>,
+    graph: &tyrus_di::graph::DiGraph,
+    generic_classes: &HashSet<String>,
+) -> HashMap<String, String> {
+    let mut instantiated_vars = HashMap::new();
 
     for class_name in init_order {
         if generic_classes.contains(class_name) {
@@ -30,86 +66,97 @@ pub(crate) fn generate_main_rs(
         if let Some(module_path) = class_module_map.get(class_name) {
             let var_name = tyrus_common::util::to_snake_case(class_name);
 
-            // Get dependencies
             let deps = graph
                 .get_provider_dependencies(class_name)
                 .unwrap_or_default();
             let mut args = Vec::new();
             for dep in deps {
                 let dep_var = tyrus_common::util::to_snake_case(&dep);
-                args.push(format!("{}.clone()", dep_var));
+                args.push(format!("{dep_var}.clone()"));
             }
 
             // Check if it has new_di
             // For now assume yes if it has dependencies, or just call new_di
-            main_content.push_str(&format!(
-                "    let {} = Arc::new({}::{}::new_di({}));\n",
+            let _ = writeln!(
+                main_content,
+                "    let {} = Arc::new({}::{}::new_di({}));",
                 var_name,
                 module_path,
                 class_name,
                 args.join(", ")
-            ));
+            );
 
             instantiated_vars.insert(class_name.clone(), var_name);
         }
     }
+    instantiated_vars
+}
 
-    // Fallback: if no DI graph but controllers exist, instantiate all classes
-    if instantiated_vars.is_empty() && !controllers.is_empty() {
-        for (class_name, module_path) in class_module_map {
-            let var_name = tyrus_common::util::to_snake_case(class_name);
-            let is_controller = controllers.contains(class_name);
+/// No-DI-graph fallback: services first (no deps), then controllers.
+fn emit_fallback_instantiations(
+    main_content: &mut String,
+    class_module_map: &HashMap<String, String>,
+    controllers: &[String],
+    instantiated_vars: &mut HashMap<String, String>,
+) {
+    for (class_name, module_path) in class_module_map {
+        let var_name = tyrus_common::util::to_snake_case(class_name);
+        let is_controller = controllers.contains(class_name);
 
-            // Instantiate services first (no deps), then controllers
-            if !is_controller {
-                main_content.push_str(&format!(
-                    "    let {} = Arc::new({}::{}::new_di());\n",
-                    var_name, module_path, class_name
-                ));
-                instantiated_vars.insert(class_name.clone(), var_name);
-            }
-        }
-        // Instantiate controllers with their service deps
-        for controller in controllers {
-            if let Some(module_path) = class_module_map.get(controller) {
-                let var_name = tyrus_common::util::to_snake_case(controller);
-                // Find service dependencies (vars already instantiated)
-                let service_args: Vec<String> = instantiated_vars
-                    .values()
-                    .map(|v| format!("{}.clone()", v))
-                    .collect();
-                main_content.push_str(&format!(
-                    "    let {} = Arc::new({}::{}::new_di({}));\n",
-                    var_name,
-                    module_path,
-                    controller,
-                    service_args.join(", ")
-                ));
-                instantiated_vars.insert(controller.clone(), var_name);
-            }
+        if !is_controller {
+            let _ = writeln!(
+                main_content,
+                "    let {var_name} = Arc::new({module_path}::{class_name}::new_di());"
+            );
+            instantiated_vars.insert(class_name.clone(), var_name);
         }
     }
-
-    main_content.push_str("\n    // Build router\n");
-    main_content.push_str("    let app = axum::Router::new()");
-
-    // Register controllers
+    // Instantiate controllers with their service deps
     for controller in controllers {
         if let Some(module_path) = class_module_map.get(controller) {
             let var_name = tyrus_common::util::to_snake_case(controller);
-            main_content.push_str(&format!(
-                "\n        .merge({}::{}::router({}.clone()))",
-                module_path, controller, var_name
-            ));
+            // Find service dependencies (vars already instantiated)
+            let service_args: Vec<String> = instantiated_vars
+                .values()
+                .map(|v| format!("{v}.clone()"))
+                .collect();
+            let _ = writeln!(
+                main_content,
+                "    let {} = Arc::new({}::{}::new_di({}));",
+                var_name,
+                module_path,
+                controller,
+                service_args.join(", ")
+            );
+            instantiated_vars.insert(controller.clone(), var_name);
+        }
+    }
+}
+
+fn emit_router_and_serve(
+    main_content: &mut String,
+    class_module_map: &HashMap<String, String>,
+    controllers: &[String],
+    instantiated_vars: &HashMap<String, String>,
+) {
+    main_content.push_str("\n    // Build router\n");
+    main_content.push_str("    let app = axum::Router::new()");
+
+    for controller in controllers {
+        if let Some(module_path) = class_module_map.get(controller) {
+            let var_name = tyrus_common::util::to_snake_case(controller);
+            let _ = write!(
+                main_content,
+                "\n        .merge({module_path}::{controller}::router({var_name}.clone()))"
+            );
         }
     }
 
-    // Add extensions
     for var_name in instantiated_vars.values() {
-        main_content.push_str(&format!(
-            "\n        .layer(Extension({}.clone()))",
-            var_name
-        ));
+        let _ = write!(
+            main_content,
+            "\n        .layer(Extension({var_name}.clone()))"
+        );
     }
 
     main_content.push_str(";\n\n");
@@ -119,8 +166,6 @@ pub(crate) fn generate_main_rs(
     main_content.push_str("        .await?;\n");
     main_content.push_str("    Ok(())\n");
     main_content.push_str("}\n");
-
-    Ok(main_content)
 }
 
 pub(crate) fn generate_cargo_toml(output_dir: &Path) -> Result<(), TyrusError> {
@@ -179,7 +224,7 @@ pub(crate) fn generate_mod_rs(dir: &Path) -> Result<(), TyrusError> {
             // so we expose it as a module.
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                 let sanitized_name = name.replace(['.', '-'], "_");
-                mod_content.push_str(&format!("pub mod {};\n", sanitized_name));
+                let _ = writeln!(mod_content, "pub mod {sanitized_name};");
                 has_children = true;
             }
         } else if let Some(ext) = path.extension() {
@@ -194,7 +239,7 @@ pub(crate) fn generate_mod_rs(dir: &Path) -> Result<(), TyrusError> {
                     } else {
                         // Sanitize module name just in case, though we sanitized filename on write
                         let sanitized_stem = stem.replace(['.', '-'], "_");
-                        mod_content.push_str(&format!("pub mod {};\n", sanitized_stem));
+                        let _ = writeln!(mod_content, "pub mod {sanitized_stem};");
                         has_children = true;
                     }
                 }

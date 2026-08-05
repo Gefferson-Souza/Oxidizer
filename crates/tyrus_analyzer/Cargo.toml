@@ -21,3 +21,6 @@ console = "0.15"
 
 [dev-dependencies]
 swc_ecma_parser = "39.0.2"
+
+[lints]
+workspace = true

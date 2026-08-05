@@ -9,3 +9,6 @@ repository.workspace = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+
+[lints]
+workspace = true

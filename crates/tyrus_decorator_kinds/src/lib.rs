@@ -1,4 +1,4 @@
-//! Single source of truth for NestJS decorator name → kind classification.
+//! Single source of truth for `NestJS` decorator name → kind classification.
 //!
 //! This crate is intentionally lightweight (zero dependencies) so it can be
 //! shared by both `tyrus_analyzer` and `tyrus_codegen` without dragging
@@ -27,7 +27,7 @@ pub enum DecoratorScope {
     Param,
 }
 
-/// Every NestJS decorator the transpiler currently recognizes.
+/// Every `NestJS` decorator the transpiler currently recognizes.
 ///
 /// Adding a new decorator means adding ONE variant here plus mapping its name
 /// in [`DecoratorKind::from_name`]. The handler that emits Rust for it lives

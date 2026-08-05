@@ -107,7 +107,7 @@ impl RustGenerator {
         super::type_mapper::is_void_or_promise_void(function.return_type.as_deref())
     }
 
-    /// Convert the function body statements, wrapping returns in Ok() for async.
+    /// Convert the function body statements, wrapping returns in `Ok()` for async.
     fn build_fn_body(
         &self,
         function: &Function,
@@ -129,7 +129,7 @@ impl RustGenerator {
             .collect()
     }
 
-    /// Produce the return expression for a single ReturnStmt.
+    /// Produce the return expression for a single `ReturnStmt`.
     fn convert_return(
         &self,
         ret_stmt: &swc_ecma_ast::ReturnStmt,

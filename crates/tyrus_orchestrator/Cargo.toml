@@ -35,3 +35,6 @@ harness = false
 [[bench]]
 name = "runtime_comparison"
 harness = false
+
+[lints]
+workspace = true

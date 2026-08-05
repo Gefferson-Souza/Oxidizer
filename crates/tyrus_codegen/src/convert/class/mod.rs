@@ -106,7 +106,7 @@ impl RustGenerator {
     ) -> ClassFields {
         let mut acc = ClassFields {
             fields: Vec::new(),
-            class_fields_meta: Vec::new(),
+            fields_meta: Vec::new(),
             own_field_names: Vec::new(),
             dependency_fields: HashSet::new(),
         };
@@ -130,7 +130,7 @@ impl RustGenerator {
             let fname = format_ident!("{}", to_snake_case(field_name));
             let ftype = field_type.clone();
             acc.fields.push(quote! { pub #fname: #ftype });
-            acc.class_fields_meta.push((field_name.clone(), *is_opt));
+            acc.fields_meta.push((field_name.clone(), *is_opt));
             acc.own_field_names
                 .push((field_name.clone(), ftype, *is_opt));
         }
@@ -150,7 +150,7 @@ impl RustGenerator {
                 continue;
             };
             acc.fields.push(field_tokens);
-            acc.class_fields_meta.push((name.clone(), is_opt));
+            acc.fields_meta.push((name.clone(), is_opt));
             let raw_type_tokens = map_ts_type(prop.type_ann.as_ref());
             acc.own_field_names
                 .push((name.clone(), raw_type_tokens, is_opt));
@@ -276,7 +276,7 @@ impl RustGenerator {
         if let Some(cons) = frame.members.constructor {
             let ctx = constructor::ConstructorCtx {
                 constructor: cons,
-                class_fields: &frame.fields.class_fields_meta,
+                class_fields: &frame.fields.fields_meta,
                 has_generics: frame.decl.class.type_params.is_some(),
                 generic_params: &frame.meta.generic_params,
                 dependency_fields: &frame.fields.dependency_fields,

@@ -29,7 +29,7 @@ fn execute_project(path: &Path, output: Option<PathBuf>) -> Result<()> {
     pipeline.start_step("Creating Cargo project");
 
     tyrus_orchestrator::build_project(path, &output_dir)?;
-    pipeline.finish_success(&format!(
+    Pipeline::finish_success(&format!(
         "Project built → {}",
         colors::file_path(&output_dir.display().to_string()),
     ));
@@ -53,7 +53,7 @@ fn execute_single(path: &Path, output: Option<PathBuf>) -> Result<()> {
         }
         std::fs::write(&output_path, &output_code)
             .map_err(|e| miette::miette!("Failed to write output file: {e}"))?;
-        pipeline.finish_success(&format!(
+        Pipeline::finish_success(&format!(
             "Built → {}",
             colors::file_path(&output_path.display().to_string()),
         ));

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use swc_ecma_ast::*;
+use swc_ecma_ast::ExprOrSpread;
 
 use super::super::convert::interface::RustGenerator;
 
@@ -34,49 +34,52 @@ fn unary_method(
     args: &[ExprOrSpread],
     emit: impl FnOnce(TokenStream) -> TokenStream,
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        Some(emit(gen.convert_expr_or_spread(&args[0])))
+    if let [arg] = args {
+        Some(emit(gen.convert_expr_or_spread(arg)))
     } else {
         None
     }
 }
 
 fn handle_max(gen: &RustGenerator, args: &[ExprOrSpread]) -> Option<TokenStream> {
-    if args.len() == 1 && args[0].spread.is_some() {
-        let arg = gen.convert_expr_or_spread(&args[0]);
-        Some(quote! { #arg.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)) })
-    } else if args.len() == 2 {
-        if args[0].spread.is_some() {
-            let arr = gen.convert_expr_or_spread(&args[0]);
-            let val = gen.convert_expr_or_spread(&args[1]);
+    match args {
+        [only] if only.spread.is_some() => {
+            let arg = gen.convert_expr_or_spread(only);
+            Some(quote! { #arg.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)) })
+        }
+        [first, second] if first.spread.is_some() => {
+            let arr = gen.convert_expr_or_spread(first);
+            let val = gen.convert_expr_or_spread(second);
             Some(quote! { #arr.iter().fold(#val, |a, &b| a.max(b)) })
-        } else {
-            let a = gen.convert_expr_or_spread(&args[0]);
-            let b = gen.convert_expr_or_spread(&args[1]);
+        }
+        [first, second] => {
+            let a = gen.convert_expr_or_spread(first);
+            let b = gen.convert_expr_or_spread(second);
             Some(quote! { #a.max(#b) })
         }
-    } else {
-        None
+        _ => None,
     }
 }
 
 fn handle_min(gen: &RustGenerator, args: &[ExprOrSpread]) -> Option<TokenStream> {
-    if args.len() == 1 && args[0].spread.is_some() {
-        let arg = gen.convert_expr_or_spread(&args[0]);
-        Some(quote! { #arg.iter().fold(f64::INFINITY, |a, &b| a.min(b)) })
-    } else if args.len() == 2 {
-        let a = gen.convert_expr_or_spread(&args[0]);
-        let b = gen.convert_expr_or_spread(&args[1]);
-        Some(quote! { #a.min(#b) })
-    } else {
-        None
+    match args {
+        [only] if only.spread.is_some() => {
+            let arg = gen.convert_expr_or_spread(only);
+            Some(quote! { #arg.iter().fold(f64::INFINITY, |a, &b| a.min(b)) })
+        }
+        [first, second] => {
+            let a = gen.convert_expr_or_spread(first);
+            let b = gen.convert_expr_or_spread(second);
+            Some(quote! { #a.min(#b) })
+        }
+        _ => None,
     }
 }
 
 fn handle_pow(gen: &RustGenerator, args: &[ExprOrSpread]) -> Option<TokenStream> {
-    if args.len() == 2 {
-        let base = gen.convert_expr_or_spread(&args[0]);
-        let exp = gen.convert_expr_or_spread(&args[1]);
+    if let [base, exp] = args {
+        let base = gen.convert_expr_or_spread(base);
+        let exp = gen.convert_expr_or_spread(exp);
         Some(quote! { (#base as f64).powf(#exp as f64) })
     } else {
         None
@@ -92,8 +95,8 @@ fn handle_random(args: &[ExprOrSpread]) -> Option<TokenStream> {
 }
 
 fn handle_sign(gen: &RustGenerator, args: &[ExprOrSpread]) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let x = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let x = gen.convert_expr_or_spread(arg);
         Some(quote! {
             { let __v = #x; if __v == 0.0 { 0.0 } else { __v.signum() } }
         })

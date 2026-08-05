@@ -12,7 +12,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{BlockStmt, CatchClause, Expr, IfStmt, Pat, Stmt, TryStmt};
 
 use super::super::interface::RustGenerator;
 
@@ -184,7 +184,7 @@ impl RustGenerator {
         }
     }
 
-    /// Catch clause for nested try-catch: wraps return values in Ok()
+    /// Catch clause for nested try-catch: wraps return values in `Ok()`
     /// so they propagate correctly through the outer try closure.
     fn convert_catch_clause_for_nesting(&self, handler: Option<&CatchClause>) -> TokenStream {
         let Some(handler) = handler else {

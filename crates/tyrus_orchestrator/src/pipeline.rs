@@ -187,8 +187,7 @@ fn transpile_files(
     parsed: &ParsedProject,
 ) -> Result<Vec<String>, TyrusError> {
     let mut controllers = Vec::new();
-    for (i, program) in parsed.programs.iter().enumerate() {
-        let path = &parsed.file_paths[i];
+    for (program, path) in parsed.programs.iter().zip(&parsed.file_paths) {
         write_transpiled_file(input_dir, output_dir, path, program, &mut controllers)?;
     }
     Ok(controllers)
@@ -276,7 +275,7 @@ fn write_main_rs(output_dir: &Path, ctx: &MainRsCtx<'_>) -> Result<(), TyrusErro
         ctx.controllers,
         ctx.graph,
         ctx.generic_classes,
-    )?;
+    );
 
     let src_dir = output_dir.join("src");
     if !src_dir.exists() {

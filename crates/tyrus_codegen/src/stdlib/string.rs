@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use swc_ecma_ast::*;
+use swc_ecma_ast::{Expr, ExprOrSpread};
 
 use super::super::convert::interface::RustGenerator;
 
@@ -66,9 +66,9 @@ fn handle_replace(
     args: &[ExprOrSpread],
     obj_tokens: &TokenStream,
 ) -> Option<TokenStream> {
-    if args.len() == 2 {
-        let pattern = gen.convert_expr_or_spread(&args[0]);
-        let replacement = gen.convert_expr_or_spread(&args[1]);
+    if let [pattern, replacement] = args {
+        let pattern = gen.convert_expr_or_spread(pattern);
+        let replacement = gen.convert_expr_or_spread(replacement);
         Some(quote! { #obj_tokens.replacen(&#pattern, &#replacement, 1) })
     } else {
         None
@@ -80,14 +80,14 @@ fn handle_substring(
     args: &[ExprOrSpread],
     obj_tokens: &TokenStream,
 ) -> Option<TokenStream> {
-    match args.len() {
-        1 => {
-            let start = gen.convert_expr_or_spread(&args[0]);
+    match args {
+        [start] => {
+            let start = gen.convert_expr_or_spread(start);
             Some(quote! { #obj_tokens[(#start as usize)..].to_string() })
         }
-        2 => {
-            let start = gen.convert_expr_or_spread(&args[0]);
-            let end = gen.convert_expr_or_spread(&args[1]);
+        [start, end] => {
+            let start = gen.convert_expr_or_spread(start);
+            let end = gen.convert_expr_or_spread(end);
             Some(quote! { #obj_tokens[(#start as usize)..(#end as usize)].to_string() })
         }
         _ => None,
@@ -99,8 +99,8 @@ fn handle_char_at(
     args: &[ExprOrSpread],
     obj_tokens: &TokenStream,
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let idx = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let idx = gen.convert_expr_or_spread(arg);
         Some(quote! {
             #obj_tokens.chars().nth(#idx as usize).map(|c| c.to_string()).unwrap_or_default()
         })
@@ -114,8 +114,8 @@ fn handle_index_of(
     args: &[ExprOrSpread],
     obj_tokens: &TokenStream,
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let substr = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let substr = gen.convert_expr_or_spread(arg);
         Some(quote! {
             match #obj_tokens.find(&#substr as &str) {
                 Some(i) => i as f64,
@@ -132,8 +132,8 @@ fn handle_repeat(
     args: &[ExprOrSpread],
     obj_tokens: &TokenStream,
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let n = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let n = gen.convert_expr_or_spread(arg);
         Some(quote! { #obj_tokens.repeat(#n as usize) })
     } else {
         None
@@ -147,31 +147,29 @@ fn pad_tokens(
     gen: &RustGenerator,
     is_start: bool,
 ) -> Option<TokenStream> {
-    if args.is_empty() {
-        return None;
-    }
-    let target_len = gen.convert_expr_or_spread(&args[0]);
-    if args.len() >= 2 {
-        pad_with_fill(obj_tokens, &target_len, gen, args, is_start)
-    } else {
-        pad_with_space(obj_tokens, &target_len, is_start)
+    let (first, rest) = args.split_first()?;
+    let target_len = gen.convert_expr_or_spread(first);
+    match rest.first() {
+        Some(fill_arg) => {
+            let fill = gen.convert_expr_or_spread(fill_arg);
+            Some(pad_with_fill(obj_tokens, &target_len, &fill, is_start))
+        }
+        None => Some(pad_with_space(obj_tokens, &target_len, is_start)),
     }
 }
 
 fn pad_with_fill(
     obj_tokens: &TokenStream,
     target_len: &TokenStream,
-    gen: &RustGenerator,
-    args: &[ExprOrSpread],
+    fill: &TokenStream,
     is_start: bool,
-) -> Option<TokenStream> {
-    let fill = gen.convert_expr_or_spread(&args[1]);
+) -> TokenStream {
     let fmt = if is_start {
         quote! { format!("{}{}", __pad, __s) }
     } else {
         quote! { format!("{}{}", __s, __pad) }
     };
-    Some(quote! {{
+    quote! {{
         let __s = #obj_tokens;
         let __target = #target_len as usize;
         let __fill: String = #fill.to_string();
@@ -183,20 +181,20 @@ fn pad_with_fill(
             let __pad: String = __fill.chars().cycle().take(__pad_len).collect();
             #fmt
         }
-    }})
+    }}
 }
 
 fn pad_with_space(
     obj_tokens: &TokenStream,
     target_len: &TokenStream,
     is_start: bool,
-) -> Option<TokenStream> {
+) -> TokenStream {
     let fmt = if is_start {
         quote! { format!("{:>width$}", __s, width = __target) }
     } else {
         quote! { format!("{:<width$}", __s, width = __target) }
     };
-    Some(quote! {{
+    quote! {{
         let __s = #obj_tokens;
         let __target = #target_len as usize;
         if __s.chars().count() >= __target {
@@ -204,5 +202,5 @@ fn pad_with_space(
         } else {
             #fmt
         }
-    }})
+    }}
 }

@@ -10,7 +10,7 @@ use swc_ecma_ast::Program;
 use swc_ecma_parser::{Parser, StringInput, Syntax, TsSyntax};
 
 fn parse_module(source: &str) -> Module {
-    let cm: Lrc<SourceMap> = Default::default();
+    let cm: Lrc<SourceMap> = Lrc::default();
     let fm = cm.new_source_file(FileName::Anon.into(), source.to_string());
     let mut parser = Parser::new(
         Syntax::Typescript(TsSyntax::default()),
@@ -169,10 +169,10 @@ fn rejects_eval_call() {
 #[test]
 fn rejects_for_in() {
     let errors = run_lints(
-        r#"
+        r"
 const obj = { a: 1 };
 for (const k in obj) { console.log(k); }
-"#,
+",
     );
     let has = errors.iter().any(|e| {
         matches!(
@@ -214,11 +214,11 @@ fn rejects_with_statement() {
 #[test]
 fn rejects_labeled_statement() {
     let errors = run_lints(
-        r#"
+        r"
 outer: for (let i = 0; i < 3; i++) {
     if (i === 1) break outer;
 }
-"#,
+",
     );
     let has = errors.iter().any(|e| {
         matches!(
@@ -232,13 +232,13 @@ outer: for (let i = 0; i < 3; i++) {
 #[test]
 fn clean_program_has_no_errors() {
     let errors = run_lints(
-        r#"
+        r"
 function add(a: number, b: number): number {
     return a + b;
 }
 const result = add(1, 2);
 console.log(result);
-"#,
+",
     );
     assert!(
         errors.is_empty(),

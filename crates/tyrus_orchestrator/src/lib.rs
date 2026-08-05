@@ -9,6 +9,7 @@ mod format;
 mod pipeline;
 mod scaffold;
 
+#[derive(Debug)]
 pub struct CheckResult {
     pub errors: Vec<TyrusError>,
     pub diagnostics: Vec<tyrus_analyzer::severity::Diagnostic>,

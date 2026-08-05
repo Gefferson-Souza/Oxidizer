@@ -36,13 +36,13 @@ pub(crate) fn execute(path: &Path, output: Option<PathBuf>, release: bool) -> Re
 
     if !status.status.success() {
         let stderr = String::from_utf8_lossy(&status.stderr);
-        pipeline.finish_error("Compilation failed");
+        Pipeline::finish_error("Compilation failed");
         eprintln!("{stderr}");
         return Err(miette::miette!("cargo build failed"));
     }
 
     let mode = if release { "release" } else { "debug" };
-    pipeline.finish_success(&format!(
+    Pipeline::finish_success(&format!(
         "Compiled → {}/target/{mode}/tyrus_app",
         colors::file_path(&output_dir.display().to_string()),
     ));

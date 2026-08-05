@@ -5,63 +5,63 @@ use crate::helpers::assert_output_equivalent;
 #[test]
 fn test_equivalence_subtract_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 100;
     x -= 37;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_multiply_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 6;
     x *= 7;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_divide_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 100;
     x /= 4;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_modulo_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 17;
     x %= 5;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_all_assign_ops() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let a: number = 100;
     a += 10;
@@ -71,7 +71,7 @@ function main(): void {
     console.log(Math.floor(a));
 }
 main();
-"#,
+",
     );
 }
 
@@ -80,70 +80,70 @@ main();
 #[test]
 fn test_equivalence_bitwise_and_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 255;
     x &= 15;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_bitwise_or_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 10;
     x |= 5;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_bitwise_xor_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 12;
     x ^= 6;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_left_shift_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 1;
     x <<= 4;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
 #[test]
 fn test_equivalence_right_shift_assign() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     let x: number = 32;
     x >>= 2;
     console.log(x);
 }
 main();
-"#,
+",
     );
 }
 
@@ -188,7 +188,7 @@ main();
 #[test]
 fn test_equivalence_this_method_call() {
     assert_output_equivalent(
-        r#"
+        r"
 class Calculator {
     double(n: number): number {
         return n * 2;
@@ -199,7 +199,7 @@ class Calculator {
 }
 const c: Calculator = new Calculator();
 console.log(c.quadruple(5));
-"#,
+",
     );
 }
 
@@ -214,13 +214,13 @@ console.log(c.quadruple(5));
 #[test]
 fn test_equivalence_date_now_type() {
     assert_output_equivalent(
-        r#"
+        r"
 function main(): void {
     const ts: number = Date.now();
     console.log(ts > 0);
 }
 main();
-"#,
+",
     );
 }
 
