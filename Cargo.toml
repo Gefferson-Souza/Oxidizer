@@ -2,9 +2,9 @@
 members = ["crates/*", "tests"]
 resolver = "2"
 
-# Shared package metadata. Each crate's Cargo.toml inherits these via
+# Shared package metadata. Each of the 12 workspace members inherits these via
 # `field.workspace = true` so the license and edition stay in sync across
-# all 11 workspace crates (cargo-deny enforces that an SPDX license is set).
+# `field.workspace = true` (cargo-deny enforces that an SPDX license is set).
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

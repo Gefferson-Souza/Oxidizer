@@ -27,7 +27,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Why.** SWC ASTs from adversarial `.ts` input can be deeply nested. Unbounded recursion in codegen = stack overflow on user input. Iterative lowering is also easier to instrument and pause for diagnostics.
 
-**Enforce.** `clippy::only_used_in_recursion` enabled; review checklist item "recursion bound documented?"; nightly fuzz target with 10k-deep nested expression fixture must not stack-overflow.
+**Enforce.** `clippy::only_used_in_recursion` (pedantic, active via `[workspace.lints]`); review checklist item "recursion bound documented?". A nightly fuzz target with a 10k-deep nested expression fixture is planned, not yet wired — tracked in #229.
 
 **Severity.** HIGH (review-blocking).
 
@@ -39,7 +39,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Why.** Transpiler must be O(n) in input size. Unbounded loops are how compilers hang on malformed input.
 
-**Enforce.** Code review checklist; `clippy::infinite_loop` (where stable); fuzzing target `cargo fuzz run transpile` with 60s timeout in nightly CI.
+**Enforce.** Code review checklist; `clippy::infinite_loop` (where stable). The `cargo fuzz run transpile` nightly target is planned, not yet wired — tracked in #229.
 
 **Severity.** HIGH.
 
@@ -65,7 +65,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Why.** Every file split during Phases 1-8 surfaced bugs. Shape constraints are objective, machine-checkable code-review currency.
 
-**Enforce.** `clippy::too_many_lines`, `clippy::too_many_arguments`, `clippy::cognitive_complexity` — denied via `.cargo/config.toml`. CI line-count check in `scripts/gates.sh`.
+**Enforce.** `clippy::too_many_lines`, `clippy::too_many_arguments` — active via `[workspace.lints]` (pedantic group, thresholds in `clippy.toml`); the file ceiling via the `filesize` gate in `scripts/gates.sh` (+ 1:1 CI step). `clippy::cognitive_complexity` is nursery-only; its threshold sits pre-configured in `clippy.toml` awaiting lint stabilization.
 
 **Severity.** CRITICAL (CI-blocking).
 
@@ -107,7 +107,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Why.** `quote!` enforces hygiene and balanced syntax. String concat silently produces invalid Rust that `prettyplease::unparse` either rejects (good) or accepts in a malformed shape (worse).
 
-**Enforce.** Review checklist; `tyrus_orchestrator::format` is the only allowed string-Rust touchpoint; grep gate in CI: `! rg -n 'format!\("(fn |pub )' crates/tyrus_codegen/`.
+**Enforce.** Review checklist; `tyrus_orchestrator::format` is the only allowed string-Rust touchpoint. Negative grep gate (`! rg -n 'format!\("(fn |pub )' crates/tyrus_codegen/`) planned, not yet wired — tracked in #229.
 
 **Severity.** CRITICAL.
 
@@ -119,7 +119,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Why.** ADR 0007 (decorator registry) proved the win — decorator additions dropped from 4 file edits to 1 handler + 1 line. Any regression to scattered string compares is a known-bad pattern.
 
-**Enforce.** Review checklist; ADR required for new registries (per Rule 10); negative grep gate in CI: `! rg 'class_name\.ends_with\("Controller"\)' crates/`.
+**Enforce.** Review checklist; ADR required for new registries (per Rule 10). Negative grep gate (`! rg 'class_name\.ends_with\("Controller"\)' crates/`) planned, not yet wired — tracked in #229.
 
 **Severity.** CRITICAL.
 
@@ -135,19 +135,21 @@ The mandated gate set (as named in `gates.sh`):
 
 ```bash
 fmt       # cargo fmt --all -- --check
-clippy    # cargo clippy --workspace --all-targets -- -D warnings
+clippy    # cargo clippy --workspace --all-targets --locked -- -D warnings
 filesize  # Rule 4 line caps: soft 400 / hard 800 per .rs under crates/
-test      # cargo nextest run --workspace
+unsafe    # Rule 13: #![forbid(unsafe_code)] present in every crate root
+test      # cargo nextest run --workspace --locked
 coverage  # cargo llvm-cov, --fail-under-lines at the enforced threshold
 deny      # cargo deny check
 audit     # cargo audit --deny warnings
+machete   # cargo machete (unused dependencies, Rule 12)
 ```
 
 When the monolithic `gates.sh all` run is impractical on a dev machine (resource limits), gates may be run staged — but all of them must pass on the exact tree being pushed, documented in the commit body (see DEVELOPMENT_FLOW.md Rule F4).
 
 **Why.** PR #142 broke `--all-targets` because the hook didn't include it; CI also didn't include it; the PR merged with three `expect_used` violations and one `items_after_test_module` violation. This rule prevents repeats by removing the divergence at the source.
 
-**Enforce.** `scripts/gates.sh` is the single script invoked by both `scripts/pre-commit` and `.github/workflows/ci.yml`. CI job `gate-parity` (planned) diffs the gate invocations.
+**Enforce.** `scripts/gates.sh` is the single script invoked by both `scripts/pre-commit` and `.github/workflows/ci.yml`. An automated `gate-parity` check diffing the two invocations is tracked in #229; parity is currently audited at review time.
 
 **Severity.** CRITICAL.
 
@@ -189,7 +191,7 @@ When the monolithic `gates.sh all` run is impractical on a dev machine (resource
 
 **Why.** Direct port of NASA Rule 10. Rust's compiler + clippy + supply-chain audit replaces C-era static analyzers.
 
-**Enforce.** `.cargo/config.toml` sets `-D warnings`; `scripts/gates.sh` runs the full audit set; CI workflow runs the same. Nightly schedule via GitHub Actions cron.
+**Enforce.** `[workspace.lints]` sets `warnings = "deny"` workspace-wide; `scripts/gates.sh` runs the full audit set; CI runs the same on every push/PR. The nightly cron schedule is planned, not yet wired — tracked in #229 (until then, dependabot's weekly runs plus per-PR audits are the cadence).
 
 **Severity.** CRITICAL.
 

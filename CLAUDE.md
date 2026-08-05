@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-**Tyrus** (TypeRust) is an academic TypeScript-to-Rust transpiler. It converts a strict subset of TypeScript ("Oxidizable Standard") into memory-safe Rust code. No `any`, `var`, or `eval` allowed. Cargo workspace with 10 crates under `crates/`.
+**Tyrus** (TypeRust) is an academic TypeScript-to-Rust transpiler. It converts a strict subset of TypeScript ("Oxidizable Standard") into memory-safe Rust code. No `any`, `var`, or `eval` allowed. Cargo workspace with 11 crates under `crates/` plus the `tests` member.
 
 ## STRICT RULES (NEVER VIOLATE)
 
@@ -12,13 +12,13 @@ This file provides guidance to Claude Code when working with this repository.
 
 | # | Rule | Severity | Enforced by |
 |---|------|----------|-------------|
-| 1 | Bounded control flow (no unbounded recursion) | HIGH | review checklist + nightly fuzz |
-| 2 | Bounded loops (O(n) in input size) | HIGH | review checklist + fuzz |
+| 1 | Bounded control flow (no unbounded recursion) | HIGH | review checklist (fuzz: #229) |
+| 2 | Bounded loops (O(n) in input size) | HIGH | review checklist (fuzz: #229) |
 | 3 | Minimal scope for bindings + struct fields | MEDIUM | `clippy::needless_pass_by_value` |
-| 4 | Functions ≤ 50 lines, files ≤ 400, ≤ 5 params, ≤ 4 nesting | CRITICAL | `clippy::too_many_lines/arguments/cognitive_complexity` + `scripts/gates.sh` |
+| 4 | Functions ≤ 50 lines, files ≤ 400, ≤ 5 params, ≤ 4 nesting | CRITICAL | `clippy::too_many_lines/arguments` via `[workspace.lints]` + `gates.sh filesize` |
 | 5 | Equivalence-test density (every codegen change → test) | CRITICAL | PR template + `cargo nextest` + `cargo-llvm-cov` |
-| 6 | Total error handling (no `unwrap`/`expect`/`panic`/`todo`) | CRITICAL | `.cargo/config.toml` clippy lints |
-| 7 | `quote!` macros only — never string-concat codegen | CRITICAL | review + grep gate |
+| 6 | Total error handling (no `unwrap`/`expect`/`panic`/`todo`, no panicking indexing) | CRITICAL | `[workspace.lints]` clippy lints |
+| 7 | `quote!` macros only — never string-concat codegen | CRITICAL | review (grep gate: #229) |
 | 8 | Two-layer architecture (generic AST + semantic registry) | CRITICAL | review + ADR 0007 precedent |
 | 9 | Local-first validation parity (hook == CI via `scripts/gates.sh`) | CRITICAL | shared script |
 | 10 | ADR for architectural decisions | HIGH | PR template |
@@ -40,7 +40,7 @@ cargo test -p tyrus_codegen            # Single crate
 
 # Lint & Format (must pass CI)
 cargo fmt -- --check
-cargo clippy --workspace               # -Dwarnings is in .cargo/config.toml
+cargo clippy --workspace               # warnings = "deny" via [workspace.lints]
 
 # Run the compiler
 cargo run --bin tyrus -- check <file.ts>              # Analyze for compatibility
