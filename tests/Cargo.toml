@@ -9,18 +9,15 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-tyrus_common = { path = "../crates/tyrus_common" }
 tyrus_orchestrator = { path = "../crates/tyrus_orchestrator" }
 tyrus_test_utils = { path = "../crates/tyrus_test_utils" }
 tyrus_parser = { path = "../crates/tyrus_parser" }
 tyrus_analyzer = { path = "../crates/tyrus_analyzer" }
-tyrus_di = { path = "../crates/tyrus_di" }
 assert_cmd = "2.2"
 predicates = "3.1"
 insta = "1.47"
 tempfile = "3.25"
 serde_json = "1.0"
-getrandom = "=0.3.4"
 trybuild = "1.0"
 
 [dev-dependencies]
