@@ -71,7 +71,7 @@ main();
 #[test]
 fn test_equivalence_object_spread_copy() {
     assert_output_equivalent(
-        r#"
+        r"
 interface Point {
     x: number;
     y: number;
@@ -83,6 +83,6 @@ function main(): void {
     console.log(copy.y);
 }
 main();
-"#,
+",
     );
 }

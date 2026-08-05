@@ -16,6 +16,7 @@ pub struct ControllerMetadata {
     pub route_path: String,
 }
 
+#[derive(Debug)]
 pub struct GeneratedCode {
     pub code: String,
     pub controllers: Vec<ControllerMetadata>,
@@ -48,7 +49,7 @@ pub fn generate(program: &Program, is_index: bool) -> GeneratedCode {
 ///
 /// Per Power of Ten Rule 7, code emission goes through `quote!` rather
 /// than string concatenation. Statements arrive already converted to
-/// Rust syntax (via `convert_stmt`), so we parse them as a TokenStream
+/// Rust syntax (via `convert_stmt`), so we parse them as a `TokenStream`
 /// and embed under a function header. Parse failure surfaces via
 /// `compile_error!` rather than silent body drop.
 fn wrap_top_level_in_main(body: &str) -> String {

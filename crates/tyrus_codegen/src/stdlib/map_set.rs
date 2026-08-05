@@ -1,10 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use swc_ecma_ast::*;
+use swc_ecma_ast::{Expr, ExprOrSpread};
 
 use super::super::convert::interface::RustGenerator;
 
-/// Handle Map method calls (HashMap equivalents)
+/// Handle Map method calls (`HashMap` equivalents)
 pub(crate) fn handle_map(
     gen: &RustGenerator,
     obj: &Expr,
@@ -23,7 +23,7 @@ pub(crate) fn handle_map(
     }
 }
 
-/// Handle Set method calls (HashSet equivalents)
+/// Handle Set method calls (`HashSet` equivalents)
 pub(crate) fn handle_set(
     gen: &RustGenerator,
     obj: &Expr,
@@ -48,9 +48,9 @@ fn handle_map_set(
     obj: &TokenStream,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    if args.len() >= 2 {
-        let key = gen.convert_expr(&args[0].expr);
-        let value = gen.convert_expr(&args[1].expr);
+    if let [key, value, ..] = args {
+        let key = gen.convert_expr(&key.expr);
+        let value = gen.convert_expr(&value.expr);
         Some(quote! { #obj.insert(#key, #value) })
     } else {
         None

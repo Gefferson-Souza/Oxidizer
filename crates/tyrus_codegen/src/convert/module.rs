@@ -5,7 +5,7 @@ use super::interface::RustGenerator;
 
 /// Convert a TS name to its Rust equivalent.
 /// Uppercase-leading names are preserved (Class/Type);
-/// lowercase-leading names are converted to snake_case.
+/// lowercase-leading names are converted to `snake_case`.
 fn to_rust_name(name: &str) -> String {
     if name.chars().next().is_some_and(char::is_uppercase) {
         name.to_string()
@@ -23,7 +23,7 @@ fn sanitize_path(p: &str) -> String {
 }
 
 /// Return `true` if this import source should be silently skipped
-/// (NestJS framework imports, axios HTTP client, etc.).
+/// (`NestJS` framework imports, axios HTTP client, etc.).
 fn is_skipped_import(src: &str) -> bool {
     src.starts_with("@nestjs") || src == "axios"
 }
@@ -108,7 +108,7 @@ impl RustGenerator {
                     self.process_fn_decl(&fn_decl);
                 }
             }
-            _ => {}
+            swc_ecma_ast::DefaultDecl::TsInterfaceDecl(_) => {}
         }
         self.is_exporting = false;
     }

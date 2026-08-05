@@ -1,4 +1,7 @@
-use swc_ecma_ast::*;
+use swc_ecma_ast::{
+    ArrayLit, BindingIdent, Callee, Class, ClassDecl, ClassMember, Decorator, Expr, ExprOrSpread,
+    ObjectLit, ParamOrTsParamProp, Pat, Prop, PropName, PropOrSpread, TsParamPropParam,
+};
 use swc_ecma_visit::{Visit, VisitWith};
 use tyrus_decorator_kinds::DecoratorKind;
 use tyrus_di::graph::DiGraph;
@@ -24,7 +27,7 @@ impl Default for DecoratorVisitor {
 }
 
 impl DecoratorVisitor {
-    fn extract_decorator_args(&self, decorator: &Decorator) -> Option<ObjectLit> {
+    fn extract_decorator_args(decorator: &Decorator) -> Option<ObjectLit> {
         if let Expr::Call(call_expr) = &*decorator.expr {
             if let Some(arg) = call_expr.args.first() {
                 if let Expr::Object(obj_lit) = &*arg.expr {
@@ -37,7 +40,7 @@ impl DecoratorVisitor {
 
     /// Parses an `@Module({ imports, providers, controllers, exports })`
     /// decorator into a [`Module`] for the DI graph.
-    fn parse_module_metadata(&self, class_name: &str, decorator: &Decorator) -> Module {
+    fn parse_module_metadata(class_name: &str, decorator: &Decorator) -> Module {
         let mut module = Module {
             name: class_name.to_string(),
             imports: vec![],
@@ -45,7 +48,7 @@ impl DecoratorVisitor {
             controllers: vec![],
             exports: vec![],
         };
-        let Some(obj) = self.extract_decorator_args(decorator) else {
+        let Some(obj) = Self::extract_decorator_args(decorator) else {
             return module;
         };
         for prop in obj.props {
@@ -86,6 +89,39 @@ fn collect_ident_array(arr: &ArrayLit) -> Vec<String> {
         .collect()
 }
 
+/// Extracts the type-reference name from a typed binding ident, if any.
+fn type_ref_name(ident: &BindingIdent) -> Option<String> {
+    let type_ann = ident.type_ann.as_ref()?;
+    let type_ref = type_ann.type_ann.as_ts_type_ref()?;
+    Some(type_ref.type_name.as_ident()?.sym.to_string())
+}
+
+/// Collects constructor parameter type names as DI dependencies.
+fn collect_constructor_deps(class: &Class) -> Vec<String> {
+    let mut deps = vec![];
+    for member in &class.body {
+        let ClassMember::Constructor(cons) = member else {
+            continue;
+        };
+        for param in &cons.params {
+            let ident = match param {
+                ParamOrTsParamProp::TsParamProp(prop) => match &prop.param {
+                    TsParamPropParam::Ident(ident) => Some(ident),
+                    TsParamPropParam::Assign(_) => None,
+                },
+                ParamOrTsParamProp::Param(param) => match &param.pat {
+                    Pat::Ident(ident) => Some(ident),
+                    _ => None,
+                },
+            };
+            if let Some(name) = ident.and_then(type_ref_name) {
+                deps.push(name);
+            }
+        }
+    }
+    deps
+}
+
 /// Wraps each ident name in a `Provider` (singleton, deps filled later).
 fn values_to_providers(values: Vec<String>) -> Vec<Provider> {
     values
@@ -122,7 +158,7 @@ impl Visit for DecoratorVisitor {
             };
             match kind {
                 DecoratorKind::Module => {
-                    let module = self.parse_module_metadata(&class_name, decorator);
+                    let module = Self::parse_module_metadata(&class_name, decorator);
                     self.graph.add_module(module);
                 }
                 DecoratorKind::Injectable | DecoratorKind::Controller => {
@@ -133,44 +169,10 @@ impl Visit for DecoratorVisitor {
         }
 
         if is_injectable {
-            // Extract dependencies from constructor
-            let mut deps = vec![];
-            for member in &n.class.body {
-                if let ClassMember::Constructor(cons) = member {
-                    for param in &cons.params {
-                        match param {
-                            ParamOrTsParamProp::TsParamProp(prop) => {
-                                if let TsParamPropParam::Ident(ident) = &prop.param {
-                                    if let Some(type_ann) = &ident.type_ann {
-                                        if let Some(type_ref) = type_ann.type_ann.as_ts_type_ref() {
-                                            if let Some(type_name) = type_ref.type_name.as_ident() {
-                                                deps.push(type_name.sym.to_string());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            ParamOrTsParamProp::Param(param) => {
-                                if let Pat::Ident(ident) = &param.pat {
-                                    if let Some(type_ann) = &ident.type_ann {
-                                        if let Some(type_ref) = type_ann.type_ann.as_ts_type_ref() {
-                                            if let Some(type_name) = type_ref.type_name.as_ident() {
-                                                deps.push(type_name.sym.to_string());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Add to graph as definition
             self.graph
                 .add_injectable(tyrus_di::provider::InjectableDefinition {
                     name: class_name.clone(),
-                    dependencies: deps,
+                    dependencies: collect_constructor_deps(&n.class),
                     scope: InjectionScope::Singleton,
                 });
         }

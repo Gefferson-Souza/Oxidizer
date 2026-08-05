@@ -28,5 +28,5 @@ fn test_console_error() {
 fn test_console_log_variable() {
     let rust = transpile("function f(x: number): void { console.log(x); }");
     assert!(rust.contains("println!"), "Expected 'println!' in: {rust}");
-    assert!(rust.contains("x"), "Expected 'x' in: {rust}");
+    assert!(rust.contains('x'), "Expected 'x' in: {rust}");
 }

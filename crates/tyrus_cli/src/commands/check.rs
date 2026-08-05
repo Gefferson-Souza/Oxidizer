@@ -53,13 +53,13 @@ pub(crate) fn execute(path: &Path, json: bool, strict: bool) -> Result<()> {
     }
 
     if total_fatal == 0 {
-        pipeline.finish_success(&format!(
+        Pipeline::finish_success(&format!(
             "File is Oxidizable — {} statements parsed",
             result.statement_count,
         ));
         Ok(())
     } else {
-        pipeline.finish_error(&format!("{total_fatal} issue(s) found"));
+        Pipeline::finish_error(&format!("{total_fatal} issue(s) found"));
         // Per plan D5 — exit code primary signal even in --json mode.
         // Aggregate message only; per-error details already printed above.
         Err(TyrusError::Validation(format!("{total_fatal} oxidizable check(s) failed")).into())

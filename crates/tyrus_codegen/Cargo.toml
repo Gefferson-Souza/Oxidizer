@@ -15,3 +15,6 @@ swc_ecma_visit = "23.0.0"
 swc_common = { version = "21.0.1", features = ["tty-emitter"] }
 tyrus_common = { path = "../tyrus_common" }
 tyrus_decorator_kinds = { path = "../tyrus_decorator_kinds" }
+
+[lints]
+workspace = true

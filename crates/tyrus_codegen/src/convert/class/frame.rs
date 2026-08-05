@@ -33,7 +33,7 @@ pub(super) struct ClassMembers<'a> {
 /// Aggregated field information collected from properties and constructor params.
 pub(super) struct ClassFields {
     pub fields: Vec<TokenStream>,
-    pub class_fields_meta: Vec<(String, bool)>,
+    pub fields_meta: Vec<(String, bool)>,
     pub own_field_names: Vec<(String, TokenStream, bool)>,
     pub dependency_fields: HashSet<String>,
 }
@@ -116,9 +116,8 @@ pub(super) fn compute_class_generics(
     let params_use = params_struct.clone();
 
     if !params_use.is_empty() {
-        let phantom_type = if params_use.len() == 1 {
-            let p = &params_use[0];
-            quote! { #p }
+        let phantom_type = if let [only] = params_use.as_slice() {
+            quote! { #only }
         } else {
             quote! { (#(#params_use),*) }
         };

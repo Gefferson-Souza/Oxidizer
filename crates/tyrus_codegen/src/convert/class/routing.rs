@@ -197,11 +197,11 @@ pub(crate) fn map_status_code(code: u16) -> proc_macro2::TokenStream {
 
 /// Builds the doc comment for a handler method.
 pub(crate) fn build_doc_comment(
-    http_method: &Option<String>,
+    http_method: Option<&String>,
     route_path: &str,
 ) -> proc_macro2::TokenStream {
     use quote::quote;
-    let Some(m) = http_method.as_ref() else {
+    let Some(m) = http_method else {
         return quote! {};
     };
     let method_str = m.to_uppercase();

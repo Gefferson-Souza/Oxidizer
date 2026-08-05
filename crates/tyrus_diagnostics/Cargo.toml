@@ -10,3 +10,6 @@ repository.workspace = true
 [dependencies]
 miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0"
+
+[lints]
+workspace = true

@@ -5,7 +5,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{ComputedPropName, Expr, IdentName, Lit, MemberExpr, MemberProp};
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
@@ -22,7 +22,9 @@ impl RustGenerator {
         match &member.prop {
             MemberProp::Ident(ident) => self.convert_ident_member(&member.obj, &obj, ident),
             MemberProp::Computed(computed) => Self::convert_computed_member(&obj, computed, self),
-            _ => quote! { compile_error!("Tyrus: unsupported member expression") },
+            MemberProp::PrivateName(_) => {
+                quote! { compile_error!("Tyrus: unsupported member expression") }
+            }
         }
     }
 
@@ -127,7 +129,7 @@ impl RustGenerator {
         }
     }
 
-    /// Detects PascalCase identifiers that map to Rust enum/static access (`Foo::Bar`).
+    /// Detects `PascalCase` identifiers that map to Rust enum/static access (`Foo::Bar`).
     fn is_enum_or_static_access(obj: &TokenStream) -> bool {
         let obj_str = obj.to_string();
         obj_str.chars().next().is_some_and(char::is_uppercase)
@@ -147,6 +149,11 @@ impl RustGenerator {
         }
 
         if let Expr::Lit(Lit::Num(n)) = expr {
+            #[expect(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "TS index literals are non-negative integers; float cast saturates"
+            )]
             let idx = n.value as usize;
             quote! { #obj[#idx].clone() }
         } else {

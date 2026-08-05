@@ -35,18 +35,16 @@ pub(crate) struct ConstructorCtx<'a> {
     pub(crate) is_service_or_controller: bool,
 }
 
-/// Check whether a type annotation refers to a dependency (non-primitive TypeRef).
+/// Check whether a type annotation refers to a dependency (non-primitive `TypeRef`).
 pub(crate) fn is_dependency_type(
     type_ann: Option<&swc_ecma_ast::TsTypeAnn>,
     generic_params: &HashSet<String>,
 ) -> bool {
-    let ann = match type_ann {
-        Some(a) => a,
-        None => return false,
+    let Some(ann) = type_ann else {
+        return false;
     };
-    let type_ref = match ann.type_ann.as_ts_type_ref() {
-        Some(r) => r,
-        None => return false,
+    let Some(type_ref) = ann.type_ann.as_ts_type_ref() else {
+        return false;
     };
     match type_ref.type_name.as_ident() {
         Some(ident) => {
@@ -101,7 +99,13 @@ impl RustGenerator {
         let params = &extracted.params;
         let field_inits = &extracted.field_inits;
 
-        if !field_inits.is_empty() {
+        if field_inits.is_empty() {
+            quote! {
+                pub fn new(#(#params),*) -> Self {
+                    compile_error!("Tyrus: complex constructor pattern not yet supported")
+                }
+            }
+        } else {
             let di_tokens = build_di_constructor(ctx.constructor, ctx);
             quote! {
                 pub fn new(#(#params),*) -> Self {
@@ -111,12 +115,6 @@ impl RustGenerator {
                 }
 
                 #di_tokens
-            }
-        } else {
-            quote! {
-                pub fn new(#(#params),*) -> Self {
-                    compile_error!("Tyrus: complex constructor pattern not yet supported")
-                }
             }
         }
     }

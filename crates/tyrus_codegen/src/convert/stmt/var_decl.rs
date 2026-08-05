@@ -2,7 +2,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{ArrayPat, BindingIdent, ObjectPat, Pat, VarDecl, VarDeclKind, VarDeclarator};
 
 use super::super::helpers::to_snake_case;
 use super::super::interface::RustGenerator;
@@ -21,10 +21,18 @@ impl RustGenerator {
                     self.convert_ident_decl(ident, decl, is_const, &mut declarations);
                 }
                 Pat::Object(obj_pat) => {
-                    self.convert_object_destructuring(obj_pat, &init_expr_opt, &mut declarations);
+                    self.convert_object_destructuring(
+                        obj_pat,
+                        init_expr_opt.as_ref(),
+                        &mut declarations,
+                    );
                 }
                 Pat::Array(arr_pat) => {
-                    self.convert_array_destructuring(arr_pat, &init_expr_opt, &mut declarations);
+                    Self::convert_array_destructuring(
+                        arr_pat,
+                        init_expr_opt.as_ref(),
+                        &mut declarations,
+                    );
                 }
                 _ => {
                     declarations.push(quote! { /* unsupported pattern */ });
@@ -94,7 +102,7 @@ impl RustGenerator {
     fn convert_object_destructuring(
         &self,
         obj_pat: &ObjectPat,
-        init_expr_opt: &Option<TokenStream>,
+        init_expr_opt: Option<&TokenStream>,
         declarations: &mut Vec<TokenStream>,
     ) {
         let Some(init_expr) = init_expr_opt else {
@@ -138,9 +146,8 @@ impl RustGenerator {
     }
 
     fn convert_array_destructuring(
-        &self,
         arr_pat: &ArrayPat,
-        init_expr_opt: &Option<TokenStream>,
+        init_expr_opt: Option<&TokenStream>,
         declarations: &mut Vec<TokenStream>,
     ) {
         let Some(init_expr) = init_expr_opt else {

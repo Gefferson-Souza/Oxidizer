@@ -1,7 +1,7 @@
 //! Array (and a couple of string) method-call code generation.
 //!
 //! Extracted from `convert/expr/call.rs` to keep that file under the Rule 4
-//! 400-line ceiling (POWER_OF_TEN.md). The dispatch entry point
+//! 400-line ceiling (`POWER_OF_TEN.md`). The dispatch entry point
 //! [`RustGenerator::try_convert_array_method`] is invoked from
 //! `convert/expr/call.rs::convert_general_call`. All handlers live in this
 //! module because they share the same dispatch + helper surface
@@ -9,7 +9,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{CallExpr, Expr, MemberExpr, Pat};
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
@@ -36,7 +36,7 @@ impl RustGenerator {
             "forEach" => self.convert_for_each_call(&obj, call),
             "some" => Some(self.convert_iter_adaptor_call(&obj, call, "any")),
             "every" => Some(self.convert_iter_adaptor_call(&obj, call, "all")),
-            "reduce" => self.convert_reduce_call(&obj, call),
+            "reduce" => Some(self.convert_reduce_call(&obj, call)),
             "push" => Some(self.convert_push_call(member, call)),
             "replace" => Some(self.convert_replace_call(member, call)),
             _ => None,
@@ -47,8 +47,8 @@ impl RustGenerator {
     fn convert_map_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
         let args = self.convert_call_args(call);
 
-        if self.has_index_callback_arg(call) {
-            let closure = &args[0];
+        if Self::has_index_callback_arg(call) {
+            let closure = args.first()?;
             return Some(quote! {
                 #obj.iter().cloned()
                     .enumerate()
@@ -64,8 +64,8 @@ impl RustGenerator {
     fn convert_filter_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
         let args = self.convert_call_args(call);
 
-        if self.has_index_callback_arg(call) {
-            let closure = &args[0];
+        if Self::has_index_callback_arg(call) {
+            let closure = args.first()?;
             return Some(quote! {
                 #obj.iter().cloned()
                     .enumerate()
@@ -79,7 +79,7 @@ impl RustGenerator {
             return Some(tokens);
         }
 
-        let closure = &args[0];
+        let closure = args.first()?;
         Some(quote! {
             #obj.iter().cloned()
                 .filter(|__v| (#closure)(__v.clone()))
@@ -91,8 +91,8 @@ impl RustGenerator {
     fn convert_for_each_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
         let args = self.convert_call_args(call);
 
-        if self.has_index_callback_arg(call) {
-            let closure = &args[0];
+        if Self::has_index_callback_arg(call) {
+            let closure = args.first()?;
             return Some(quote! {
                 #obj.iter().cloned()
                     .enumerate()
@@ -116,20 +116,19 @@ impl RustGenerator {
     }
 
     /// `arr.reduce(callback, initial?)` -> `fold` or `reduce`.
-    fn convert_reduce_call(&self, obj: &TokenStream, call: &CallExpr) -> Option<TokenStream> {
-        let closure = call
-            .args
-            .first()
-            .map(|a| self.convert_expr(&a.expr))
-            .unwrap_or_else(|| {
+    fn convert_reduce_call(&self, obj: &TokenStream, call: &CallExpr) -> TokenStream {
+        let closure = call.args.first().map_or_else(
+            || {
                 quote! { compile_error!("Tyrus: reduce requires a callback") }
-            });
+            },
+            |a| self.convert_expr(&a.expr),
+        );
 
-        if call.args.len() >= 2 {
-            let initial = self.convert_expr(&call.args[1].expr);
-            Some(quote! { #obj.iter().cloned().fold(#initial, #closure) })
+        if let Some(second) = call.args.get(1) {
+            let initial = self.convert_expr(&second.expr);
+            quote! { #obj.iter().cloned().fold(#initial, #closure) }
         } else {
-            Some(quote! { #obj.iter().cloned().reduce(#closure) })
+            quote! { #obj.iter().cloned().reduce(#closure) }
         }
     }
 
@@ -141,7 +140,7 @@ impl RustGenerator {
             .collect()
     }
 
-    fn has_index_callback_arg(&self, call: &CallExpr) -> bool {
+    fn has_index_callback_arg(call: &CallExpr) -> bool {
         if let Some(arg) = call.args.first() {
             if let Expr::Arrow(arrow) = &*arg.expr {
                 return arrow.params.len() == 2;

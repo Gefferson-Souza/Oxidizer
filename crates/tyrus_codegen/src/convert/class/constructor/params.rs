@@ -60,9 +60,8 @@ fn extract_ts_param_prop(
     is_service_or_controller: bool,
     result: &mut ExtractedParams,
 ) {
-    let ident = match &prop.param {
-        swc_ecma_ast::TsParamPropParam::Ident(id) => id,
-        _ => return,
+    let swc_ecma_ast::TsParamPropParam::Ident(ident) = &prop.param else {
+        return;
     };
 
     let param_name_str = ident.sym.to_string();
@@ -88,9 +87,8 @@ fn extract_plain_param(
     is_service_or_controller: bool,
     result: &mut ExtractedParams,
 ) {
-    let ident = match &pat_param.pat {
-        Pat::Ident(id) => id,
-        _ => return,
+    let Pat::Ident(ident) = &pat_param.pat else {
+        return;
     };
 
     let param_name = format_ident!("{}", to_snake_case(ident.sym.as_ref()));

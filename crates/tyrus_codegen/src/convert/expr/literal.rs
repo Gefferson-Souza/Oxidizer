@@ -1,17 +1,17 @@
 //! Literal expression code generation.
 //!
-//! Handles: number/string/bool/null literals, object literals (→ serde_json::json!),
+//! Handles: number/string/bool/null literals, object literals (→ `serde_json::json`!),
 //! array literals (→ vec![]), and template literals (→ format!).
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{Expr, Lit};
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
 
 impl RustGenerator {
-    pub(crate) fn convert_lit(&self, lit: &Lit) -> TokenStream {
+    pub(crate) fn convert_lit(lit: &Lit) -> TokenStream {
         match lit {
             Lit::Num(num) => {
                 let value = num.value;
@@ -101,13 +101,14 @@ impl RustGenerator {
             chains.push(quote! { vec![#(#items),*].into_iter() });
         }
 
-        // Chain all iterators together
-        if chains.len() == 1 {
-            let first = &chains[0];
+        // Chain all iterators together. `chains` is non-empty here: has_spread
+        // guarantees at least one spread element was pushed.
+        let Some((first, rest)) = chains.split_first() else {
+            return quote! { vec![] };
+        };
+        if rest.is_empty() {
             quote! { #first.collect::<Vec<_>>() }
         } else {
-            let first = &chains[0];
-            let rest = &chains[1..];
             quote! { #first #(.chain(#rest))* .collect::<Vec<_>>() }
         }
     }
@@ -123,9 +124,9 @@ impl RustGenerator {
                 fmt_str.push_str(quasi.raw.as_str());
             }
 
-            if i < tpl.exprs.len() {
+            if let Some(expr) = tpl.exprs.get(i) {
                 fmt_str.push_str("{}");
-                args.push(self.convert_expr(&tpl.exprs[i]));
+                args.push(self.convert_expr(expr));
             }
         }
 
@@ -134,7 +135,7 @@ impl RustGenerator {
 
     /// Try to convert an object literal with a known type annotation into a struct constructor.
     /// e.g., `const x: User = { id: 1, name: "foo" }` → `User { id: 1f64, name: String::from("foo") }`
-    /// Returns None if type annotation can't be extracted (falls back to serde_json::json!).
+    /// Returns None if type annotation can't be extracted (falls back to `serde_json::json`!).
     pub(crate) fn try_convert_typed_object_lit(
         &self,
         ts_type: &swc_ecma_ast::TsType,

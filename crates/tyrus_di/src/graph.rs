@@ -1,6 +1,6 @@
 use crate::module::Module;
 use petgraph::algo::toposort;
-use petgraph::graph::DiGraph as PetDiGraph;
+use petgraph::graph::{DiGraph as PetDiGraph, NodeIndex};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -14,10 +14,10 @@ pub enum DiError {
 
 use crate::provider::InjectableDefinition;
 
+#[derive(Debug)]
 pub struct DiGraph {
     pub modules: HashMap<String, Module>,
     pub injectables: HashMap<String, InjectableDefinition>,
-    // graph: PetDiGraph<String, ()>, // Removed unused field for now, it's local to resolve()
 }
 
 impl DiGraph {
@@ -67,30 +67,24 @@ impl DiGraph {
                         return Some(provider.dependencies.clone());
                     } else if let Some(def) = self.injectables.get(token) {
                         return Some(def.dependencies.clone());
-                    } else {
-                        return Some(vec![]);
                     }
+                    return Some(vec![]);
                 }
             }
             for controller in &module.controllers {
                 if controller == token {
                     if let Some(def) = self.injectables.get(token) {
                         return Some(def.dependencies.clone());
-                    } else {
-                        return Some(vec![]);
                     }
+                    return Some(vec![]);
                 }
             }
         }
         None
     }
 
-    pub fn resolve(&self) -> Result<Vec<String>, DiError> {
-        // Build the dependency graph
-        let mut graph = PetDiGraph::<String, ()>::new();
+    fn collect_nodes(&self, graph: &mut PetDiGraph<String, ()>) -> HashMap<String, NodeIndex> {
         let mut node_indices = HashMap::new();
-
-        // 1. Add all providers and controllers as nodes
         for module in self.modules.values() {
             for provider in &module.providers {
                 if !node_indices.contains_key(&provider.token) {
@@ -105,21 +99,25 @@ impl DiGraph {
                 }
             }
         }
+        node_indices
+    }
 
-        // 2. Add edges (dependencies)
+    fn add_dependency_edges(
+        &self,
+        graph: &mut PetDiGraph<String, ()>,
+        node_indices: &HashMap<String, NodeIndex>,
+    ) {
         for module in self.modules.values() {
-            // Process Providers
             for provider in &module.providers {
                 if let Some(parent_idx) = node_indices.get(&provider.token) {
-                    // Try to find dependencies from InjectableDefinition
-                    let deps = if !provider.dependencies.is_empty() {
-                        &provider.dependencies
-                    } else if let Some(def) = self.injectables.get(&provider.token) {
-                        &def.dependencies
+                    // Provider metadata wins; fall back to the @Injectable definition.
+                    let deps = if provider.dependencies.is_empty() {
+                        self.injectables
+                            .get(&provider.token)
+                            .map_or(&provider.dependencies, |def| &def.dependencies)
                     } else {
-                        &provider.dependencies // empty
+                        &provider.dependencies
                     };
-
                     for dep_token in deps {
                         if let Some(dep_idx) = node_indices.get(dep_token) {
                             graph.add_edge(*dep_idx, *parent_idx, ());
@@ -127,23 +125,26 @@ impl DiGraph {
                     }
                 }
             }
-
-            // Process Controllers
             for controller in &module.controllers {
-                if let Some(parent_idx) = node_indices.get(controller) {
-                    // Controllers are Injectables (definitions exist)
-                    if let Some(def) = self.injectables.get(controller) {
-                        for dep_token in &def.dependencies {
-                            if let Some(dep_idx) = node_indices.get(dep_token) {
-                                graph.add_edge(*dep_idx, *parent_idx, ());
-                            }
+                if let (Some(parent_idx), Some(def)) = (
+                    node_indices.get(controller),
+                    self.injectables.get(controller),
+                ) {
+                    for dep_token in &def.dependencies {
+                        if let Some(dep_idx) = node_indices.get(dep_token) {
+                            graph.add_edge(*dep_idx, *parent_idx, ());
                         }
                     }
                 }
             }
         }
+    }
 
-        // 3. Topological Sort
+    pub fn resolve(&self) -> Result<Vec<String>, DiError> {
+        let mut graph = PetDiGraph::<String, ()>::new();
+        let node_indices = self.collect_nodes(&mut graph);
+        self.add_dependency_edges(&mut graph, &node_indices);
+
         match toposort(&graph, None) {
             Ok(sorted_indices) => {
                 let sorted_tokens: Vec<String> = sorted_indices

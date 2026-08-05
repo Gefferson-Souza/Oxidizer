@@ -2,7 +2,7 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use swc_ecma_ast::*;
+use swc_ecma_ast::Stmt;
 
 use super::super::interface::RustGenerator;
 

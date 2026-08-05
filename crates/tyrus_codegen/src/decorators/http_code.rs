@@ -13,8 +13,15 @@ impl HttpCodeHandler {
     /// previous `value as u16` lossy cast — `@HttpCode(70000)` no longer wraps
     /// silently to a different code, and `@HttpCode(404.5)` is rejected.
     fn parse_status_code(value: f64) -> Option<u16> {
-        if value.is_finite() && value >= 0.0 && value <= u16::MAX as f64 && value.fract() == 0.0 {
-            Some(value as u16)
+        if value.is_finite() && value >= 0.0 && value <= f64::from(u16::MAX) && value.fract() == 0.0
+        {
+            #[expect(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "guarded above: finite, integral, within 0..=u16::MAX"
+            )]
+            let code = value as u16;
+            Some(code)
         } else {
             None
         }

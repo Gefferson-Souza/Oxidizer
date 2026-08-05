@@ -3,7 +3,7 @@ use std::time::Duration;
 
 /// Transpile a TypeScript string to Rust code (no compilation).
 /// This is the primary test helper — fast, no I/O beyond a temp file.
-pub fn transpile(ts_code: &str) -> String {
+pub(crate) fn transpile(ts_code: &str) -> String {
     let tmp = tempfile::Builder::new()
         .suffix(".ts")
         .tempfile()
@@ -19,7 +19,7 @@ pub fn transpile(ts_code: &str) -> String {
 /// - Function declarations (transpiled as Rust functions)
 /// - Top-level statements (wrapped in `fn main()` automatically)
 /// - `console.log()` for observable output
-pub fn assert_output_equivalent(ts_code: &str) {
+pub(crate) fn assert_output_equivalent(ts_code: &str) {
     // 1. Run TypeScript with Node.js
     let ts_output = tyrus_test_utils::run_node(ts_code);
 
@@ -30,7 +30,7 @@ pub fn assert_output_equivalent(ts_code: &str) {
     let rust_binary = if rust_code.contains("fn main()") {
         rust_code.clone()
     } else {
-        format!("{}\nfn main() {{}}", rust_code)
+        format!("{rust_code}\nfn main() {{}}")
     };
 
     // 4. Compile + run Rust
@@ -58,14 +58,14 @@ pub fn assert_output_equivalent(ts_code: &str) {
 ///
 /// On timeout, the child process is killed and the test panics with a message
 /// that names the timeout — preventing nextest from hanging indefinitely.
-pub fn assert_output_equivalent_with_timeout(ts_code: &str, timeout: Duration) {
+pub(crate) fn assert_output_equivalent_with_timeout(ts_code: &str, timeout: Duration) {
     let ts_output = tyrus_test_utils::run_node(ts_code);
     let rust_code = transpile(ts_code);
 
     let rust_binary = if rust_code.contains("fn main()") {
         rust_code.clone()
     } else {
-        format!("{}\nfn main() {{}}", rust_code)
+        format!("{rust_code}\nfn main() {{}}")
     };
 
     let rust_output = tyrus_test_utils::compile_and_run_rust_with_timeout(&rust_binary, timeout);
@@ -86,7 +86,7 @@ pub fn assert_output_equivalent_with_timeout(ts_code: &str, timeout: Duration) {
 }
 
 /// Transpile a fixture file by name (e.g., "tier1/variables").
-pub fn transpile_fixture(fixture: &str) -> String {
+pub(crate) fn transpile_fixture(fixture: &str) -> String {
     let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures")
         .join(format!("{fixture}.ts"));

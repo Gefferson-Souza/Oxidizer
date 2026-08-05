@@ -17,12 +17,12 @@ console.log(active);
 #[test]
 fn test_equivalence_top_level_let() {
     assert_output_equivalent(
-        r#"
+        r"
 let counter: number = 0;
 counter = counter + 1;
 counter = counter + 1;
 console.log(counter);
-"#,
+",
     );
 }
 
@@ -39,15 +39,15 @@ console.log(message);
     );
 }
 
-/// Regression test for #186 (UAT-C1): ExprStmt at module level was silently
+/// Regression test for #186 (UAT-C1): `ExprStmt` at module level was silently
 /// dropped because `process_module_item` used `stmt.visit_with(self)`
 /// (children-only traversal) instead of `self.visit_stmt(stmt)`.
 #[test]
 fn test_equivalence_top_level_bare_expr_stmt() {
     assert_output_equivalent(
-        r#"
+        r"
 console.log(1 + 1);
-"#,
+",
     );
 }
 
@@ -71,13 +71,13 @@ if (score >= 70) {
 #[test]
 fn test_equivalence_top_level_for_loop() {
     assert_output_equivalent(
-        r#"
+        r"
 let total: number = 0;
 for (const n of [1, 2, 3, 4, 5]) {
     total = total + n;
 }
 console.log(total);
-"#,
+",
     );
 }
 

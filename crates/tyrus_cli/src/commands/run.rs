@@ -32,7 +32,7 @@ pub(crate) fn execute(path: &Path, output: Option<PathBuf>) -> Result<()> {
 
     if !build_output.status.success() {
         let stderr = String::from_utf8_lossy(&build_output.stderr);
-        pipeline.finish_error("Compilation failed");
+        Pipeline::finish_error("Compilation failed");
         eprintln!("{stderr}");
         return Err(miette::miette!("cargo build failed"));
     }
@@ -54,10 +54,10 @@ pub(crate) fn execute(path: &Path, output: Option<PathBuf>) -> Result<()> {
     }
 
     if run_output.status.success() {
-        pipeline.finish_success("Execution complete");
+        Pipeline::finish_success("Execution complete");
     } else {
         let code = run_output.status.code().unwrap_or(-1);
-        pipeline.finish_error(&format!("Process exited with code {code}"));
+        Pipeline::finish_error(&format!("Process exited with code {code}"));
     }
 
     Ok(())

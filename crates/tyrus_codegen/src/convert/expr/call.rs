@@ -7,7 +7,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{CallExpr, Callee, Expr, Lit, MemberExpr};
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
@@ -39,13 +39,11 @@ impl RustGenerator {
 
     /// Handles member-expression calls: static methods, axios, and stdlib methods.
     fn try_convert_member_call(&self, call: &CallExpr) -> Option<TokenStream> {
-        let expr = match &call.callee {
-            Callee::Expr(expr) => expr,
-            _ => return None,
+        let Callee::Expr(expr) = &call.callee else {
+            return None;
         };
-        let member = match &**expr {
-            Expr::Member(m) => m,
-            _ => return None,
+        let Expr::Member(member) = &**expr else {
+            return None;
         };
 
         if let Some(tokens) = self.try_convert_static_call(member, call) {
@@ -67,9 +65,8 @@ impl RustGenerator {
 
     /// Converts `ClassName.method(args)` to `ClassName::method(args)`.
     fn try_convert_static_call(&self, member: &MemberExpr, call: &CallExpr) -> Option<TokenStream> {
-        let obj_ident = match &*member.obj {
-            Expr::Ident(id) => id,
-            _ => return None,
+        let Expr::Ident(obj_ident) = &*member.obj else {
+            return None;
         };
         let class_name = obj_ident.sym.as_ref();
         let static_set = self.static_methods.get(class_name)?;
@@ -92,33 +89,32 @@ impl RustGenerator {
 
     /// Fallback: array/string method check, then plain callee + args.
     fn convert_general_call(&self, call: &CallExpr) -> TokenStream {
-        let callee = match &call.callee {
-            Callee::Expr(expr) => {
-                if let Expr::Member(member) = &**expr {
-                    if let Some(tokens) = self.try_convert_array_method(member, call) {
-                        return tokens;
-                    }
-                    // this.method(args) → self.method(args)
-                    if member.obj.is_this() {
-                        if let Some(prop) = member.prop.as_ident() {
-                            let method = format_ident!("{}", to_snake_case(prop.sym.as_ref()));
-                            let args: Vec<_> = call
-                                .args
-                                .iter()
-                                .map(|a| self.convert_expr(&a.expr))
-                                .collect();
-                            let receiver = if self.use_state_for_this.get() {
-                                quote! { state }
-                            } else {
-                                quote! { self }
-                            };
-                            return quote! { #receiver.#method(#(#args),*) };
-                        }
+        let callee = if let Callee::Expr(expr) = &call.callee {
+            if let Expr::Member(member) = &**expr {
+                if let Some(tokens) = self.try_convert_array_method(member, call) {
+                    return tokens;
+                }
+                // this.method(args) → self.method(args)
+                if member.obj.is_this() {
+                    if let Some(prop) = member.prop.as_ident() {
+                        let method = format_ident!("{}", to_snake_case(prop.sym.as_ref()));
+                        let args: Vec<_> = call
+                            .args
+                            .iter()
+                            .map(|a| self.convert_expr(&a.expr))
+                            .collect();
+                        let receiver = if self.use_state_for_this.get() {
+                            quote! { state }
+                        } else {
+                            quote! { self }
+                        };
+                        return quote! { #receiver.#method(#(#args),*) };
                     }
                 }
-                self.convert_expr(expr)
             }
-            _ => quote! { compile_error!("Tyrus: unsupported call expression") },
+            self.convert_expr(expr)
+        } else {
+            quote! { compile_error!("Tyrus: unsupported call expression") }
         };
         let args: Vec<_> = call
             .args
@@ -137,8 +133,7 @@ impl RustGenerator {
                         let url = call
                             .args
                             .first()
-                            .map(|a| self.convert_expr(&a.expr))
-                            .unwrap_or_else(|| quote! { "" });
+                            .map_or_else(|| quote! { "" }, |a| self.convert_expr(&a.expr));
                         let method_fn = format_ident!("{}", method_name);
                         return Some(quote! { reqwest::Client::new().#method_fn(#url).send() });
                     }
@@ -155,8 +150,7 @@ impl RustGenerator {
                     let url = call
                         .args
                         .first()
-                        .map(|a| self.convert_expr(&a.expr))
-                        .unwrap_or_else(|| quote! { "" });
+                        .map_or_else(|| quote! { "" }, |a| self.convert_expr(&a.expr));
                     let method = call.args.get(1).and_then(|opts| {
                         if let Expr::Object(obj) = &*opts.expr {
                             for prop in &obj.props {

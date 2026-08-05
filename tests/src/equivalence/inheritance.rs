@@ -38,7 +38,7 @@ main();
 #[test]
 fn test_equivalence_class_inheritance_method_override() {
     assert_output_equivalent(
-        r#"
+        r"
 class Shape {
     area(): number {
         return 0;
@@ -61,6 +61,6 @@ function main(): void {
     console.log(c.area());
 }
 main();
-"#,
+",
     );
 }

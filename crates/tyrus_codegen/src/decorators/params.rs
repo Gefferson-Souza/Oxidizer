@@ -112,7 +112,11 @@ mod tests {
             span: swc_common::DUMMY_SP,
             decorators: vec![],
             pat: swc_ecma_ast::Pat::Ident(swc_ecma_ast::BindingIdent {
-                id: swc_ecma_ast::Ident::new("x".into(), swc_common::DUMMY_SP, Default::default()),
+                id: swc_ecma_ast::Ident::new(
+                    "x".into(),
+                    swc_common::DUMMY_SP,
+                    swc_common::SyntaxContext::default(),
+                ),
                 type_ann: None,
             }),
         }

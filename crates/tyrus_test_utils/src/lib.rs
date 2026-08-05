@@ -1,5 +1,11 @@
 #![forbid(unsafe_code)]
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::string_slice
+)]
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -11,7 +17,7 @@ use tempfile::TempDir;
 static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Shared target directory for compilation caching.
-/// Dependencies are compiled once and reused across all tests via CARGO_TARGET_DIR.
+/// Dependencies are compiled once and reused across all tests via `CARGO_TARGET_DIR`.
 static SHARED_TARGET_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 fn get_shared_target_dir() -> &'static PathBuf {
@@ -25,7 +31,7 @@ fn get_shared_target_dir() -> &'static PathBuf {
 /// Asserts that the provided Rust code compiles successfully as a **library**.
 ///
 /// Each test gets its own temporary project directory (no race conditions),
-/// but all tests share a common CARGO_TARGET_DIR for dependency caching.
+/// but all tests share a common `CARGO_TARGET_DIR` for dependency caching.
 /// Dependencies are compiled once on first use and reused by subsequent tests.
 ///
 /// # Panics
@@ -62,10 +68,7 @@ rand = "0.8"
     fs::write(project_path.join("Cargo.toml"), cargo_toml).expect("Failed to write Cargo.toml");
 
     // Wrap code with common allows to suppress dead_code warnings
-    let wrapped_code = format!(
-        "#![allow(dead_code, unused_variables, unused_imports)]\n{}",
-        code
-    );
+    let wrapped_code = format!("#![allow(dead_code, unused_variables, unused_imports)]\n{code}");
 
     fs::write(src_dir.join("lib.rs"), &wrapped_code).expect("Failed to write lib.rs");
 
@@ -83,9 +86,8 @@ rand = "0.8"
             "\n╔══════════════════════════════════════════╗\n\
              ║   RUST COMPILATION FAILED                ║\n\
              ╚══════════════════════════════════════════╝\n\n\
-             CODE:\n------\n{}\n------\n\n\
-             STDERR:\n{}\n\nSTDOUT:\n{}",
-            code, stderr, stdout
+             CODE:\n------\n{code}\n------\n\n\
+             STDERR:\n{stderr}\n\nSTDOUT:\n{stdout}"
         );
     }
 }
@@ -98,7 +100,7 @@ rand = "0.8"
 fn prepare_and_build_binary(code: &str) -> PathBuf {
     let run_id = RUN_COUNTER.fetch_add(1, Ordering::SeqCst);
     let pid = std::process::id();
-    let bin_name = format!("tyrus_run_{}_{}", pid, run_id);
+    let bin_name = format!("tyrus_run_{pid}_{run_id}");
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let project_path = temp_dir.path();
@@ -126,10 +128,8 @@ serde_json = "1.0"
 
     fs::write(project_path.join("Cargo.toml"), cargo_toml).expect("Failed to write Cargo.toml");
 
-    let wrapped_code = format!(
-        "#![allow(dead_code, unused_variables, unused_imports, unused_mut)]\n{}",
-        code
-    );
+    let wrapped_code =
+        format!("#![allow(dead_code, unused_variables, unused_imports, unused_mut)]\n{code}");
     fs::write(src_dir.join("main.rs"), &wrapped_code).expect("Failed to write main.rs");
 
     let build_output = Command::new("cargo")
@@ -141,10 +141,7 @@ serde_json = "1.0"
 
     if !build_output.status.success() {
         let stderr = String::from_utf8_lossy(&build_output.stderr);
-        panic!(
-            "\n=== RUST BUILD FAILED ===\nCODE:\n{}\n\nSTDERR:\n{}",
-            code, stderr
-        );
+        panic!("\n=== RUST BUILD FAILED ===\nCODE:\n{code}\n\nSTDERR:\n{stderr}");
     }
 
     shared_target.join("debug").join(&bin_name)
@@ -166,10 +163,7 @@ pub fn compile_and_run_rust(code: &str) -> String {
 
     if !run_output.status.success() {
         let stderr = String::from_utf8_lossy(&run_output.stderr);
-        panic!(
-            "\n=== RUST EXECUTION FAILED ===\nCODE:\n{}\n\nSTDERR:\n{}",
-            code, stderr
-        );
+        panic!("\n=== RUST EXECUTION FAILED ===\nCODE:\n{code}\n\nSTDERR:\n{stderr}");
     }
 
     String::from_utf8_lossy(&run_output.stdout).to_string()
@@ -205,9 +199,8 @@ pub fn compile_and_run_rust_with_timeout(code: &str, timeout: Duration) -> Strin
                     let _ = child.wait();
                     panic!(
                         "\n=== RUST BINARY TIMEOUT ===\n\
-                         Did not exit within {:?} (likely deadlock).\n\
-                         CODE:\n{}",
-                        timeout, code
+                         Did not exit within {timeout:?} (likely deadlock).\n\
+                         CODE:\n{code}"
                     );
                 }
                 std::thread::sleep(Duration::from_millis(50));
@@ -226,10 +219,7 @@ pub fn compile_and_run_rust_with_timeout(code: &str, timeout: Duration) -> Strin
 
     if !exit_status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        panic!(
-            "\n=== RUST EXECUTION FAILED ===\nCODE:\n{}\n\nSTDERR:\n{}",
-            code, stderr
-        );
+        panic!("\n=== RUST EXECUTION FAILED ===\nCODE:\n{code}\n\nSTDERR:\n{stderr}");
     }
 
     String::from_utf8_lossy(&output.stdout).to_string()
@@ -262,8 +252,7 @@ pub fn run_node(ts_code: &str) -> String {
         "\n=== NODE EXECUTION FAILED ===\n\
          Node.js 22+ is required for --experimental-strip-types.\n\
          Check your Node version with: node --version\n\n\
-         CODE:\n{}\n\nSTDERR:\n{}",
-        ts_code, stderr
+         CODE:\n{ts_code}\n\nSTDERR:\n{stderr}"
     )
 }
 
@@ -275,7 +264,7 @@ mod tests {
     #[should_panic(expected = "RUST BINARY TIMEOUT")]
     fn timeout_kills_deadlocked_binary() {
         compile_and_run_rust_with_timeout(
-            r#"fn main() { std::thread::park(); }"#,
+            r"fn main() { std::thread::park(); }",
             Duration::from_millis(500),
         );
     }
@@ -284,7 +273,7 @@ mod tests {
     fn no_timeout_for_fast_program() {
         let out = compile_and_run_rust_with_timeout(
             r#"fn main() { println!("ok"); }"#,
-            Duration::from_secs(60),
+            Duration::from_mins(1),
         );
         assert_eq!(out.trim(), "ok");
     }

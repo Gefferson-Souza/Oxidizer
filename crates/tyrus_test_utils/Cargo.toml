@@ -10,3 +10,6 @@ repository.workspace = true
 [dependencies]
 tempfile = "3.10"
 # We include dependencies that generated code might use, to ensure they are available in the temp environment
+
+[lints]
+workspace = true

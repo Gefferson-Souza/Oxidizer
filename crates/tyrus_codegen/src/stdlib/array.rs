@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use swc_ecma_ast::*;
+use swc_ecma_ast::{Expr, ExprOrSpread};
 
 use super::super::convert::interface::RustGenerator;
 
@@ -20,9 +20,9 @@ pub(crate) fn handle(
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
     let obj_tokens = gen.convert_expr(obj);
+    // push/map/filter/forEach/some/every/reduce/replace are deferred to
+    // call_array.rs (TS-callback handlers) and fall through to `None` below.
     match method {
-        // Defer to call_array.rs (TS-callback handlers).
-        "push" | "map" | "filter" | "forEach" | "some" | "every" | "reduce" | "replace" => None,
         "find" => handle_find(gen, &obj_tokens, args),
         "join" => handle_join(gen, &obj_tokens, args),
         "includes" => handle_includes(gen, &obj_tokens, args),
@@ -56,8 +56,8 @@ fn handle_find(
     obj_tokens: &TokenStream,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let predicate = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let predicate = gen.convert_expr_or_spread(arg);
         Some(quote! { #obj_tokens.iter().find(|item| (#predicate)(**item)).cloned() })
     } else {
         None
@@ -69,8 +69,8 @@ fn handle_join(
     obj_tokens: &TokenStream,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let separator = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let separator = gen.convert_expr_or_spread(arg);
         Some(quote! { #obj_tokens.join(&#separator) })
     } else {
         None
@@ -95,8 +95,8 @@ fn handle_index_of(
     obj_tokens: &TokenStream,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let val = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let val = gen.convert_expr_or_spread(arg);
         Some(quote! {
             #obj_tokens.iter().position(|x| x == &#val).map(|i| i as f64).unwrap_or(-1.0)
         })
@@ -110,14 +110,14 @@ fn handle_slice(
     obj_tokens: &TokenStream,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    match args.len() {
-        1 => {
-            let start = gen.convert_expr_or_spread(&args[0]);
+    match args {
+        [start] => {
+            let start = gen.convert_expr_or_spread(start);
             Some(quote! { #obj_tokens[(#start as usize)..].to_vec() })
         }
-        2 => {
-            let start = gen.convert_expr_or_spread(&args[0]);
-            let end = gen.convert_expr_or_spread(&args[1]);
+        [start, end] => {
+            let start = gen.convert_expr_or_spread(start);
+            let end = gen.convert_expr_or_spread(end);
             Some(quote! { #obj_tokens[(#start as usize)..(#end as usize)].to_vec() })
         }
         _ => None,
@@ -129,8 +129,8 @@ fn handle_concat(
     obj_tokens: &TokenStream,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let other = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let other = gen.convert_expr_or_spread(arg);
         Some(quote! {
             #obj_tokens.iter().chain(#other.iter()).cloned().collect::<Vec<_>>()
         })
@@ -180,8 +180,8 @@ fn handle_flat_map(
     obj_tokens: &TokenStream,
     args: &[ExprOrSpread],
 ) -> Option<TokenStream> {
-    if args.len() == 1 {
-        let callback = gen.convert_expr_or_spread(&args[0]);
+    if let [arg] = args {
+        let callback = gen.convert_expr_or_spread(arg);
         Some(quote! {
             #obj_tokens.iter().flat_map(|x| (#callback)(x.clone())).collect::<Vec<_>>()
         })

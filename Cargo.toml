@@ -16,3 +16,47 @@ description = "Tyrus — TypeScript-to-Rust transpiler targeting NestJS → Axum
 
 [profile.release]
 lto = true
+
+# Single source of truth for lint policy (Rule 6/12/13, ADR 0013, #215).
+# Replaces the old .cargo/config.toml rustflags block. Every member opts in
+# via `[lints] workspace = true`. `warnings = "deny"` keeps the historical
+# "-Dwarnings" semantics: any warn-level lint below is a hard error in
+# `cargo clippy`/`cargo build`.
+[workspace.lints.rust]
+warnings = "deny"
+unsafe_code = "forbid"
+unreachable_pub = "warn"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+# Broad safety net; individual noisy lints are allowed explicitly below.
+pedantic = { level = "warn", priority = -1 }
+
+# Rule 6 — total error handling (panics are compile errors).
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+indexing_slicing = "warn"
+string_slice = "warn"
+unwrap_in_result = "warn"
+
+# Historical strict set (ADR 0006).
+needless_pass_by_value = "warn"
+redundant_closure_for_method_calls = "warn"
+implicit_clone = "warn"
+
+# Debug/process hygiene (restriction cherry-picks, ADR 0013).
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+exit = "warn"
+mem_forget = "warn"
+
+# Curated pedantic allows: noisy for this codebase, low signal.
+# must_use_candidate/missing_errors_doc: revisited by #216/doc work.
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"

@@ -94,9 +94,11 @@ fn lower_union(union: &swc_ecma_ast::TsUnionType) -> TyrusType {
         })
         .collect();
 
-    if non_undefined.len() == 1 && non_undefined.len() < union.types.len() {
-        let inner = lower_ts_type_inner(non_undefined[0]);
-        TyrusType::Option(Box::new(inner))
+    if let ([only], true) = (
+        non_undefined.as_slice(),
+        non_undefined.len() < union.types.len(),
+    ) {
+        TyrusType::Option(Box::new(lower_ts_type_inner(only)))
     } else {
         TyrusType::Inferred
     }

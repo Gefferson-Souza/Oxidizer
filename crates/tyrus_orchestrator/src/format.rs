@@ -6,7 +6,7 @@ pub(crate) fn format_code(code: &str) -> Result<String, TyrusError> {
     Ok(prettyplease::unparse(&syntax_tree))
 }
 
-/// Minimal AppError for non-web async code (no axum dependency).
+/// Minimal `AppError` for non-web async code (no axum dependency).
 pub(crate) fn get_app_error_simple() -> &'static str {
     r#"
 #[derive(Debug)]
@@ -29,7 +29,7 @@ where
 "#
 }
 
-/// Full AppError with named HTTP variants and axum IntoResponse (for web/NestJS code).
+/// Full `AppError` with named HTTP variants and axum `IntoResponse` (for web/NestJS code).
 pub(crate) fn get_app_error_code() -> &'static str {
     r#"
 use axum::{response::{IntoResponse, Response}, http::StatusCode};
@@ -99,7 +99,7 @@ fn main() {
     println!("hello");
 }
 "#,
-            r#"
+            r"
 struct Foo {
     x: i32,
     y: String,
@@ -110,7 +110,7 @@ impl Foo {
         Self { x: 0, y: String::new() }
     }
 }
-"#,
+",
             // Async + Result — the historical bypass class.
             r#"
 async fn handler() -> Result<String, Box<dyn std::error::Error>> {
@@ -118,14 +118,14 @@ async fn handler() -> Result<String, Box<dyn std::error::Error>> {
 }
 "#,
             // Mutex pattern from generated NestJS services.
-            r#"
+            r"
 pub struct Svc { x: std::sync::Arc<std::sync::Mutex<f64>> }
 impl Svc {
     pub fn read(&self) -> f64 {
         { let __g = self.x.lock().unwrap_or_else(|e| e.into_inner()); *__g }
     }
 }
-"#,
+",
         ];
         for src in inputs {
             let once = format_code(src).expect("first format must succeed");

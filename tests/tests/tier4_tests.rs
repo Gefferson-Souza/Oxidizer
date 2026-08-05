@@ -8,15 +8,13 @@
 #[test]
 fn test_tier4_nestjs_extraction() {
     let current_dir = std::env::current_dir().expect("Failed to get CWD");
-    println!("CWD: {:?}", current_dir);
     // CWD is crates/tests (integration_tests), so fixtures are in fixtures/
     let input_path = current_dir.join("fixtures/tier4_nestjs_di/input.ts");
 
     // Ensure file exists before parsing
     assert!(
         input_path.exists(),
-        "Input file does not exist at: {:?}",
-        input_path
+        "Input file does not exist at: {input_path:?}"
     );
 
     let program = tyrus_parser::parse(&input_path).expect("Failed to parse");
@@ -108,8 +106,7 @@ fn test_tier4_full_build() {
 
     assert!(
         has_service,
-        "CatsService instantiation missing or incorrect: {}",
-        main_content
+        "CatsService instantiation missing or incorrect: {main_content}"
     );
 
     // Check for Controller Instantiation with Dependency
@@ -118,8 +115,7 @@ fn test_tier4_full_build() {
 
     assert!(
         has_controller,
-        "CatsController instantiation missing or incorrect: {}",
-        main_content
+        "CatsController instantiation missing or incorrect: {main_content}"
     );
 
     // Check for Router Merge
@@ -305,9 +301,6 @@ fn verify_endpoint(url: &str, expected_contains: &str) {
     let body = String::from_utf8_lossy(&output.stdout);
     assert!(
         body.contains(expected_contains),
-        "GET {} — expected '{}' in response, got: {}",
-        url,
-        expected_contains,
-        body
+        "GET {url} — expected '{expected_contains}' in response, got: {body}"
     );
 }

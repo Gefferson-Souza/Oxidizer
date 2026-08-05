@@ -60,6 +60,7 @@ impl Diagnostic {
         }
     }
 
+    #[must_use]
     pub fn with_span(mut self, start: usize, end: usize, file: &str) -> Self {
         self.span = Some(DiagnosticSpan {
             start,
@@ -69,6 +70,7 @@ impl Diagnostic {
         self
     }
 
+    #[must_use]
     pub fn with_suggestion(mut self, suggestion: &str) -> Self {
         self.suggestion = Some(suggestion.to_string());
         self

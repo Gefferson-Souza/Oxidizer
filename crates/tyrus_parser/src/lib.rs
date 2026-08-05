@@ -9,11 +9,11 @@ use swc_common::{
     sync::Lrc,
     SourceMap, Spanned,
 };
-use swc_ecma_ast::Program;
+use swc_ecma_ast::{EsVersion, Program};
 use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
 
 pub fn parse(path: &Path) -> Result<Program, TyrusError> {
-    let cm: Lrc<SourceMap> = Default::default();
+    let cm: Lrc<SourceMap> = Lrc::default();
     let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
 
     let fm = cm.load_file(path).map_err(TyrusError::IoError)?;
@@ -24,7 +24,7 @@ pub fn parse(path: &Path) -> Result<Program, TyrusError> {
             decorators: true,
             ..Default::default()
         }),
-        Default::default(),
+        EsVersion::default(),
         StringInput::from(&*fm),
         None,
     );

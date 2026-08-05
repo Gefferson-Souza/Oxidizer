@@ -63,7 +63,7 @@ pub(crate) fn try_handle_stdlib_call(
     None
 }
 
-/// Try to handle method call on an expression (e.g., str.includes())
+/// Try to handle method call on an expression (e.g., `str.includes()`)
 pub(crate) fn try_handle_method_call(
     gen: &RustGenerator,
     obj: &Expr,

@@ -83,7 +83,7 @@ impl UnsupportedApiVisitor {
         }
     }
 
-    fn span_to_range(&self, span: swc_common::Span) -> (usize, usize) {
+    fn span_to_range(span: swc_common::Span) -> (usize, usize) {
         (span.lo.0 as usize, span.hi.0 as usize)
     }
 }
@@ -94,7 +94,7 @@ impl Visit for UnsupportedApiVisitor {
             let name = ident.sym.as_ref();
             for (global, code, msg) in BLOCKED_GLOBALS {
                 if name == *global {
-                    let (start, end) = self.span_to_range(n.span);
+                    let (start, end) = Self::span_to_range(n.span);
                     self.diagnostics
                         .push(Diagnostic::error(code, msg).with_span(start, end, &self.file_name));
                 }
@@ -109,7 +109,7 @@ impl Visit for UnsupportedApiVisitor {
                 let name = ident.sym.as_ref();
                 for (func, code, msg, suggestion) in BLOCKED_FUNCTIONS {
                     if name == *func {
-                        let (start, end) = self.span_to_range(n.span);
+                        let (start, end) = Self::span_to_range(n.span);
                         self.diagnostics.push(
                             Diagnostic::error(code, msg)
                                 .with_span(start, end, &self.file_name)

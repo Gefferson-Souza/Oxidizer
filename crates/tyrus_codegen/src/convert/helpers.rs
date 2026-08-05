@@ -4,7 +4,7 @@
 //!   `tyrus_common::util` (single source of truth across the workspace)
 //! - Expression type detection (`is_string_expr`)
 
-use swc_ecma_ast::*;
+use swc_ecma_ast::{BinaryOp, Callee, Expr, Lit};
 
 pub use tyrus_common::util::{to_pascal_case, to_snake_case};
 
@@ -12,8 +12,7 @@ pub use tyrus_common::util::{to_pascal_case, to_snake_case};
 /// Used to choose `format!` over `+` for string concatenation.
 pub(crate) fn is_string_expr(expr: &Expr) -> bool {
     match expr {
-        Expr::Lit(Lit::Str(_)) => true,
-        Expr::Tpl(_) => true,
+        Expr::Lit(Lit::Str(_)) | Expr::Tpl(_) => true,
         Expr::Call(call) => {
             if let Callee::Expr(callee) = &call.callee {
                 if let Expr::Member(member) = &**callee {

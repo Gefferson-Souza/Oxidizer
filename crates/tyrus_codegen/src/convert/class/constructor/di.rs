@@ -77,9 +77,8 @@ fn build_di_ts_param(
     di_field_inits: &mut Vec<TokenStream>,
     di_initialized: &mut HashSet<String>,
 ) {
-    let ident = match &prop.param {
-        swc_ecma_ast::TsParamPropParam::Ident(id) => id,
-        _ => return,
+    let swc_ecma_ast::TsParamPropParam::Ident(ident) = &prop.param else {
+        return;
     };
 
     let param_name_str = ident.sym.to_string();
@@ -108,9 +107,8 @@ fn build_di_plain_param(
     di_field_inits: &mut Vec<TokenStream>,
     di_initialized: &mut HashSet<String>,
 ) {
-    let ident = match &pat_param.pat {
-        Pat::Ident(id) => id,
-        _ => return,
+    let Pat::Ident(ident) = &pat_param.pat else {
+        return;
     };
 
     let param_name_str = ident.sym.to_string();

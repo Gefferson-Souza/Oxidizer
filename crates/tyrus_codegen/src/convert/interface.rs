@@ -8,7 +8,11 @@ use super::type_mapper::map_ts_type;
 
 use crate::ControllerMetadata;
 
-#[derive(Default)]
+#[derive(Debug, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent visitor-state flags; grouping into an enum would change the public API"
+)]
 pub struct RustGenerator {
     pub code: String,
     pub is_exporting: bool,
@@ -21,15 +25,15 @@ pub struct RustGenerator {
     /// Class fields for inheritance (parent fields flattened into child)
     pub(crate) class_fields:
         std::collections::HashMap<String, Vec<(String, proc_macro2::TokenStream, bool)>>,
-    /// Static methods per class (ClassName → method_names)
+    /// Static methods per class (`ClassName` → `method_names`)
     pub(crate) static_methods: std::collections::HashMap<String, std::collections::HashSet<String>>,
-    /// When true, Expr::This generates `state` instead of `self`
+    /// When true, `Expr::This` generates `state` instead of `self`
     pub(crate) use_state_for_this: std::cell::Cell<bool>,
     /// Variables with `: string` annotation (stdlib disambiguation)
     pub(crate) string_vars: std::cell::RefCell<std::collections::HashSet<String>>,
-    /// Getter property names (call-site: obj.prop → obj.prop())
+    /// Getter property names (call-site: obj.prop → `obj.prop()`)
     pub(crate) getter_names: std::collections::HashSet<String>,
-    /// Setter property names (call-site: obj.prop = v → obj.set_prop(v))
+    /// Setter property names (call-site: obj.prop = v → `obj.set_prop(v)`)
     pub(crate) setter_names: std::collections::HashSet<String>,
     /// Variables with Map type annotation (stdlib disambiguation)
     pub(crate) map_vars: std::cell::RefCell<std::collections::HashSet<String>>,
@@ -152,21 +156,21 @@ impl Visit for RustGenerator {
     fn visit_stmt(&mut self, n: &swc_ecma_ast::Stmt) {
         // Called directly from process_module_item via self.visit_stmt(stmt)
         // (also fires from visit_children_with in nested function/class bodies).
-        match n {
-            swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::Fn(_))
-            | swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::Class(_))
-            | swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::TsInterface(_))
-            | swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::TsTypeAlias(_))
-            | swc_ecma_ast::Stmt::Decl(swc_ecma_ast::Decl::TsEnum(_)) => {
-                // Top-level declarations: let visitor handle them (writes to self.code)
-                n.visit_children_with(self);
-            }
-            _ => {
-                // Script statements (ExprStmt, VarDecl, If, Loop, etc.): write to self.main_body
-                let stmt_code = self.convert_stmt(n);
-                self.main_body.push_str(&stmt_code.to_string());
-                self.main_body.push('\n');
-            }
+        if let swc_ecma_ast::Stmt::Decl(
+            swc_ecma_ast::Decl::Fn(_)
+            | swc_ecma_ast::Decl::Class(_)
+            | swc_ecma_ast::Decl::TsInterface(_)
+            | swc_ecma_ast::Decl::TsTypeAlias(_)
+            | swc_ecma_ast::Decl::TsEnum(_),
+        ) = n
+        {
+            // Top-level declarations: let visitor handle them (writes to self.code)
+            n.visit_children_with(self);
+        } else {
+            // Script statements (ExprStmt, VarDecl, If, Loop, etc.): write to self.main_body
+            let stmt_code = self.convert_stmt(n);
+            self.main_body.push_str(&stmt_code.to_string());
+            self.main_body.push('\n');
         }
     }
 }

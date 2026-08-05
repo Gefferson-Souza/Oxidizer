@@ -2,12 +2,12 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::*;
+use swc_ecma_ast::{Decl, DoWhileStmt, ForInStmt, ForOfStmt, ForStmt, Pat, Stmt, WhileStmt};
 
 use super::super::helpers::to_snake_case;
 use super::super::interface::RustGenerator;
 
-/// Extract loop variable ident from a ForHead declaration.
+/// Extract loop variable ident from a `ForHead` declaration.
 fn extract_loop_var(left: &swc_ecma_ast::ForHead, fallback: &str) -> proc_macro2::Ident {
     match left {
         swc_ecma_ast::ForHead::VarDecl(var_decl) => {
@@ -25,7 +25,7 @@ fn extract_loop_var(left: &swc_ecma_ast::ForHead, fallback: &str) -> proc_macro2
                 format_ident!("{}", fallback)
             }
         }
-        _ => format_ident!("{}", fallback),
+        swc_ecma_ast::ForHead::UsingDecl(_) => format_ident!("{}", fallback),
     }
 }
 
@@ -80,8 +80,7 @@ impl RustGenerator {
         let test = for_stmt
             .test
             .as_ref()
-            .map(|t| self.convert_expr(t))
-            .unwrap_or_else(|| quote! { true });
+            .map_or_else(|| quote! { true }, |t| self.convert_expr(t));
         let update = for_stmt
             .update
             .as_ref()

@@ -112,7 +112,7 @@ class ItemsController {
     );
 }
 
-/// Empirical proof point for ADR 0007: adding `@Headers` (a NestJS decorator
+/// Empirical proof point for ADR 0007: adding `@Headers` (a `NestJS` decorator
 /// previously unsupported) required edits to exactly 4 files —
 /// `tyrus_decorator_kinds/src/lib.rs` (one variant + maps),
 /// `tyrus_codegen/src/decorators/params.rs` (one handler),

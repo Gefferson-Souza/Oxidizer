@@ -1,6 +1,7 @@
 use console::style;
 use miette::Diagnostic as MietteDiagnostic;
 use serde_json::{json, Value};
+use std::fmt::Write;
 use tyrus_diagnostics::TyrusError;
 
 use crate::severity::{Diagnostic, Severity};
@@ -42,31 +43,27 @@ pub fn format_pretty(diagnostics: &[Diagnostic]) -> String {
             Severity::Info => style("ℹ").blue().bold().to_string(),
         };
 
-        out.push_str(&format!(
-            "  {} {} [{}]\n",
-            icon,
-            d.message,
-            style(&d.code).dim()
-        ));
+        let _ = writeln!(out, "  {} {} [{}]", icon, d.message, style(&d.code).dim());
 
         if let Some(span) = &d.span {
-            out.push_str(&format!(
-                "    at {}:{}..{}\n",
+            let _ = writeln!(
+                out,
+                "    at {}:{}..{}",
                 style(&span.file).underlined(),
                 span.start,
                 span.end,
-            ));
+            );
         }
 
         if let Some(suggestion) = &d.suggestion {
-            out.push_str(&format!("    {} {}\n", style("->").cyan(), suggestion));
+            let _ = writeln!(out, "    {} {}", style("->").cyan(), suggestion);
         }
     }
 
-    out.push_str(&format!(
-        "\n  {} error(s), {} warning(s), {} info(s)\n",
-        errors, warnings, infos,
-    ));
+    let _ = writeln!(
+        out,
+        "\n  {errors} error(s), {warnings} warning(s), {infos} info(s)",
+    );
 
     out
 }
@@ -77,8 +74,7 @@ pub fn format_pretty(diagnostics: &[Diagnostic]) -> String {
 pub(crate) fn error_to_json_value(err: &TyrusError) -> Value {
     let code = err
         .code()
-        .map(|c| c.to_string())
-        .unwrap_or_else(|| "tyrus::unknown".to_string());
+        .map_or_else(|| "tyrus::unknown".to_string(), |c| c.to_string());
     json!({
         "code": code,
         "message": format!("{err}"),
@@ -135,6 +131,10 @@ pub fn format_json_failure(error: &TyrusError) -> String {
 
 #[cfg(test)]
 #[allow(clippy::expect_used)]
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value indexing is total: missing keys yield Value::Null"
+)]
 mod tests {
     use super::*;
     use crate::severity::Diagnostic;
