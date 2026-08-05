@@ -2,7 +2,7 @@
 
 > **Strict rules for Tyrus development.** Inspired by the NASA/JPL "Power of Ten Rules for Developing Safety-Critical Code" (Holzmann, 2006), adapted to Rust + transpiler context.
 >
-> **Status:** Accepted (ADR 0008 / 2026-05-03). Binding for all contributions to `main`.
+> **Status:** Accepted (ADR 0008 / 2026-05-03). Amended to 14 rules by ADR 0013 (2026-08-04). Binding for all contributions to `main`.
 
 ---
 
@@ -19,7 +19,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 ---
 
-## The 12 rules
+## The 14 rules
 
 ### Rule 1 — Bounded Control Flow
 
@@ -61,6 +61,8 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Rule.** Functions ≤ 50 lines. ≤ 5 parameters. ≤ 4 nesting levels. Files ≤ 400 lines (800 absolute hard cap). No function may both mutate `self` **and** emit a `TokenStream` longer than 30 lines without being split.
 
+*Escape hatch (ADR 0013).* When splitting a `quote!`-heavy emission function would fragment one coherent template into artificial pieces, a targeted `#[expect(clippy::too_many_lines, reason = "…")]` with a written justification is permitted. `#[expect]` — never `#[allow]` — so the compiler flags the exception the day it stops being needed. The total count of such exceptions is reported per PR; growth without justification is a review finding.
+
 **Why.** Every file split during Phases 1-8 surfaced bugs. Shape constraints are objective, machine-checkable code-review currency.
 
 **Enforce.** `clippy::too_many_lines`, `clippy::too_many_arguments`, `clippy::cognitive_complexity` — denied via `.cargo/config.toml`. CI line-count check in `scripts/gates.sh`.
@@ -77,7 +79,7 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 **Why.** Replaces NASA's "≥ 2 asserts/function" with the Rust-idiomatic, transpiler-specific equivalent: behavior parity is the only assertion that matters here. A passing unit test on a mismatched-semantics codegen is worse than no test.
 
-**Enforce.** PR template checkbox "equivalence test added or N/A justified"; `cargo nextest run -p integration_tests` in CI; coverage threshold ≥ 80% workspace via `cargo-llvm-cov`.
+**Enforce.** PR template checkbox "equivalence test added or N/A justified"; `cargo nextest run -p integration_tests` in CI; line-coverage gate via `cargo-llvm-cov` at the current enforced threshold (73%, ramping +1 pp per sprint to the 80% target — tracked in issue #163; the gate value in `scripts/gates.sh`/CI is the source of truth). Coverage emptiness is checked with `cargo mutants --in-diff` on PR diffs: lines that are executed but never asserted count as uncovered for review purposes (adoption tracked in issue #217 — until it lands, this check is a review-time expectation, not a CI gate).
 
 **Severity.** CRITICAL.
 
@@ -87,11 +89,11 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 ### Rule 6 — Total Error Handling
 
-**Rule.** No `.unwrap()`, `.expect()`, `panic!()`, `todo!()`, `unimplemented!()` in production code. Fallible operations return `Result<T, TyrusError>`. Generated Rust uses `compile_error!("Tyrus: …")` for unsupported constructs — never `todo!()`. Test code (in `#[cfg(test)] mod` or under `tests/`) may use `.expect("descriptive msg")`, but must be explicitly marked with `#[allow(clippy::expect_used)]` at the test-module level.
+**Rule.** No `.unwrap()`, `.expect()`, `panic!()`, `todo!()`, `unimplemented!()` in production code. No panicking indexing either: `x[i]` on slices/`Vec`s, string slicing `&s[a..b]`, and `unwrap()` inside functions that already return `Result` are forbidden — use `.get()`, `.get(a..b)`, and `?` respectively. Fallible operations return `Result<T, TyrusError>`. Generated Rust uses `compile_error!("Tyrus: …")` for unsupported constructs — never `todo!()`. Test code (in `#[cfg(test)] mod` or under `tests/`) may use `.expect("descriptive msg")`, but must be explicitly marked with `#[allow(clippy::expect_used)]` at the test-module level.
 
 **Why.** Codified project rule. A `.unwrap()` in a transpiler is a denial-of-service vector when the input triggers it.
 
-**Enforce.** `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::todo`, `clippy::unimplemented` — all `-W` (effectively `-D` with `-Dwarnings`). Verified by `cargo clippy --workspace --all-targets -- -D warnings`.
+**Enforce.** `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::todo`, `clippy::unimplemented` — all `-W` (effectively `-D` with `-Dwarnings`), verified by `cargo clippy --workspace --all-targets -- -D warnings`. The three indexing/slicing lints added by ADR 0013 (`indexing_slicing`, `string_slice`, `unwrap_in_result`) are wired by the `[workspace.lints]` migration tracked in issue #215; until that lands they bind new code at review time.
 
 **Severity.** CRITICAL.
 
@@ -127,17 +129,21 @@ The rules are **enforced**, not aspirational: clippy lints, CI gates, pre-commit
 
 ### Rule 9 — Local-First Validation Parity
 
-**Rule.** The pre-commit hook and CI run *the same gates with the same flags*. Single source of truth: `scripts/gates.sh`. Any divergence between hook and CI is a CRITICAL bug.
+**Rule.** The pre-commit hook and CI run *the same gates with the same flags*. Single source of truth: `scripts/gates.sh` — **every gate defined there has a corresponding CI step**, and any divergence between hook and CI is a CRITICAL bug (ADR 0013: this sentence exists because the `filesize` gate has run locally for months with no CI step — a live divergence being closed by issue #213). All CI cargo invocations pass `--locked` (also #213).
 
-The mandated gate set:
+The mandated gate set (as named in `gates.sh`):
 
 ```bash
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo nextest run --workspace --all-targets
-cargo deny check
-cargo audit --deny warnings
+fmt       # cargo fmt --all -- --check
+clippy    # cargo clippy --workspace --all-targets -- -D warnings
+filesize  # Rule 4 line caps: soft 400 / hard 800 per .rs under crates/
+test      # cargo nextest run --workspace
+coverage  # cargo llvm-cov, --fail-under-lines at the enforced threshold
+deny      # cargo deny check
+audit     # cargo audit --deny warnings
 ```
+
+When the monolithic `gates.sh all` run is impractical on a dev machine (resource limits), gates may be run staged — but all of them must pass on the exact tree being pushed, documented in the commit body (see DEVELOPMENT_FLOW.md Rule F4).
 
 **Why.** PR #142 broke `--all-targets` because the hook didn't include it; CI also didn't include it; the PR merged with three `expect_used` violations and one `items_after_test_module` violation. This rule prevents repeats by removing the divergence at the source.
 
@@ -179,7 +185,7 @@ cargo audit --deny warnings
 
 ### Rule 12 — Warnings-Clean, Daily Audited
 
-**Rule.** All code compiles with `-D warnings` across the workspace including `--all-targets`. `cargo deny check`, `cargo audit`, and `cargo clippy --workspace --all-targets` run on every PR and on a nightly schedule. Any new advisory has 7 days to be triaged via tracked issue.
+**Rule.** All code compiles with `-D warnings` across the workspace including `--all-targets`. `cargo deny check`, `cargo audit`, and `cargo clippy --workspace --all-targets` run on every PR and on a nightly schedule. Any new advisory has 7 days to be triaged via tracked issue. Additionally (ADR 0013): every CI cargo invocation uses `--locked` so builds resolve exactly the committed `Cargo.lock`; `cargo machete` guards against dead dependencies; and the MSRV is declared in `[workspace.package] rust-version` with a dedicated CI job compiling on it.
 
 **Why.** Direct port of NASA Rule 10. Rust's compiler + clippy + supply-chain audit replaces C-era static analyzers.
 
@@ -188,6 +194,34 @@ cargo audit --deny warnings
 **Severity.** CRITICAL.
 
 **Origin.** Phase E hygiene work (PR #126) introduced `cargo deny` + `cargo audit` + dependabot.
+
+---
+
+### Rule 13 — Forbid Unsafe Code
+
+**Rule.** Every crate in the workspace declares `#![forbid(unsafe_code)]`. Not `deny` — `forbid`, which cannot be overridden by an inner `#[allow]`. A transpiler has no legitimate need for `unsafe`: it reads text, walks ASTs, and emits tokens.
+
+**Why.** With zero `unsafe` in the workspace, whole classes of tooling (Miri, sanitizers) become unnecessary rather than merely passing — the strongest possible safety argument is structural absence, not audited presence. This also makes the safety posture legible to outside reviewers in one grep.
+
+**Enforce.** `#![forbid(unsafe_code)]` attribute in every crate root; grep gate in `scripts/gates.sh` failing if any crate root lacks the attribute or any production source contains `unsafe`. Wiring tracked in issue #214 — binding for new crates immediately.
+
+**Severity.** CRITICAL.
+
+**Origin.** ADR 0013. Safety-Critical Rust Coding Guidelines (Unsafety chapter) — the guideline set's central premise applied at maximum strength.
+
+---
+
+### Rule 14 — Stable Error Codes
+
+**Rule.** Every `TyrusError` variant carries a stable, unique code (`TYRUS-EXXXX`) and a category (`Parse` / `Analyze` / `Codegen` / `Io` / `Format`). Codes never change meaning or get reused. Machine-readable output (`tyrus check --json`) exposes the code on every error and diagnostic; tests assert on codes, never on message text.
+
+**Why.** Message strings are presentation, not identity — they change with wording improvements and break every consumer that matched on them. Stable codes are what let the JSON envelope be a real contract (schemaVersion 1) and what make diagnostics documentable (`rustc --explain`-style) later.
+
+**Enforce.** Exhaustiveness unit test in `tyrus_diagnostics` (every variant has a code; codes are unique); `miette::Diagnostic::code()` wired for every variant; CLI tests assert codes. Implementation tracked in issue #216.
+
+**Severity.** HIGH.
+
+**Origin.** ADR 0013. The `--json` envelope work (#198) made the missing error taxonomy visible.
 
 ---
 
@@ -205,18 +239,43 @@ cargo audit --deny warnings
 - **NASA Rule 5 (≥ 2 asserts/function)** is **replaced by Rule 5 (equivalence-test density)**. C-style `assert!` density is not Rust culture; behavior-parity tests are the load-bearing artifact for a transpiler.
 - **NASA Rule 8 (preprocessor restriction)** is **subsumed into Rule 7**. Rust has no preprocessor — the analogous risk is unhygienic codegen, addressed directly by mandating `quote!`.
 - **NASA Rule 9 (≤ 1 level of pointer deref)** is **dropped**. Rust's borrow checker + `clippy::needless_borrow` already cover the underlying intent. A hard count rule would conflict with idiomatic `Rc<RefCell<…>>` patterns.
-- **Added (no NASA equivalent):** Rules 8 (two-layer arch), 9 (local/CI parity), 10 (ADR), 11 (branch hygiene). These encode lessons specific to a multi-crate transpiler with ML-agent contributors and a stacked-PR workflow.
+- **Added (no NASA equivalent):** Rules 8 (two-layer arch), 9 (local/CI parity), 10 (ADR), 11 (branch hygiene), 13 (forbid unsafe), 14 (stable error codes). These encode lessons specific to a multi-crate transpiler with ML-agent contributors and a stacked-PR workflow.
+
+---
+
+## Annex — Traceability to the Safety-Critical Rust Coding Guidelines
+
+The [Safety-Critical Rust Coding Guidelines](https://coding-guidelines.arewesafetycriticalyet.org/) (Rust Foundation / Safety-Critical Rust Consortium, draft v0.1) organize their guidance in chapters mirroring the Ferrocene Language Specification. Individual guideline IDs are still draft-unstable, so this table maps at chapter level; it exists to show each Tyrus rule has a recognized industry counterpart (or is deliberately project-specific).
+
+| Tyrus rule | Consortium chapter(s) | Notes |
+|---|---|---|
+| R1 Bounded Control Flow | Expressions; Functions | Recursion bounds / termination reasoning |
+| R2 Bounded Loops | Expressions | Loop bound requirements |
+| R3 Minimal Scope | Types and Traits; Statements | Narrowest-scope bindings |
+| R4 Function Size and Shape | — | Project-specific (NASA Rule 4 heritage); no direct chapter |
+| R5 Test Equivalence Density | — | Project-specific verification strategy for a transpiler |
+| R6 Total Error Handling | Exceptions and Errors | No-panic discipline in production paths |
+| R7 Macros, Not Strings | Macros | Hygienic generation over textual assembly |
+| R8 Two-Layer Architecture | — | Project-specific (ADR 0007) |
+| R9 Local/CI Parity | — | Process rule; Consortium scope is language-level |
+| R10 ADR Required | — | Process rule; matches the Consortium's own deviation-record practice |
+| R11 One Branch = One Concern | — | Process rule |
+| R12 Warnings-Clean, Audited | Program Structure and Compilation | Warnings-as-errors, dependency auditing |
+| R13 Forbid Unsafe Code | Unsafety | Applied at maximum strength (`forbid`, workspace-wide) |
+| R14 Stable Error Codes | Exceptions and Errors | Diagnostic identity and machine-readable contracts |
 
 ---
 
 ## How to use this document
 
-- **Contributors:** before opening a PR, walk the 12 rules. The PR template references this file.
+- **Contributors:** before opening a PR, walk the 14 rules. The PR template references this file.
 - **Reviewers:** the merge bar is rule compliance, not opinion. If a PR violates a rule and the violation is justified, the rule must either be amended (separate ADR) or the PR rejected.
-- **Maintainers:** propose rule changes via ADR superseding ADR 0008. Never amend this document silently.
+- **Maintainers:** propose rule changes via ADR superseding ADR 0008/0013. Never amend this document silently.
 
 ## References
 
 - Holzmann, G. J. (2006). [The Power of 10: Rules for Developing Safety-Critical Code](https://web.eecs.umich.edu/~imarkov/10rules.pdf). *IEEE Computer*, 39(6), 95–97.
+- [Safety-Critical Rust Coding Guidelines](https://coding-guidelines.arewesafetycriticalyet.org/) — Rust Foundation / Safety-Critical Rust Consortium (draft).
+- ADR 0013 — Power of Ten v2 amendment (R13, R14, and rule amendments).
 - ADR 0007 — Decorator Registry (precedent for Rule 8).
 - Memory rules: `feedback_architecture_principles`, `feedback_compiler_fundamentals`, `feedback_code_quality_strict`, `feedback_local_first_validation`, `feedback_branch_workflow`, `feedback_commit_convention`, `feedback_semantic_equivalence`.
