@@ -2,19 +2,18 @@
 name = "tyrus_analyzer"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-tyrus_common = { path = "../tyrus_common" }
 tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 tyrus_di = { path = "../tyrus_di" }
 tyrus_decorator_kinds = { path = "../tyrus_decorator_kinds" }
 swc_ecma_ast = "23.0.0"
 swc_ecma_visit = "23.0.0"
 swc_common = { version = "21.0.1", features = ["tty-emitter"] }
-petgraph = "0.8"
 miette = { version = "7.6.0", features = ["fancy"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

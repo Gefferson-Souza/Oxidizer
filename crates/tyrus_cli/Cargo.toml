@@ -2,6 +2,7 @@
 name = "tyrus_cli"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -20,7 +21,3 @@ tyrus_analyzer = { path = "../tyrus_analyzer" }
 tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 console = "0.15"
 indicatif = "0.17"
-tracing = "0.1.41"
-tracing-subscriber = "0.3.20"
-walkdir = "2.5.0"
-getrandom = "=0.3.4"

@@ -2,6 +2,7 @@
 name = "tyrus_codegen"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
@@ -9,10 +10,8 @@ repository.workspace = true
 [dependencies]
 quote = "1.0"
 proc-macro2 = "1.0"
-syn = "2.0"
 swc_ecma_ast = "23.0.0"
 swc_ecma_visit = "23.0.0"
 swc_common = { version = "21.0.1", features = ["tty-emitter"] }
 tyrus_common = { path = "../tyrus_common" }
-tyrus_ast = { path = "../tyrus_ast" }
 tyrus_decorator_kinds = { path = "../tyrus_decorator_kinds" }

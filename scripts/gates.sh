@@ -19,10 +19,12 @@
 #   ./scripts/gates.sh filesize    # enforce Rule 4 file ceiling (≤ 400 lines per .rs)
 #   ./scripts/gates.sh deny        # cargo deny check
 #   ./scripts/gates.sh audit       # cargo audit --deny warnings
+#   ./scripts/gates.sh machete     # cargo machete (unused dependencies)
 #
 # Environment variables:
 #   TYRUS_SKIP_DENY=1      Skip cargo deny check (use only when tool unavailable).
 #   TYRUS_SKIP_AUDIT=1     Skip cargo audit (use only when tool unavailable).
+#   TYRUS_SKIP_MACHETE=1   Skip cargo machete (use only when tool unavailable).
 #   TYRUS_SKIP_COVERAGE=1  Skip cargo llvm-cov coverage check (e.g. fast pre-commit path).
 #   TYRUS_SKIP_FILESIZE=1  Skip the Rule 4 file ceiling check.
 #   TYRUS_COVERAGE_MIN     Override the minimum line-coverage %
@@ -48,7 +50,8 @@ gate_clippy() {
     echo "=== gate: clippy ==="
     # --all-targets is critical: it lints test code too. Without this flag,
     # `#[cfg(test)] mod` blocks bypass the strict lint rules entirely.
-    cargo clippy --workspace --all-targets -- -D warnings
+    # --locked: builds resolve exactly the committed Cargo.lock (Rule 12).
+    cargo clippy --workspace --all-targets --locked -- -D warnings
 }
 
 gate_test() {
@@ -59,7 +62,7 @@ gate_test() {
     # custom report format that does not match libtest's enumeration
     # protocol. clippy's --all-targets gate already lints the bench code;
     # actually executing benches belongs to the dedicated bench job.
-    cargo nextest run --workspace
+    cargo nextest run --workspace --locked
 }
 
 gate_coverage() {
@@ -167,6 +170,23 @@ gate_filesize() {
     return "$fail"
 }
 
+gate_machete() {
+    if [ "${TYRUS_SKIP_MACHETE:-0}" = "1" ]; then
+        echo "=== gate: machete (SKIPPED via TYRUS_SKIP_MACHETE=1) ==="
+        return 0
+    fi
+    echo "=== gate: machete ==="
+    if ! command -v cargo-machete >/dev/null 2>&1; then
+        echo "ERROR: cargo-machete is not installed."
+        echo "Install with: cargo install cargo-machete"
+        echo "Or skip this gate locally with: TYRUS_SKIP_MACHETE=1"
+        return 1
+    fi
+    # Rule 12 (POWER_OF_TEN.md): unused dependencies are supply-chain
+    # surface with zero benefit. Textual scan — fast enough for every run.
+    cargo machete
+}
+
 gate_deny() {
     if [ "${TYRUS_SKIP_DENY:-0}" = "1" ]; then
         echo "=== gate: deny (SKIPPED via TYRUS_SKIP_DENY=1) ==="
@@ -202,6 +222,7 @@ case "$cmd" in
     filesize) gate_filesize ;;
     deny)     gate_deny ;;
     audit)    gate_audit ;;
+    machete)  gate_machete ;;
     all)
         gate_fmt
         gate_clippy
@@ -210,6 +231,7 @@ case "$cmd" in
         gate_coverage
         gate_deny
         gate_audit
+        gate_machete
         echo ""
         echo "=== ALL GATES PASSED ==="
         ;;

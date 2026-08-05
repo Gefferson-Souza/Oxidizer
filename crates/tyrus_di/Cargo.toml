@@ -2,12 +2,12 @@
 name = "tyrus_di"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-tyrus_common = { path = "../tyrus_common" }
 petgraph = "0.8"
 thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }

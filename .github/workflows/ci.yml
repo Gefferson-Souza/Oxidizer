@@ -36,6 +36,38 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: ./scripts/gates.sh clippy
+      # Rule 4 file ceiling — same gate the pre-commit hook runs (Rule 9:
+      # every gates.sh gate has a 1:1 CI step; this one was hook-only, #213).
+      - run: ./scripts/gates.sh filesize
+
+  # MSRV — the workspace must keep compiling on the declared minimum
+  # supported Rust version ([workspace.package] rust-version).
+  msrv:
+    name: MSRV (1.95)
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.95'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv
+      - run: cargo check --workspace --locked
+
+  # Unused dependencies — Rule 12. Textual scan, no compilation.
+  machete:
+    name: Unused Dependencies
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install cargo-machete
+        uses: taiki-e/install-action@v2.85.5
+        with:
+          tool: cargo-machete
+      - run: ./scripts/gates.sh machete
 
   # Supply-chain & security checks — run in parallel with build, share cache.
   # `cargo deny` enforces deny.toml; `cargo audit` cross-checks against the
@@ -74,7 +106,7 @@ jobs:
         uses: taiki-e/install-action@nextest
 
       - name: Build
-        run: cargo build --workspace --all-targets
+        run: cargo build --workspace --all-targets --locked
 
       - name: Test (gates.sh)
         run: ./scripts/gates.sh test
