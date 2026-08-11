@@ -10,9 +10,9 @@ repository.workspace = true
 [dependencies]
 quote = "1.0"
 proc-macro2 = "1.0"
-swc_ecma_ast = "23.0.0"
-swc_ecma_visit = "23.0.0"
-swc_common = { version = "21.0.1", features = ["tty-emitter"] }
+swc_ecma_ast = "28.0.0"
+swc_ecma_visit = "28.0.0"
+swc_common = { version = "25.0.0", features = ["tty-emitter"] }
 tyrus_common = { path = "../tyrus_common" }
 tyrus_decorator_kinds = { path = "../tyrus_decorator_kinds" }
 
