@@ -27,6 +27,14 @@ This file provides guidance to Claude Code when working with this repository.
 | 13 | `#![forbid(unsafe_code)]` in every crate | CRITICAL | crate-root attribute + `gates.sh unsafe` |
 | 14 | Stable error codes `TYRUS-EXXXX` + category per `TyrusError` variant | HIGH | exhaustiveness/uniqueness tests + JSON contract |
 
+## Autonomous Delivery
+
+All work follows the versioned delivery loop — phases, agent teams per phase, gates, and
+stop conditions live in [`.claude/workflows/tyrus-feature-delivery.md`](.claude/workflows/tyrus-feature-delivery.md);
+the always-loaded invariants (RULE ZERO observed equivalence, never assume, focus, autonomy
+boundary) are [`.claude/rules/delivery.md`](.claude/rules/delivery.md). Entry point: `/deliver`.
+The canonical prioritized work queue is [`ROADMAP.md`](ROADMAP.md) (CRITICAL bugs → Now → Next → Later).
+
 ## Build & Dev Commands
 
 ```bash
@@ -190,17 +198,11 @@ tests/
 - **Immutability:** Prefer `&self`, use `&mut self` only when mutation is detected
 - **Code gen:** `quote!` macros only. Never string concatenation.
 
-## Active Refactoring
+## Current Work
 
-See `docs/superpowers/plans/2026-03-12-full-refactoring-roadmap.md` for the complete plan.
+[`ROADMAP.md`](ROADMAP.md) is the canonical prioritized queue (CRITICAL bugs → Now → Next
+→ Later) and carries the measured project state (test count, coverage). Do not track work
+status here — this file describes structure and rules, the roadmap describes work.
 
-**Completed:**
-- Phase 1-8: full NestJS → Rust transpilation with HTTP equivalence verified
-- Sprint 1 quick wins: assignment ops (`-=`/`*=`/`/=`/`%=`/`&=`/`|=`/`^=`/`<<=`/`>>=`), `Map<K,V>`/`Set<T>`, `this.method()`, object shorthand, `Date.now()`, object spread
-- **Decorator Registry migration (Caminho C, ADR 0007):** PR #1-#3 stacked — class/method/param decorators now flow through `DecoratorRegistry`. `find_param_decorator` deleted, `extract_single_decorator` deleted, `class_name.ends_with("Controller")` heuristic deleted, `unwrap_or` removed from generated status-code emission.
-
-**Milestone:** Multi-module NestJS project transpiles, compiles, and serves correct HTTP responses.
-**Status:** 230 tests (95 equivalence + 49 unit + 20 snapshot + 21 IR + 9 compilation + 7 CLI + 5 E2E/build + 1 trybuild + 1 skipped + new registry/handler isolation tests)
-**E2E:** `test_http_equivalence_rust_server` — transpile → compile → start server → verify GET responses
-
-**In flight (PR #5 of decorator registry):** empirical proof — implement `@Headers` purely via `decorators/params.rs` + one `register_param` line; touching zero legacy files.
+**E2E reference:** `test_http_equivalence_rust_server` — transpile → compile → start
+server → verify HTTP responses match the NestJS original.

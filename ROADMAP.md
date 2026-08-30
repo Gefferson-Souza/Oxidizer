@@ -1,124 +1,70 @@
 # 🗺️ Tyrus Roadmap
 
-This roadmap tracks the evolution of Tyrus from a research prototype to a production-grade compiler.
+> **This file is the canonical work queue.** The autonomous delivery loop
+> (`.claude/workflows/tyrus-feature-delivery.md`, entry point `/deliver`) follows it in
+> order: **open CRITICAL bugs → Now → Next → Later**. Lines link the issue that is their
+> system of record where one exists; work without an issue gets one before any branch (F1).
+> Re-prioritizing this file is an owner decision. Status lines state measured facts with
+> their date — never aspirations (ADR 0013).
 
-## ✅ Completed Milestones (Production Ready)
+## Current state (measured 2026-08-30)
 
-### 🏁 Milestone 1-3: The Foundation & Core Logic
+- **313 tests green** (309 via `cargo nextest` + 4 doc-tests) · coverage 78.3% (target 80%, #163)
+- 11 crates + `tests` member · Power of Ten v2 (14 rules, ADR 0013) · 9 local gates = CI (R9)
+- Multi-module NestJS projects transpile, compile, and serve HTTP responses equivalent to Node
+- Versioned agent harness: `.claude/` (settings, hooks, rules, agents, skills, workflows)
 
-- [x] **CLI & Parser:** Full integration with SWC for TS source analysis.
-- [x] **Core Transpilation:** Arithmetic, logic, and control flow mappings.
-- [x] **Semantic Analyzer:** Implementation of the "Oxidizable Standard" lints.
+## Now — UAT criticals (dogfooding the compiler as a user would)
 
-### 🏗️ Milestone 4-5: Type Excellence & Ecosystem
+1. **[#188](https://github.com/Gefferson-Souza/Tyrus/issues/188)** CRITICAL — `tyrus build`/`compile` skip the analyzer: forbidden TS produces an empty `.rs` with `✓ Built` exit 0. The single worst trust-breaker; blocks honest UAT of everything below.
+2. **[#191](https://github.com/Gefferson-Souza/Tyrus/issues/191)** HIGH — `build` returns exit 0 on structurally incomplete output (no `fn main`, dropped statements).
+3. **[#189](https://github.com/Gefferson-Souza/Tyrus/issues/189)** HIGH — `tyrus run` looks for a `tyrus_app` binary but project scaffolds emit `server`.
+4. **[#190](https://github.com/Gefferson-Souza/Tyrus/issues/190)** HIGH — `@Injectable()` constructor body initializers silently dropped in `new_di()`.
+5. **[#192](https://github.com/Gefferson-Souza/Tyrus/issues/192)** HIGH — no file-extension validation (`.js`/`.txt` accepted, Oxidizable Standard bypassable).
+6. **[#194](https://github.com/Gefferson-Souza/Tyrus/issues/194)** HIGH — untyped parameters become `serde_json::Value` instead of an analyzer error.
 
-- [x] **Structural Typing:** Mapping TypeScript interfaces to Rust structs with Serde support.
-- [x] **Generics:** Multi-type parameter support with trait bound inference.
-- [x] **Async Revolution:** Mapping JS Promises to Rust Futures and `tokio` runtime.
+## Next — elite testing (standardization campaign, phase 4)
 
-### 🌐 Milestone 6: Framework Integration & Tier 3 Features
+- **[#229](https://github.com/Gefferson-Souza/Tyrus/issues/229)** — wire declared-but-missing enforcement: R7/R8 grep gates, nightly cron (audit + fuzz), gate-parity check.
+- **[#217](https://github.com/Gefferson-Souza/Tyrus/issues/217)** — `cargo-mutants --in-diff` on PRs as the R5 coverage-emptiness check.
+- **[#154](https://github.com/Gefferson-Souza/Tyrus/issues/154)** — 10 critical equivalence tests (HTTP, async/await, optional chaining, …).
+- **[#163](https://github.com/Gefferson-Souza/Tyrus/issues/163)** — ramp coverage threshold 73% → 80% (currently 78.3%).
 
-- [x] **NestJS Synthesis:** Transpiling Decorators to Axum handlers.
-- [x] **Advanced Loops:** `for..in`, `do..while` mappings.
-- [x] **Type Aliases:** String Unions to Enums, `Record<K,V>` to `HashMap`.
-- [x] **Shim Layer:** 100% coverage of core `Math`, `String`, and `Array` methods.
+## Later — features, refactors, release
 
-### 🏛️ Milestone 7: Architecture & Dependency Injection (Tier 4)
+- **Decorator registry PR #5:** implement `@Headers` purely via `decorators/params.rs` + one `register_param` line — the empirical proof that new decorators touch zero legacy files (ADR 0007).
+- **Phase 9 (NestJS validation):** class-validator → `garde`, `ParseIntPipe`, `ValidationPipe`.
+- **[#157](https://github.com/Gefferson-Souza/Tyrus/issues/157)** — `BuiltinTypeRegistry` consolidating Map/Set/Promise/Date/Array/Record dispatch (R8).
+- **[#223](https://github.com/Gefferson-Souza/Tyrus/issues/223)** — range guard for numeric-enum `i32` casts.
+- **[#230](https://github.com/Gefferson-Souza/Tyrus/issues/230)** — lint-attribute cleanup (duplicate denies, blanket allow).
+- **[#158](https://github.com/Gefferson-Souza/Tyrus/issues/158)** — remaining 17 functions over 50 lines.
+- **[#143](https://github.com/Gefferson-Souza/Tyrus/issues/143)** — `Arc<Mutex<primitive>>` → `Arc<Atomic*>` for state fields.
+- **[#128](https://github.com/Gefferson-Souza/Tyrus/issues/128)** — resolve the two accepted RUSTSEC advisories.
+- **[#184](https://github.com/Gefferson-Souza/Tyrus/issues/184)** — v0.1.0 release *(owner decision — the loop must not act on this)*.
 
-- [x] **Dependency Injection Engine:** Custom `tyrus_di` crate for graph resolution (Services & Controllers).
-- [x] **Module System:** Support for `@Module()` decorators and cross-file wiring.
-- [x] **Controller Mapping:** First-class support for NestJS Controllers -> Axum Routers.
+## Research horizon (unscheduled)
 
-### 🛠️ Milestone 8: Generator Maturity (Production Polish)
-
-- [x] **Unified Entry Point:** Generate `main.rs` with `tokio` runtime and `axum` server binding.
-- [x] **DTO/Entity Unification:** Smart wrapping strategies to align Class (Mutex) and Interface (Raw) types.
-- [x] **Thread-Safe Derives:** `PartialEq` works on DTOs (Mutex removed).
-
-### 🔧 Milestone 9: Safe Transpilation Infrastructure
-
-- [x] **Strict Linting:** `.cargo/config.toml` with `-Dwarnings`, enforcing `clippy::unwrap_used`, `clippy::expect_used`, `clippy::panic`, `clippy::todo`, `clippy::unimplemented`.
-- [x] **Quality Thresholds:** `clippy.toml` with cognitive complexity (15), function lines (50), and parameter count (5) limits.
-- [x] **Dependency Audit:** `deny.toml` with `cargo-deny` for license and security checks.
-- [x] **CI Modernization:** GitHub Actions v4, `Swatinem/rust-cache@v2`, `cargo nextest`, end-to-end demo compilation in CI.
-- [x] **Panic-Free Codebase:** All `todo!()` replaced with `compile_error!()`, all `.expect()` replaced with `?` or proper error handling.
-- [x] **Dead Code Removal:** `tyrus_ast` emptied (reserved for future IR), `tyrus_analyzer/graph.rs` deleted.
-- [x] **Test Infrastructure Rebuild:** Structured test tiers (unit/snapshot/compilation) replacing the old ad-hoc test setup.
-
-### 🗂️ Milestone 10: Codegen Module Decomposition
-
-- [x] **`func.rs` Decomposed:** The monolithic 1144-line `func.rs` split into 10 focused modules:
-  - `helpers.rs` — case conversion utilities and type detection helpers
-  - `stmt.rs` — statement conversion logic
-  - `fn_decl.rs` — function declaration processing
-  - `expr/mod.rs` — expression dispatcher
-  - `expr/binary.rs` — binary operator transpilation
-  - `expr/call.rs` — function/method calls, array methods, axios/fetch
-  - `expr/member.rs` — property access and mutex state
-  - `expr/arrow.rs` — arrow functions to closures
-  - `expr/literal.rs` — literals, objects, arrays, template literals
-  - `expr/misc.rs` — assignments, updates, optional chaining
-- [x] **`func.rs` Deleted:** All references in `interface.rs`, `module.rs`, and `class.rs` updated to import from the new modules.
-
-### 🗂️ Milestone 11: Deep Module Decomposition (Chunk 3)
-
-- [x] **`class.rs` Decomposed:** The monolithic 1048-line `class.rs` split into 5 focused modules under `class/`:
-  - `mod.rs` — class dispatcher + property conversion
-  - `constructor.rs` — constructor transpilation + DI detection
-  - `method.rs` — method transpilation + decorator parsing
-  - `routing.rs` — Axum router generation + `FromRequestParts`
-  - `mutation.rs` — static self-mutation analysis
-- [x] **Orchestrator Split:** The 508-line `lib.rs` decomposed into 4 modules:
-  - `lib.rs` — slim public API (58 lines)
-  - `pipeline.rs` — core multi-file build orchestration
-  - `scaffold.rs` — project scaffolding (main.rs, Cargo.toml, mod.rs)
-  - `format.rs` — code formatting + AppError generation
-- [x] **`type_mapper.rs` Deduplicated:** Consolidated `map_ts_type`/`map_inner_type` into `map_type_core` (304→257 lines)
-- [x] **CI Optimized:** Parallel `fmt`+`clippy` checks, combined build+test job (~9min→~5min)
-
-### 🧪 Milestone 12: Comprehensive Test Suite (Chunks 4-7)
-
-- [x] **Tier 1 Tests (Chunk 4):** 34 tests — variables, math ops, string ops, functions, control flow, console
-- [x] **Tier 2 Tests (Chunk 5):** Interfaces→structs, type aliases→enums, arrays (map/filter/forEach), classes→struct+impl, async/await
-- [x] **Tier 3 Tests (Chunk 6):** Generics, optional chaining, destructuring, advanced array/string methods, Math stdlib, ternary expressions
-- [x] **Tier 4 Tests (Chunk 7):** NestJS @Injectable (Arc<Mutex<T>>), @Controller with Axum routing, JSON extractors
-- [x] **Compilation Verification:** Batch `cargo check` tests per tier confirming generated Rust compiles
-- [x] **Total Test Count:** 86 tests passing across the workspace (71 integration + 2 tier4 + 9 codegen + 4 common)
-
-### 🔬 Milestone 13A: Semantic Equivalence + Basic Coverage
-
-- [x] **Equivalence Testing Infrastructure:** `assert_output_equivalent()` — runs TS (Node.js) and generated Rust, compares stdout
-- [x] **Bug Fix — const/let:** `const` → `let` (immutable), `let` → `let mut` (mutable)
-- [x] **Bug Fix — Unary ops:** Support for `!`, `-`, `+` operators
-- [x] **Bug Fix — trim():** Returns `String` instead of `&str`
-- [x] **String Methods:** `startsWith`, `endsWith` added to stdlib
-- [x] **Array Methods:** `includes` added to stdlib
-- [x] **Equivalence Tests:** 23 tests verifying TS↔Rust output identity across arithmetic, control flow, string methods, array methods, and console.log
-
-### 🔧 Milestone 13B: Control Flow Expansion (Phase 4)
-
-- [x] **Bug Fix — Parenthesized expressions:** `(2+3)*4` now preserves operator precedence
-- [x] **Bug Fix — Optional chaining:** `and_then` closure wraps in `Some()` for non-optional fields
-- [x] **Bug Fix — Array .find():** Fixed double-reference `&&f64` type mismatch with `**item` deref
-- [x] **Unblock Analyzer:** Removed rejection for `for`, `do-while`, `for-of`, `switch`
-- [x] **Traditional for loop:** `for(let i=0; i<n; i++)` → `{ init; while test { body; update; } }`
-- [x] **do-while loop:** `do { body } while (cond)` → `loop { body; if !cond { break; } }`
-- [x] **switch statement:** `switch(x) { case "a": ... }` → `match x { __v if __v == ... => ... }`
-- [x] **Equivalence Tests:** 28 tests — added parenthesized precedence, for, for-of, do-while, switch
-- [x] **Total Test Count:** 115 tests passing (1 skipped)
+Class inheritance via traits/composition (`enum_dispatch`) · user-defined decorators ·
+cross-function type inference (integer vs `f64`) · `Date` → `chrono` · IR optimization
+passes · formal verification of semantic preservation.
 
 ---
 
-## 🔬 Future Work (Academic Research)
+## Completed milestones (history — details live in git/CHANGELOG)
 
-### Tier 4: Advanced OOP & Metaprogramming
-
-- [ ] **Class Inheritance:** Mapping complex prototype chains to Rust Traits and Composition.
-- [ ] **Custom Decorators:** Support for user-defined metadata and proxy logic.
-- [ ] **Macro System:** Compiling TypeScript template literals and type-level programming into Rust macros.
-
-### Tier 5: Optimization & Verification
-
-- [ ] **Formal Verification:** Mathematical proof of semantic preservation.
-- [ ] **IR Optimizations:** LLVM-style passes on the Tyrus intermediate representation.
-- [ ] **Cinterop:** Automated binding generation for C-compatible Rust libraries.
+- **M1–M8 · Foundation → NestJS (2026 Q1):** SWC parser integration, core transpilation
+  (arithmetic/logic/control flow), Oxidizable Standard analyzer, interfaces→structs+serde,
+  generics, async→tokio, decorators→Axum, `tyrus_di` DI graph, unified `main.rs` scaffold.
+- **M9–M12 · Hardening + decomposition:** panic-free codebase, module decomposition
+  (`func.rs`/`class.rs` → focused modules), tiered test architecture
+  (unit/snapshot/compilation/equivalence).
+- **M13 · Semantic equivalence:** `assert_output_equivalent()` running Node vs compiled
+  Rust; control-flow expansion (for/do-while/switch); dozens of codegen bug fixes.
+- **Sprint 1:** compound assignment ops, `Map`/`Set`, `this.method()`, object shorthand,
+  `Date.now()`, object spread.
+- **Caminho C (ADR 0007):** trait-based `DecoratorRegistry` replaced scattered match-arm
+  dispatch; legacy heuristics deleted.
+- **Standardization campaign (2026-08-05, 12 PRs):** Power of Ten v2 (14 rules) +
+  Development Flow (F1–F10) adopted as binding spec, `[workspace.lints]` with pedantic +
+  restriction lints, 9-gate local/CI parity, stable `TYRUS-EXXXX` error codes (R14),
+  `missing_docs` on boundary crates, versioned Claude Code harness.
