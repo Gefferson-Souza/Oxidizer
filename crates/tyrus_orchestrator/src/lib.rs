@@ -6,6 +6,7 @@ use tyrus_common::fs::FilePath;
 use tyrus_diagnostics::TyrusError;
 
 mod format;
+mod gate;
 mod pipeline;
 mod scaffold;
 
@@ -16,13 +17,18 @@ pub struct CheckResult {
     pub statement_count: usize,
 }
 
-pub fn check(path: &FilePath) -> Result<CheckResult, TyrusError> {
+fn parse_and_analyze(
+    path: &FilePath,
+) -> Result<(swc_ecma_ast::Program, tyrus_analyzer::AnalysisResult), TyrusError> {
     let program = tyrus_parser::parse(path.as_ref())?;
-
     let source_code = std::fs::read_to_string(path.as_ref()).map_err(TyrusError::IoError)?;
     let file_name = path.as_ref().to_string_lossy().to_string();
-
     let analysis = tyrus_analyzer::Analyzer::analyze(&program, source_code, file_name);
+    Ok((program, analysis))
+}
+
+pub fn check(path: &FilePath) -> Result<CheckResult, TyrusError> {
+    let (program, analysis) = parse_and_analyze(path)?;
 
     let count = match &program {
         swc_ecma_ast::Program::Module(m) => m.body.len(),
@@ -37,7 +43,10 @@ pub fn check(path: &FilePath) -> Result<CheckResult, TyrusError> {
 }
 
 pub fn build(path: &FilePath) -> Result<String, TyrusError> {
-    let program = tyrus_parser::parse(path.as_ref())?;
+    let (program, analysis) = parse_and_analyze(path)?;
+    let lint_error_count = gate::render_findings(analysis.errors, &analysis.diagnostics);
+    gate::refuse_on_lint_errors(lint_error_count)?;
+
     // Default to false for single file build
     let generated_code = tyrus_codegen::generate(&program, false);
     let mut code = generated_code.code;

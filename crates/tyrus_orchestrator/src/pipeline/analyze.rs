@@ -5,31 +5,21 @@ use tyrus_diagnostics::TyrusError;
 
 use super::ParsedProject;
 
-#[expect(
-    clippy::print_stdout,
-    clippy::print_stderr,
-    reason = "user-facing analyzer warnings; orchestrator has no diagnostics sink yet"
-)]
 pub(super) fn analyze_di_graph(
     parsed: &ParsedProject,
 ) -> Result<(DiGraph, Vec<String>), TyrusError> {
     let mut graph = DiGraph::new();
+    let mut lint_error_count = 0;
     for (program, path) in parsed.programs.iter().zip(&parsed.file_paths) {
         let source_code = fs::read_to_string(path).map_err(TyrusError::IoError)?;
         let file_name = path.to_string_lossy().to_string();
 
         let analysis_result = tyrus_analyzer::Analyzer::analyze(program, source_code, file_name);
-        for error in analysis_result.errors {
-            println!("Warning: {:?}", miette::Report::new(error));
-        }
-        if !analysis_result.diagnostics.is_empty() {
-            eprintln!(
-                "{}",
-                tyrus_analyzer::report::format_pretty(&analysis_result.diagnostics)
-            );
-        }
+        lint_error_count +=
+            crate::gate::render_findings(analysis_result.errors, &analysis_result.diagnostics);
         graph.merge(analysis_result.graph);
     }
+    crate::gate::refuse_on_lint_errors(lint_error_count)?;
 
     let init_order = graph
         .resolve()
