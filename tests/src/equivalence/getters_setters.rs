@@ -32,7 +32,7 @@ class Temperature {
     }
 }
 
-function main(): void {
+function run(): void {
     let temp = new Temperature(100);
     console.log(temp.celsius);
     console.log(temp.fahrenheit);
@@ -40,7 +40,7 @@ function main(): void {
     console.log(temp.celsius);
     console.log(temp.fahrenheit);
 }
-main();
+run();
 ",
     );
 }
@@ -68,11 +68,11 @@ class Circle {
     }
 }
 
-function main(): void {
+function run(): void {
     let c = new Circle(5);
     console.log(c.area);
 }
-main();
+run();
 ",
     );
 }
@@ -110,7 +110,7 @@ class Percentage {
     }
 }
 
-function main(): void {
+function run(): void {
     let p = new Percentage(50);
     console.log(p.value);
     p.value = 200;
@@ -118,7 +118,7 @@ function main(): void {
     p.value = -10;
     console.log(p.value);
 }
-main();
+run();
 ",
     );
 }

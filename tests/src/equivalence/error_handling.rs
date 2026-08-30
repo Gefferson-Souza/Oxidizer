@@ -16,11 +16,11 @@ function safeDivide(a: number, b: number): string {
     }
 }
 
-function main(): void {
+function run(): void {
     console.log(safeDivide(10, 2));
     console.log(safeDivide(10, 0));
 }
-main();
+run();
 "#,
     );
 }
@@ -43,12 +43,12 @@ function processAge(age: number): string {
     }
 }
 
-function main(): void {
+function run(): void {
     console.log(processAge(25));
     console.log(processAge(-5));
     console.log(processAge(200));
 }
-main();
+run();
 "#,
     );
 }
@@ -70,10 +70,10 @@ function outer(): string {
     return "no error";
 }
 
-function main(): void {
+function run(): void {
     console.log(outer());
 }
-main();
+run();
 "#,
     );
 }
@@ -91,10 +91,10 @@ function safe(): string {
     }
 }
 
-function main(): void {
+function run(): void {
     console.log(safe());
 }
-main();
+run();
 "#,
     );
 }

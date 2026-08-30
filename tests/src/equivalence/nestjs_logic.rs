@@ -14,11 +14,11 @@ class UsersService {
     }
 }
 
-function main(): void {
+function run(): void {
     let svc = new UsersService();
     console.log(svc.findAll());
 }
-main();
+run();
 "#,
     );
 }
@@ -41,12 +41,12 @@ class UsersService {
     }
 }
 
-function main(): void {
+function run(): void {
     let svc = new UsersService();
     console.log(svc.create("Alice", "alice@test.com"));
     console.log(svc.create("Bob", "bob@test.com"));
 }
-main();
+run();
 "#,
     );
 }
@@ -61,11 +61,11 @@ class AppService {
     }
 }
 
-function main(): void {
+function run(): void {
     let svc = new AppService();
     console.log(svc.getHealth());
 }
-main();
+run();
 "#,
     );
 }
@@ -92,12 +92,12 @@ class UserHandler {
     }
 }
 
-function main(): void {
+function run(): void {
     let store = new UserStore();
     let handler = new UserHandler(store);
     console.log(handler.getAll());
 }
-main();
+run();
 "#,
     );
 }
@@ -130,7 +130,7 @@ class AppService {
     }
 }
 
-function main(): void {
+function run(): void {
     let usersSvc = new UsersService();
     let appSvc = new AppService();
     console.log(appSvc.getHealth());
@@ -138,7 +138,7 @@ function main(): void {
     console.log(usersSvc.create("Bob"));
     console.log(usersSvc.findAll());
 }
-main();
+run();
 "#,
     );
 }
