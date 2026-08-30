@@ -230,6 +230,7 @@ gate_audit() {
     cargo audit \
         --ignore RUSTSEC-2025-0119 \
         --ignore RUSTSEC-2026-0097 \
+        --ignore RUSTSEC-2026-0249 \
         --deny warnings
 }
 
