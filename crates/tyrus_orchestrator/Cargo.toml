@@ -17,12 +17,12 @@ tyrus_diagnostics = { path = "../tyrus_diagnostics" }
 # but for now we just use the result.
 tyrus_di = { path = "../tyrus_di" }
 
-swc_ecma_ast = "28.0.0"
+swc_ecma_ast = "29.0.0"
 miette = { version = "7.6.0", features = ["fancy"] } # Matched miette version too
 walkdir = "2.3"
 tokio = { version = "1.52", features = ["full"] }
-prettyplease = "0.2"
-syn = { version = "2.0", features = ["full", "parsing"] }
+prettyplease = "0.3"
+syn = { version = "3.0", features = ["full", "parsing"] }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
