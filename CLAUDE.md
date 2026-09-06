@@ -93,7 +93,7 @@ cargo bench --bench runtime_comparison # Node.js vs Rust runtime comparison
 | `tyrus_codegen` | ~6000 | **Core.** `RustGenerator` → TokenStream. Decomposed: `helpers/stmt/fn_decl/expr/*/class/*/decorators/*/stdlib/*`. |
 | `tyrus_decorator_kinds` | ~225 | **Single source of truth** for NestJS decorator name → `DecoratorKind` classification. Zero deps; shared by analyzer + codegen. See `docs/architecture/decisions/0007-decorator-registry.md`. |
 | `tyrus_di` | ~200 | DI graph (petgraph). Topological sort. |
-| `tyrus_orchestrator` | ~650 | Pipeline coordination. Split: `lib/pipeline/scaffold/format`. |
+| `tyrus_orchestrator` | ~700 | Pipeline coordination. Split: `lib/gate/pipeline/scaffold/format`; `gate.rs` runs the analyzer before every emission path (#188). |
 | `tyrus_diagnostics` | ~69 | `TyrusError` + miette |
 | `tyrus_common` | ~70 | `FilePath`, `to_snake_case()`, config |
 | `tyrus_test_utils` | ~195 | `assert_rust_compiles()`, `compile_and_run_rust()`, `run_node()` |

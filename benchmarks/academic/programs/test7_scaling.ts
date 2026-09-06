@@ -27,7 +27,7 @@ function compute(size: number): number {
     return Math.floor(total) + outliers;
 }
 
-function main(): void {
+function run(): void {
     console.log(compute(1000000));
 }
-main();
+run();

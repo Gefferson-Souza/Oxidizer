@@ -10,6 +10,7 @@
 )]
 
 mod cli;
+mod cli_gate;
 mod compilation;
 mod equivalence;
 mod helpers;

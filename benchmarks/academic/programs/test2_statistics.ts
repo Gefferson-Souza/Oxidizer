@@ -49,7 +49,7 @@ function statistics(size: number): string {
     return Math.floor(mean).toString() + "," + Math.floor(std_dev).toString() + "," + pct_within.toString();
 }
 
-function main(): void {
+function run(): void {
     console.log(statistics(2000000));
 }
-main();
+run();

@@ -59,7 +59,9 @@ fn parse_and_collect(input_dir: &Path) -> Result<ParsedProject, TyrusError> {
         generic_classes: HashSet::new(),
     };
 
-    for entry in WalkDir::new(input_dir) {
+    // Sorted walk: readdir order is filesystem-dependent, and the analyzer
+    // gate must see the same file sequence on every machine.
+    for entry in WalkDir::new(input_dir).sort_by_file_name() {
         let entry = entry.map_err(|e| TyrusError::IoError(e.into()))?;
         let path = entry.path();
         if !is_typescript_file(path) {

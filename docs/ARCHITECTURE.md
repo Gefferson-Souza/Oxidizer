@@ -28,6 +28,7 @@ This stage validates the AST against the **Oxidizable Standard**.
 The coordinator of the full pipeline, decomposed into focused modules:
 
 - **`lib.rs`** — Public API: `check()`, `build()`, `build_project()`, `build_simple_project()`
+- **`gate.rs`** — Analyzer gate shared by every emission path: renders findings on stderr and refuses on hard lint errors before any write (#188)
 - **`pipeline.rs`** — Core multi-file build orchestration (walk/parse, analyze, DI graph, transpile, mod.rs)
 - **`scaffold.rs`** — Project scaffolding: `generate_main_rs()`, `generate_cargo_toml()`, `generate_mod_rs()`
 - **`format.rs`** — Code formatting and `AppError` code generation
@@ -177,7 +178,7 @@ tests/
     └── tier4/         — framework integration (NestJS → Axum)
 ```
 
-230 tests across 7 categories: equivalence (95), unit (62 incl. registry/handler isolation), snapshot (20), IR (21), compilation (9), CLI (7), tier4 E2E (5), trybuild (1), plus 1 skipped. The HTTP-equivalence E2E test (`tier4_tests::test_http_equivalence_rust_server`) transpiles the reference NestJS project, compiles the generated Rust, starts both servers, and compares responses byte-for-byte.
+317 tests (measured 2026-09-06, `cargo nextest run --workspace`; 1 skipped) plus 4 doc-tests. Integration layers: equivalence (102), unit (66), snapshot (21), CLI (13, plus 8 analyzer-gate contract tests in `cli_gate.rs`), compilation (8), tier4 E2E (5), trybuild (1). Crate-level unit tests: codegen (30), analyzer (27), common (9), ast (8), decorator_kinds (6), cli (5), orchestrator (3, the formatter contract), diagnostics (3), test_utils (2). The HTTP-equivalence E2E test (`tier4_tests::test_http_equivalence_rust_server`) transpiles the reference NestJS project, compiles the generated Rust, starts both servers, and compares responses byte-for-byte.
 
 ---
 

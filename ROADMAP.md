@@ -7,21 +7,22 @@
 > Re-prioritizing this file is an owner decision. Status lines state measured facts with
 > their date — never aspirations (ADR 0013).
 
-## Current state (measured 2026-08-30)
+## Current state (measured 2026-09-06)
 
-- **313 tests green** (309 via `cargo nextest` + 4 doc-tests) · coverage 78.3% (target 80%, #163)
+- **321 tests green** (317 via `cargo nextest` + 4 doc-tests) · coverage 78.3% (measured 2026-08-30; target 80%, #163)
+- `tyrus build`/`compile`/`run` run the analyzer and refuse forbidden TS before writing anything (#188)
 - 11 crates + `tests` member · Power of Ten v2 (14 rules, ADR 0013) · 9 local gates = CI (R9)
 - Multi-module NestJS projects transpile, compile, and serve HTTP responses equivalent to Node
 - Versioned agent harness: `.claude/` (settings, hooks, rules, agents, skills, workflows)
 
 ## Now — UAT criticals (dogfooding the compiler as a user would)
 
-1. **[#188](https://github.com/Gefferson-Souza/Tyrus/issues/188)** CRITICAL — `tyrus build`/`compile` skip the analyzer: forbidden TS produces an empty `.rs` with `✓ Built` exit 0. The single worst trust-breaker; blocks honest UAT of everything below.
-2. **[#191](https://github.com/Gefferson-Souza/Tyrus/issues/191)** HIGH — `build` returns exit 0 on structurally incomplete output (no `fn main`, dropped statements).
-3. **[#189](https://github.com/Gefferson-Souza/Tyrus/issues/189)** HIGH — `tyrus run` looks for a `tyrus_app` binary but project scaffolds emit `server`.
-4. **[#190](https://github.com/Gefferson-Souza/Tyrus/issues/190)** HIGH — `@Injectable()` constructor body initializers silently dropped in `new_di()`.
-5. **[#192](https://github.com/Gefferson-Souza/Tyrus/issues/192)** HIGH — no file-extension validation (`.js`/`.txt` accepted, Oxidizable Standard bypassable).
-6. **[#194](https://github.com/Gefferson-Souza/Tyrus/issues/194)** HIGH — untyped parameters become `serde_json::Value` instead of an analyzer error.
+1. **[#191](https://github.com/Gefferson-Souza/Tyrus/issues/191)** HIGH — `build` returns exit 0 on structurally incomplete output (no `fn main`, dropped statements). Same defect class: [#256](https://github.com/Gefferson-Souza/Tyrus/issues/256) (top-level `const` + declared `main()` drops the const).
+2. **[#189](https://github.com/Gefferson-Souza/Tyrus/issues/189)** HIGH — `tyrus run` looks for a `tyrus_app` binary but project scaffolds emit `server`.
+3. **[#190](https://github.com/Gefferson-Souza/Tyrus/issues/190)** HIGH — `@Injectable()` constructor body initializers silently dropped in `new_di()`.
+4. **[#192](https://github.com/Gefferson-Souza/Tyrus/issues/192)** HIGH — no file-extension validation (`.js`/`.txt` accepted, Oxidizable Standard bypassable).
+5. **[#194](https://github.com/Gefferson-Souza/Tyrus/issues/194)** HIGH — untyped parameters become `serde_json::Value` instead of an analyzer error.
+6. **[#255](https://github.com/Gefferson-Souza/Tyrus/issues/255)** — `declare var` in `.d.ts` trips E1001, so `build <dir>` refuses projects with ambient declarations (surfaced by the #188 gate).
 
 ## Next — elite testing (standardization campaign, phase 4)
 

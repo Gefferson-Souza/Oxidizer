@@ -24,7 +24,7 @@ function dataPipeline(size: number): number {
     return Math.floor(result);
 }
 
-function main(): void {
+function run(): void {
     console.log(dataPipeline(500000));
 }
-main();
+run();
