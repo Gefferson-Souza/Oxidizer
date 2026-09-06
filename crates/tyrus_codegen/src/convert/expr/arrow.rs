@@ -4,7 +4,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use swc_ecma_ast::{ArrowExpr, BlockStmtOrExpr, Pat};
+use swc_ecma_ast::{ArrowExpr, ArrowFunctionBody, Pat};
 
 use crate::convert::helpers::to_snake_case;
 use crate::convert::interface::RustGenerator;
@@ -29,11 +29,11 @@ impl RustGenerator {
         self.use_state_for_this.set(false);
 
         let body = match &*arrow.body {
-            BlockStmtOrExpr::BlockStmt(block) => {
+            ArrowFunctionBody::FunctionBody(block) => {
                 let stmts: Vec<_> = block.stmts.iter().map(|s| self.convert_stmt(s)).collect();
                 quote! { { #(#stmts)* } }
             }
-            BlockStmtOrExpr::Expr(expr) => self.convert_expr(expr),
+            ArrowFunctionBody::Expr(expr) => self.convert_expr(expr),
         };
 
         self.use_state_for_this.set(saved_flag);

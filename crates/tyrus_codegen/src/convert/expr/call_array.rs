@@ -158,8 +158,8 @@ impl RustGenerator {
             if let Some(Pat::Ident(param_ident)) = arrow.params.first() {
                 let param_name = format_ident!("{}", to_snake_case(param_ident.sym.as_ref()));
                 let body = match &*arrow.body {
-                    swc_ecma_ast::BlockStmtOrExpr::Expr(expr) => self.convert_expr(expr),
-                    swc_ecma_ast::BlockStmtOrExpr::BlockStmt(block) => {
+                    swc_ecma_ast::ArrowFunctionBody::Expr(expr) => self.convert_expr(expr),
+                    swc_ecma_ast::ArrowFunctionBody::FunctionBody(block) => {
                         let stmts: Vec<_> =
                             block.stmts.iter().map(|s| self.convert_stmt(s)).collect();
                         quote! { #(#stmts)* }
