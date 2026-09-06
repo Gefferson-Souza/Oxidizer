@@ -46,7 +46,7 @@ function accumulate(readings: number): string {
     return Math.floor(temp_mean).toString() + "," + Math.floor(hum_mean).toString() + "," + anomalies.toString();
 }
 
-function main(): void {
+function run(): void {
     console.log(accumulate(1000000));
 }
-main();
+run();

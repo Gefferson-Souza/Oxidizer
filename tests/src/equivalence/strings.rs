@@ -4,11 +4,11 @@ use crate::helpers::assert_output_equivalent;
 fn test_equivalence_string_to_upper_case() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello";
     console.log(s.toUpperCase());
 }
-main();
+run();
 "#,
     );
 }
@@ -17,11 +17,11 @@ main();
 fn test_equivalence_string_to_lower_case() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "HELLO";
     console.log(s.toLowerCase());
 }
-main();
+run();
 "#,
     );
 }
@@ -30,12 +30,12 @@ main();
 fn test_equivalence_string_includes() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello world";
     console.log(s.includes("world"));
     console.log(s.includes("xyz"));
 }
-main();
+run();
 "#,
     );
 }
@@ -44,11 +44,11 @@ main();
 fn test_equivalence_string_replace() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello world";
     console.log(s.replace("world", "rust"));
 }
-main();
+run();
 "#,
     );
 }
@@ -57,11 +57,11 @@ main();
 fn test_equivalence_string_trim() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "  hello  ";
     console.log(s.trim());
 }
-main();
+run();
 "#,
     );
 }
@@ -70,12 +70,12 @@ main();
 fn test_equivalence_string_starts_with() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello world";
     console.log(s.startsWith("hello"));
     console.log(s.startsWith("world"));
 }
-main();
+run();
 "#,
     );
 }
@@ -84,12 +84,12 @@ main();
 fn test_equivalence_string_ends_with() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello world";
     console.log(s.endsWith("world"));
     console.log(s.endsWith("hello"));
 }
-main();
+run();
 "#,
     );
 }
@@ -100,12 +100,12 @@ main();
 fn test_equivalence_string_substring() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello world";
     console.log(s.substring(0, 5));
     console.log(s.substring(6));
 }
-main();
+run();
 "#,
     );
 }
@@ -114,12 +114,12 @@ main();
 fn test_equivalence_string_char_at() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello";
     console.log(s.charAt(0));
     console.log(s.charAt(4));
 }
-main();
+run();
 "#,
     );
 }
@@ -128,12 +128,12 @@ main();
 fn test_equivalence_string_index_of() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello world";
     console.log(s.indexOf("world"));
     console.log(s.indexOf("xyz"));
 }
-main();
+run();
 "#,
     );
 }
@@ -142,11 +142,11 @@ main();
 fn test_equivalence_string_repeat() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "ab";
     console.log(s.repeat(3));
 }
-main();
+run();
 "#,
     );
 }
@@ -155,12 +155,12 @@ main();
 fn test_equivalence_string_slice() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const s: string = "hello world";
     console.log(s.slice(0, 5));
     console.log(s.slice(6));
 }
-main();
+run();
 "#,
     );
 }
@@ -173,10 +173,10 @@ function padStartTest(): string {
     const s: string = "hello";
     return s.padStart(10, "*");
 }
-function main(): void {
+function run(): void {
     console.log(padStartTest());
 }
-main();
+run();
 "#,
     );
 }
@@ -189,10 +189,10 @@ function padEndTest(): string {
     const s: string = "hello";
     return s.padEnd(10, "-");
 }
-function main(): void {
+function run(): void {
     console.log(padEndTest());
 }
-main();
+run();
 "#,
     );
 }

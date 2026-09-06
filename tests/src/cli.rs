@@ -2,13 +2,13 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use std::path::Path;
 
-fn workspace_root() -> &'static Path {
+pub(crate) fn workspace_root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("workspace root")
 }
 
-fn tyrus_cmd() -> Command {
+pub(crate) fn tyrus_cmd() -> Command {
     // Why allowed: `assert_cmd` 2.x deprecates `Command::cargo_bin` but the
     // suggested replacement (`cargo_bin_str`) is not yet stable on our pinned
     // version. Test-only call; migration tracked alongside `assert_cmd` bump.

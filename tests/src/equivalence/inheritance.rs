@@ -25,12 +25,12 @@ class Dog extends Animal {
     }
 }
 
-function main(): void {
+function run(): void {
     const dog = new Dog("Rex", "Labrador");
     console.log(dog.speak());
     console.log(dog.breed);
 }
-main();
+run();
 "#,
     );
 }
@@ -56,11 +56,11 @@ class Circle extends Shape {
     }
 }
 
-function main(): void {
+function run(): void {
     const c = new Circle(5);
     console.log(c.area());
 }
-main();
+run();
 ",
     );
 }

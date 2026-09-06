@@ -13,11 +13,11 @@ class MathUtils {
     }
 }
 
-function main(): void {
+function run(): void {
     console.log(MathUtils.add(3, 4));
     console.log(MathUtils.multiply(5, 6));
 }
-main();
+run();
 ",
     );
 }
@@ -40,12 +40,12 @@ class Counter {
     }
 }
 
-function main(): void {
+function run(): void {
     let c = Counter.create();
     console.log(c.increment());
     console.log(c.increment());
 }
-main();
+run();
 ",
     );
 }

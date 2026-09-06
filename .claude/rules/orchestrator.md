@@ -19,6 +19,9 @@ paths:
 - Scaffold output must be DETERMINISTIC: never iterate a `HashMap` directly into
   emitted code — sort or use the DI topological order. (A nondeterministic fallback
   in `generate_main_rs` was a known defect class here.)
-- Analyzer errors during `build_project` currently print warnings instead of failing
-  the build — that is bug #188 (UAT CRITICAL), not a pattern to imitate. New pipeline
-  code fails fast on analyzer errors.
+- **Analyzer gate (#188):** every emission path — `build`, `build_simple_project`,
+  `build_project_impl` — runs the analyzer BEFORE any write and refuses on hard lint
+  errors through `gate::render_findings` + `gate::refuse_on_lint_errors` (aggregated
+  `TyrusError::Validation`, findings on stderr because stdout may carry generated
+  code). Soft diagnostics stay advisory (parity with `check` without `--strict`).
+  New pipeline code must keep the gate ahead of the first `fs::write`.

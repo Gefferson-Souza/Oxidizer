@@ -46,7 +46,7 @@ function textProcessing(entries: number): string {
     return error_count.toString() + "," + warn_count.toString() + "," + total_length.toString();
 }
 
-function main(): void {
+function run(): void {
     console.log(textProcessing(200000));
 }
-main();
+run();

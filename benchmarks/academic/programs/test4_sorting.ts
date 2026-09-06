@@ -27,7 +27,7 @@ function sortBenchmark(size: number): string {
     return below_100.toString() + "," + mid_range.toString() + "," + above_5000.toString();
 }
 
-function main(): void {
+function run(): void {
     console.log(sortBenchmark(500000));
 }
-main();
+run();

@@ -36,7 +36,7 @@ function matrixCompute(n: number): number {
     return Math.floor(total_distance / comparisons);
 }
 
-function main(): void {
+function run(): void {
     console.log(matrixCompute(4000));
 }
-main();
+run();

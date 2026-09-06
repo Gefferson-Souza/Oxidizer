@@ -4,10 +4,10 @@ use crate::helpers::assert_output_equivalent;
 fn test_equivalence_console_log_number() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     console.log(42);
 }
-main();
+run();
 ",
     );
 }
@@ -16,10 +16,10 @@ main();
 fn test_equivalence_console_log_string() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     console.log("hello world");
 }
-main();
+run();
 "#,
     );
 }
@@ -28,11 +28,11 @@ main();
 fn test_equivalence_console_log_boolean() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     console.log(true);
     console.log(false);
 }
-main();
+run();
 ",
     );
 }

@@ -342,7 +342,7 @@ fn bench_pipeline_stages(c: &mut Criterion) {
         });
     });
 
-    // Stage 4: Full pipeline (parse + codegen + format)
+    // Stage 4: Full pipeline (parse + analyze + codegen + format)
     group.bench_function("4_full_pipeline", |b| {
         b.iter(|| {
             let result = tyrus_orchestrator::build(black_box(&path));

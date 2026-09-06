@@ -7,10 +7,10 @@ fn test_equivalence_simple_addition() {
 function add(a: number, b: number): number {
     return a + b;
 }
-function main(): void {
+function run(): void {
     console.log(add(2, 3));
 }
-main();
+run();
 ",
     );
 }
@@ -19,13 +19,13 @@ main();
 fn test_equivalence_arithmetic_operations() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     console.log(2 + 3);
     console.log(10 - 4);
     console.log(3 * 7);
     console.log(15 / 4);
 }
-main();
+run();
 ",
     );
 }
@@ -34,13 +34,13 @@ main();
 fn test_equivalence_comparison_operators() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     console.log(5 > 3);
     console.log(2 < 1);
     console.log(3 >= 3);
     console.log(4 <= 5);
 }
-main();
+run();
 ",
     );
 }
@@ -49,11 +49,11 @@ main();
 fn test_equivalence_string_concatenation() {
     assert_output_equivalent(
         r#"
-function main(): void {
+function run(): void {
     const greeting: string = "Hello" + " " + "World";
     console.log(greeting);
 }
-main();
+run();
 "#,
     );
 }
@@ -71,12 +71,12 @@ function classify(x: number): string {
         return "zero";
     }
 }
-function main(): void {
+function run(): void {
     console.log(classify(5));
     console.log(classify(-3));
     console.log(classify(0));
 }
-main();
+run();
 "#,
     );
 }
@@ -94,11 +94,11 @@ function sum(n: number): number {
     }
     return total;
 }
-function main(): void {
+function run(): void {
     console.log(sum(5));
     console.log(sum(10));
 }
-main();
+run();
 ",
     );
 }
@@ -107,13 +107,13 @@ main();
 fn test_equivalence_const_vs_let() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     const x: number = 10;
     let y: number = 20;
     console.log(x);
     console.log(y);
 }
-main();
+run();
 ",
     );
 }
@@ -125,11 +125,11 @@ fn test_equivalence_unary_negation() {
 function negate(x: number): number {
     return -x;
 }
-function main(): void {
+function run(): void {
     console.log(negate(5));
     console.log(negate(-3));
 }
-main();
+run();
 ",
     );
 }
@@ -141,11 +141,11 @@ fn test_equivalence_logical_not() {
 function invert(x: boolean): boolean {
     return !x;
 }
-function main(): void {
+function run(): void {
     console.log(invert(true));
     console.log(invert(false));
 }
-main();
+run();
 ",
     );
 }
@@ -154,12 +154,12 @@ main();
 fn test_equivalence_parenthesized_precedence() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     console.log((2 + 3) * 4);
     console.log(2 + 3 * 4);
     console.log((10 - 2) / 4);
 }
-main();
+run();
 ",
     );
 }
@@ -168,12 +168,12 @@ main();
 fn test_equivalence_exponentiation() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     console.log(2 ** 3);
     console.log(3 ** 2);
     console.log(2 ** 10);
 }
-main();
+run();
 ",
     );
 }
@@ -182,7 +182,7 @@ main();
 fn test_equivalence_boolean_logic() {
     assert_output_equivalent(
         r"
-function main(): void {
+function run(): void {
     const a: boolean = true;
     const b: boolean = false;
     console.log(a && b);
@@ -191,7 +191,7 @@ function main(): void {
     console.log(!b);
     console.log(a && !b);
 }
-main();
+run();
 ",
     );
 }

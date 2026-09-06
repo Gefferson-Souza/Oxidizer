@@ -11,11 +11,11 @@ function getUser(): string {
     const data: string = "Alice";
     return data;
 }
-function main(): void {
+function run(): void {
     const user: string = getUser();
     console.log(user);
 }
-main();
+run();
 "#,
     );
 }
@@ -35,12 +35,12 @@ function dirName(d: number): string {
     if (d === 2) { return "Left"; }
     return "Right";
 }
-function main(): void {
+function run(): void {
     console.log(dirName(0));
     console.log(dirName(1));
     console.log(dirName(3));
 }
-main();
+run();
 "#,
     );
 }
